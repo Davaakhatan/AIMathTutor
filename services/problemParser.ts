@@ -1,4 +1,4 @@
-import { openai } from "@/lib/openai";
+import { openai, createOpenAIClient } from "@/lib/openai";
 import { ParsedProblem, ProblemType } from "@/types";
 import { logger } from "@/lib/logger";
 
@@ -6,7 +6,7 @@ export class ProblemParser {
   /**
    * Parse problem from text input
    */
-  async parseText(text: string): Promise<ParsedProblem> {
+  async parseText(text: string, clientApiKey?: string): Promise<ParsedProblem> {
     // Clean and validate text
     const cleanedText = text.trim();
     
@@ -33,7 +33,7 @@ export class ProblemParser {
   /**
    * Parse problem from image using OpenAI Vision API
    */
-  async parseImage(imageBase64: string): Promise<ParsedProblem> {
+  async parseImage(imageBase64: string, clientApiKey?: string): Promise<ParsedProblem> {
     // Validate base64 string
     if (!imageBase64 || imageBase64.length === 0) {
       throw new Error("Image data is empty");
@@ -53,7 +53,12 @@ export class ProblemParser {
     try {
       logger.debug("Parsing image", { size: imageBase64.length });
 
-      const response = await openai.chat.completions.create({
+      // Use client-provided API key if available, otherwise use default
+      const client = clientApiKey 
+        ? createOpenAIClient(clientApiKey)
+        : openai;
+
+      const response = await client.chat.completions.create({
         model: "gpt-4o",
         messages: [
           {

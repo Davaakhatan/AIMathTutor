@@ -43,6 +43,7 @@ export interface ConversationContext {
 export interface ParseProblemRequest {
   type: "text" | "image";
   data: string; // Base64 for images, text for text input
+  apiKey?: string; // Optional: Client-provided API key as fallback
 }
 
 export interface ParseProblemResponse {
@@ -56,6 +57,7 @@ export interface ChatRequest {
   message: string;
   problem?: ParsedProblem;
   difficultyMode?: "elementary" | "middle" | "high" | "advanced";
+  apiKey?: string; // Optional: Client-provided API key as fallback
 }
 
 export interface ChatResponse {

@@ -19,6 +19,7 @@ interface ChatUIProps {
   difficultyMode?: "elementary" | "middle" | "high" | "advanced";
   voiceEnabled?: boolean;
   onMessagesChange?: (messages: Message[]) => void;
+  apiKey?: string; // Optional: Client-provided API key as fallback
 }
 
 const ChatUI = memo(function ChatUI({ 
@@ -30,6 +31,7 @@ const ChatUI = memo(function ChatUI({
   difficultyMode = "middle",
   voiceEnabled: propVoiceEnabled = true,
   onMessagesChange,
+  apiKey,
 }: ChatUIProps) {
   const [messages, setMessages] = useState<Message[]>(initialMessages);
   const [isLoading, setIsLoading] = useState(false);
@@ -120,6 +122,7 @@ const ChatUI = memo(function ChatUI({
               sessionId,
               message: sanitizedMessage,
               difficultyMode: difficultyMode,
+              apiKey: apiKey, // Include client-provided API key if available
             }),
             signal: controller.signal,
           });

@@ -1,11 +1,11 @@
 import { NextRequest, NextResponse } from "next/server";
-import { openai } from "@/lib/openai";
+import { openai, createOpenAIClient } from "@/lib/openai";
 import { logger } from "@/lib/logger";
 
 export async function POST(request: NextRequest) {
   try {
     const body = await request.json();
-    const { problem, hintLevel, conversationHistory, problemType } = body;
+    const { problem, hintLevel, conversationHistory, problemType, apiKey: clientApiKey } = body;
 
     if (!problem || !hintLevel) {
       return NextResponse.json(
@@ -38,7 +38,12 @@ ${conversationHistory && conversationHistory.length > 0 ? `Recent conversation:\
 
 Provide a level ${hintLevel} hint: ${hintPrompts[Math.min(hintLevel - 1, hintPrompts.length - 1)]}`;
 
-    const response = await openai.chat.completions.create({
+    // Use client-provided API key if available, otherwise use default
+    const client = clientApiKey 
+      ? createOpenAIClient(clientApiKey)
+      : openai;
+
+    const response = await client.chat.completions.create({
       model: "gpt-4o",
       messages: [
         { role: "system", content: systemPrompt },

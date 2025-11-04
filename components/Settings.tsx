@@ -202,24 +202,23 @@ export default function Settings() {
           <label className="text-sm font-medium text-gray-900 mb-2 block">OpenAI API Key</label>
           <div className="bg-blue-50 border border-blue-200 rounded-lg p-3">
             <p className="text-xs text-blue-900 mb-2">
-              <strong>Note:</strong> API key must be set in AWS Amplify environment variables for production.
+              <strong>Note:</strong> For production, set <code className="bg-blue-100 px-1 rounded">OPENAI_API_KEY</code> in AWS Amplify environment variables. Or enter your key here as a fallback.
             </p>
             <p className="text-xs text-blue-700">
-              Go to: Amplify Console → App Settings → Environment Variables → Add <code className="bg-blue-100 px-1 rounded">OPENAI_API_KEY</code>
+              For Amplify: Go to App Settings → Environment Variables → Add <code className="bg-blue-100 px-1 rounded">OPENAI_API_KEY</code>
             </p>
           </div>
           <div className="mt-2">
             <input
               type="password"
-              placeholder="Enter API key (for local development only)"
+              placeholder="Enter API key (fallback if env var not working)"
               value={settings.apiKey || ""}
               onChange={(e) => setSettings({ ...settings, apiKey: e.target.value })}
               className="w-full px-3 py-2 text-xs border border-gray-300 rounded-lg focus:outline-none focus:ring-1 focus:ring-gray-400"
-              disabled
-              title="API key must be set in AWS Amplify environment variables for deployed apps"
+              title="Enter your OpenAI API key as a fallback if environment variable isn't working"
             />
             <p className="text-xs text-gray-500 mt-1">
-              For deployed apps, set this in AWS Amplify Console
+              This will be used as a fallback if the environment variable isn&apos;t available. Your key is stored locally in your browser.
             </p>
           </div>
         </div>

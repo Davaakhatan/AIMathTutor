@@ -26,6 +26,9 @@ export async function POST(request: NextRequest) {
 
     const body: ParseProblemRequest = await request.json();
 
+    // Extract API key from request if provided (fallback when env var not available)
+    const clientApiKey = body.apiKey;
+
     if (!body.type || !body.data) {
       return NextResponse.json(
         {
@@ -90,11 +93,11 @@ export async function POST(request: NextRequest) {
     let parsedProblem;
 
     if (body.type === "text") {
-      parsedProblem = await problemParser.parseText(body.data);
+      parsedProblem = await problemParser.parseText(body.data, clientApiKey);
     } else if (body.type === "image") {
       // Remove data URL prefix if present
       const base64Data = body.data.replace(/^data:image\/\w+;base64,/, "");
-      parsedProblem = await problemParser.parseImage(base64Data);
+      parsedProblem = await problemParser.parseImage(base64Data, clientApiKey);
     } else {
       return NextResponse.json(
         {

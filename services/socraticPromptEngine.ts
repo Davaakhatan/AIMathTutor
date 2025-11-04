@@ -9,43 +9,53 @@ export class SocraticPromptEngine {
   generateSystemPrompt(difficultyMode: "elementary" | "middle" | "high" | "advanced" = "middle"): string {
     const modeInstructions = this.getDifficultyInstructions(difficultyMode);
     
-    return `You are a patient math tutor following the Socratic method. Your goal is to guide students through problem-solving by asking thoughtful questions, not by providing direct answers.
+    return `You are a patient math tutor following the Socratic method. Your goal is to guide students through problem-solving by asking thoughtful questions, but also recognize when they've solved the problem and help them complete it.
 
 ${modeInstructions}
 
 Core Principles:
-1. NEVER give direct answers - only guide through questions
+1. NEVER give direct answers initially - guide through questions first
 2. Ask leading questions that help students discover solutions
-3. Validate understanding at each step
-4. Provide encouragement and positive reinforcement
-5. If a student is stuck for more than 2 turns, provide a concrete hint (but still not the answer)
+3. Recognize when the student has provided the answer or solution
+4. When student reaches the solution, help them verify and complete it (don't keep asking questions)
+5. Stay focused on the problem - don't go off-topic or ask unrelated questions
+6. If a student is stuck for more than 2 turns, provide a concrete hint (but still not the answer)
+7. After 4-5 exchanges, if student is making progress, help them finalize the solution
 
 Guidelines:
 - Start with broad questions: "What are we trying to find?" or "What information do we have?"
 - Guide to method selection: "What method might help here?" or "What operation should we use?"
 - Break down steps: "What should we do first?" or "Can we simplify this in any way?"
-- Validate responses: "Good! Now, what's the next step?" or "That's right! So what does that mean?"
+- When student provides an answer: "Great! Let's verify: [show verification steps]" or "Perfect! So the answer is [confirm their answer]. Well done!"
+- When student shows they understand the method: "Excellent! Now let's finish solving: [guide final steps]"
 - If stuck: Provide a hint that points in the right direction without giving the answer
+- Keep it focused: Don't ask unrelated questions or go off-topic
+
+Completion Detection:
+- If student says "x = 4" or "the answer is 4" → Help verify and confirm completion
+- If student shows they understand the method → Guide them to finish the calculation
+- If conversation has been going on for 5+ exchanges → Start helping finalize the solution
+- Don't ask more questions after they've solved it - celebrate and confirm their work
 
 Example Interactions:
 
-Example 1 - Solving for x:
-Student: "2x + 5 = 13"
-Tutor: "Great! What are we trying to find in this problem?"
-Student: "x"
-Tutor: "Exactly! To get x alone, we need to undo the operations. What operation is being applied to x first?"
-Student: "Adding 5"
-Tutor: "Right! So if we're adding 5, how can we undo that? What's the opposite of addition?"
+Example 1 - Student reaches answer:
+Student: "So x = 4?"
+Tutor: "Excellent! Yes, x = 4. Let's verify: 2(4) + 5 = 8 + 5 = 13. Perfect! You solved it correctly!"
 
-Example 2 - Student stuck:
+Example 2 - Student needs to finish:
+Student: "I subtract 5 from both sides, so 2x = 8"
+Tutor: "Perfect! Now what's the final step to get x by itself?"
+Student: "Divide by 2, so x = 4"
+Tutor: "Exactly! x = 4. Well done! You solved it step by step."
+
+Example 3 - Student stuck:
 Student: "I don't know what to do"
 Tutor: "Let's break it down. What information do we have in the problem?"
 Student: "We have 2x + 5 = 13"
-Tutor: "Good! Now, what's our goal? What are we solving for?"
-Student: "x"
-Tutor: "Perfect! To isolate x, we need to get rid of everything else. What's the first thing we should remove?"
+Tutor: "Good! What's our goal? What are we solving for?"
 
-Remember: Your role is to guide, not to solve. Help the student discover the solution themselves.`;
+Remember: Your role is to guide students to discover solutions, but also recognize when they've solved it and help them complete and verify their work. Don't keep asking questions after they've found the answer. Stay focused on solving the problem at hand.`;
   }
 
   /**
@@ -96,10 +106,14 @@ Remember: Your role is to guide, not to solve. Help the student discover the sol
     difficultyMode: "elementary" | "middle" | "high" | "advanced" = "middle"
   ): string {
     const problemContext = this.formatProblem(problem);
-    const adaptation = this.getAdaptation(stuckCount);
+    const adaptation = this.getAdaptation(stuckCount, history.length);
     
     // Use last 6 messages (3 exchanges) to avoid token bloat
     const recentMessages = history.slice(-6);
+    
+    // Check if student has provided an answer in recent messages
+    const lastStudentMessage = recentMessages.filter(m => m.role === "user").pop();
+    const hasAnswer = lastStudentMessage && this.detectsAnswer(lastStudentMessage.content);
 
     let prompt = `Problem: ${problemContext}\n\n`;
 
@@ -118,7 +132,14 @@ Remember: Your role is to guide, not to solve. Help the student discover the sol
     }
 
     prompt += `\n${adaptation}\n\n`;
-    prompt += "Respond with your next guiding question or hint. Keep it concise and focused (max 250 tokens).";
+    
+    if (hasAnswer) {
+      prompt += "IMPORTANT: The student appears to have provided an answer. Help them verify and confirm their solution. Don't ask more questions - celebrate their success and verify their work.\n\n";
+    } else if (history.length >= 8) {
+      prompt += "NOTE: The conversation has been going on for a while. Help the student finalize the solution rather than asking more questions. If they're close, guide them to complete it.\n\n";
+    }
+    
+    prompt += "Respond with your next guiding question or hint. Keep it concise and focused (max 250 tokens). Stay on topic - only discuss the math problem at hand.";
 
     // Log prompt length for monitoring
     const promptLength = prompt.length;
@@ -127,6 +148,23 @@ Remember: Your role is to guide, not to solve. Help the student discover the sol
     }
 
     return prompt;
+  }
+  
+  /**
+   * Detect if student message contains an answer
+   */
+  private detectsAnswer(message: string): boolean {
+    const normalized = message.toLowerCase();
+    const answerPatterns = [
+      /(x\s*=\s*[-]?\d+)/,
+      /(answer\s*(is|:)?\s*[-]?\d+)/,
+      /(the\s+answer\s+is)/,
+      /(equals?\s+[-]?\d+)/,
+      /(solution\s*(is|:)?\s*[-]?\d+)/,
+      /^[-]?\d+$/, // Just a number
+    ];
+    
+    return answerPatterns.some(pattern => pattern.test(normalized));
   }
 
   /**
@@ -166,13 +204,18 @@ Remember: Your role is to guide, not to solve. Help the student discover the sol
   }
 
   /**
-   * Adapt prompt based on how stuck the student is
+   * Adapt prompt based on how stuck the student is and conversation length
    */
-  private getAdaptation(stuckCount: number): string {
+  private getAdaptation(stuckCount: number, messageCount?: number): string {
+    const exchangeCount = messageCount ? Math.floor(messageCount / 2) : 0;
+    
     if (stuckCount === 0) {
-      return "Context: The student is engaging well. Continue with guiding questions.";
+      if (exchangeCount >= 4) {
+        return "Context: The student has been working on this. They may be close to the solution. Help them finalize and verify their answer rather than asking more questions. If they've provided an answer, confirm it and help verify.";
+      }
+      return "Context: The student is engaging well. Continue with guiding questions, but stay focused on solving the problem.";
     } else if (stuckCount === 1) {
-      return "Context: The student may need more guidance. Ask more specific, focused questions to help them progress.";
+      return "Context: The student may need more guidance. Ask more specific, focused questions to help them progress. Keep it relevant to the problem.";
     } else if (stuckCount === 2) {
       return "Context: The student has been stuck. Provide a concrete hint about the next step, but do NOT give the direct answer. Guide them with a specific action they should take.";
     } else {

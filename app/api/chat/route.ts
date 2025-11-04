@@ -27,26 +27,55 @@ export async function POST(request: NextRequest) {
 
     const body: ChatRequest = await request.json();
 
+    // Extract API key from request if provided (fallback when env var not available)
+    const clientApiKey = body.apiKey;
+
     // If this is the first message and includes a problem, initialize conversation
     if (body.problem) {
-      // When initializing, we don't need sessionId or message
-      const session = dialogueManager.initializeConversation(body.problem);
-      const history = dialogueManager.getHistory(session.id);
+      // Validate problem object
+      if (!body.problem.text || typeof body.problem.text !== "string") {
+        logger.warn("Invalid problem object in initialization", { problem: body.problem });
+        return NextResponse.json(
+          {
+            success: false,
+            error: "Invalid problem object. Problem text is required.",
+          } as ChatResponse,
+          { status: 400 }
+        );
+      }
 
-      // Return the initial tutor message
-      const initialMessage = history.find((msg) => msg.role === "tutor");
-      
-      // Note: Difficulty mode is applied in subsequent messages, not initialization
-      // The initial message uses default mode
-      
-      return NextResponse.json({
-        success: true,
-        response: {
-          text: initialMessage?.content || "Let's start working on this problem!",
-          timestamp: initialMessage?.timestamp || Date.now(),
-        },
-        sessionId: session.id,
-      } as ChatResponse & { sessionId: string });
+      try {
+        // When initializing, we don't need sessionId or message
+        const session = dialogueManager.initializeConversation(body.problem);
+        const history = dialogueManager.getHistory(session.id);
+
+        // Return the initial tutor message
+        const initialMessage = history.find((msg) => msg.role === "tutor");
+        
+        // Note: Difficulty mode is applied in subsequent messages, not initialization
+        // The initial message uses default mode
+        
+        return NextResponse.json({
+          success: true,
+          response: {
+            text: initialMessage?.content || "Let's start working on this problem!",
+            timestamp: initialMessage?.timestamp || Date.now(),
+          },
+          sessionId: session.id,
+        } as ChatResponse & { sessionId: string });
+      } catch (initError) {
+        logger.error("Error initializing conversation", {
+          error: initError instanceof Error ? initError.message : "Unknown error",
+          problem: body.problem,
+        });
+        return NextResponse.json(
+          {
+            success: false,
+            error: initError instanceof Error ? initError.message : "Failed to initialize conversation",
+          } as ChatResponse,
+          { status: 500 }
+        );
+      }
     }
 
     // For regular messages, we need both sessionId and message
@@ -89,7 +118,8 @@ export async function POST(request: NextRequest) {
     const tutorResponse = await dialogueManager.processMessage(
       body.sessionId,
       body.message,
-      difficultyMode as "elementary" | "middle" | "high" | "advanced"
+      difficultyMode as "elementary" | "middle" | "high" | "advanced",
+      clientApiKey // Pass client-provided API key if available
     );
 
     const response = NextResponse.json({

@@ -7,9 +7,10 @@ import { validateProblemText, formatErrorMessage } from "@/lib/utils";
 
 interface ProblemInputProps {
   onProblemParsed: (problem: ParsedProblem) => void;
+  apiKey?: string; // Optional: Client-provided API key as fallback
 }
 
-export default function ProblemInput({ onProblemParsed }: ProblemInputProps) {
+export default function ProblemInput({ onProblemParsed, apiKey }: ProblemInputProps) {
   const [textInput, setTextInput] = useState("");
   const [isProcessing, setIsProcessing] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -41,6 +42,7 @@ export default function ProblemInput({ onProblemParsed }: ProblemInputProps) {
             body: JSON.stringify({
               type: "image",
               data: base64,
+              apiKey: apiKey, // Include client-provided API key if available
             }),
             signal: controller.signal,
           });
@@ -110,6 +112,7 @@ export default function ProblemInput({ onProblemParsed }: ProblemInputProps) {
         body: JSON.stringify({
           type: "text",
           data: trimmedInput,
+          apiKey: apiKey, // Include client-provided API key if available
         }),
         signal: controller.signal,
       });

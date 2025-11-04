@@ -140,6 +140,7 @@ export default function Home() {
         body: JSON.stringify({
           problem: problem,
           difficultyMode: difficultyMode,
+          ...(settings.apiKey && { apiKey: settings.apiKey }), // Only include if defined
         }),
         signal: controller.signal,
       });
@@ -217,7 +218,10 @@ export default function Home() {
 
         {!currentProblem ? (
           <div className="space-y-4">
-            <ProblemInput onProblemParsed={handleProblemParsed} />
+              <ProblemInput 
+                onProblemParsed={handleProblemParsed} 
+                apiKey={settings.apiKey} 
+              />
             <ProblemGenerator onProblemGenerated={handleProblemParsed} />
           </div>
         ) : (
@@ -291,14 +295,15 @@ export default function Home() {
                 )}
 
                 {/* Chat Interface */}
-                    <ChatUI 
-                      sessionId={sessionId} 
-                      initialMessages={initialMessages}
-                      problem={currentProblem}
-                      enableStretchFeatures={true}
-                      difficultyMode={difficultyMode}
-                      voiceEnabled={settings.voiceEnabled}
-                      onMessagesChange={setAllMessages}
+                      <ChatUI
+                        sessionId={sessionId}
+                        initialMessages={initialMessages}
+                        problem={currentProblem}
+                        enableStretchFeatures={true}
+                        difficultyMode={difficultyMode}
+                        voiceEnabled={settings.voiceEnabled}
+                        onMessagesChange={setAllMessages}
+                        apiKey={settings.apiKey} // Pass client-provided API key if available
                       onRestart={() => {
                     setSessionId(null);
                     setInitialMessages([]);

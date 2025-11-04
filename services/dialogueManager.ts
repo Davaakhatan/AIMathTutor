@@ -1,4 +1,4 @@
-import { openai } from "@/lib/openai";
+import { openai, createOpenAIClient } from "@/lib/openai";
 import { contextManager } from "./contextManager";
 import { socraticPromptEngine } from "./socraticPromptEngine";
 import { responseValidator } from "./responseValidator";
@@ -32,7 +32,8 @@ export class DialogueManager {
   async processMessage(
     sessionId: string,
     userMessage: string,
-    difficultyMode: "elementary" | "middle" | "high" | "advanced" = "middle"
+    difficultyMode: "elementary" | "middle" | "high" | "advanced" = "middle",
+    clientApiKey?: string // Optional: Client-provided API key as fallback
   ): Promise<Message> {
     // Add user message to context
     const userMsg: Message = {
@@ -69,8 +70,20 @@ export class DialogueManager {
       // Adjust temperature based on stuck count (more creative when stuck)
       const temperature = context.stuckCount >= 2 ? 0.8 : 0.7;
 
+      // Use client-provided API key if available, otherwise use default
+      const client = clientApiKey 
+        ? createOpenAIClient(clientApiKey)
+        : openai;
+
+      // Log which API key source we're using (for debugging, don't log the actual key)
+      logger.debug("Using OpenAI client", {
+        hasClientApiKey: !!clientApiKey,
+        hasEnvApiKey: !!process.env.OPENAI_API_KEY,
+        envApiKeyLength: process.env.OPENAI_API_KEY?.length || 0,
+      });
+
       // Call OpenAI API
-      const response = await openai.chat.completions.create({
+      const response = await client.chat.completions.create({
         model: "gpt-4o",
         messages: [
           {
@@ -120,10 +133,31 @@ export class DialogueManager {
 
       return tutorMsg;
     } catch (error) {
-      logger.error("Error processing message", { 
+      // Enhanced error logging for debugging
+      const errorDetails = {
         error: error instanceof Error ? error.message : "Unknown error",
-        sessionId 
-      });
+        errorType: error instanceof Error ? error.constructor.name : typeof error,
+        sessionId,
+        hasClientApiKey: !!clientApiKey,
+        hasEnvApiKey: !!process.env.OPENAI_API_KEY,
+      };
+
+      // Log full error details for debugging
+      if (error instanceof Error) {
+        errorDetails.stack = error.stack;
+        // Check if it's an OpenAI API error
+        if (error.message.includes("401") || error.message.includes("unauthorized")) {
+          errorDetails.apiError = "Authentication failed - API key may be invalid";
+        }
+        if (error.message.includes("429")) {
+          errorDetails.apiError = "Rate limit exceeded";
+        }
+        if (error.message.includes("insufficient_quota")) {
+          errorDetails.apiError = "Insufficient quota - account may be out of credits";
+        }
+      }
+
+      logger.error("Error processing message", errorDetails);
       
       // Re-throw with more context
       if (error instanceof Error) {
@@ -138,9 +172,13 @@ export class DialogueManager {
         if (error.message.includes("rate limit") || error.message.includes("429")) {
           throw new Error("Rate limit exceeded. Please wait a moment and try again.");
         }
+        if (error.message.includes("insufficient_quota") || error.message.includes("quota")) {
+          throw new Error("OpenAI account quota exceeded. Please check your OpenAI account credits.");
+        }
         if (error.message.includes("timeout")) {
           throw new Error("Request timed out. Please try again.");
         }
+        // Re-throw with original message for better debugging
         throw error;
       }
       
