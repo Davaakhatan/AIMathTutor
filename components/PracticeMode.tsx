@@ -61,6 +61,11 @@ export default function PracticeMode({ onStartPractice }: PracticeModeProps) {
       "Solve: 2x + 3 = x + 10",
       "If 2x + 5 = 13, then what is 3x - 2?",
     ],
+    [ProblemType.UNKNOWN]: [
+      "Solve: 2x + 5 = 13",
+      "What is 15 + 23?",
+      "Find the area of a rectangle with length 8 and width 5",
+    ],
   };
 
   const generateRandomProblem = async () => {
