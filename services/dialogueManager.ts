@@ -128,7 +128,11 @@ export class DialogueManager {
       // Re-throw with more context
       if (error instanceof Error) {
         // Check for specific OpenAI errors
-        if (error.message.includes("API key") || error.message.includes("401")) {
+        if (error.message.includes("API key is not configured") ||
+            error.message.includes("OPENAI_API_KEY is not set") ||
+            error.message.includes("invalid api key") ||
+            error.message.includes("401") ||
+            error.message.includes("unauthorized")) {
           throw new Error("OpenAI API configuration error. Please check your API key.");
         }
         if (error.message.includes("rate limit") || error.message.includes("429")) {

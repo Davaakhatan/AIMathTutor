@@ -44,7 +44,10 @@ export function formatErrorMessage(error: unknown): string {
       return "Too many requests. Please wait a moment and try again.";
     }
     
-    if (message.includes("401") || message.includes("api key") || message.includes("openai")) {
+    // Only show API key error for specific cases, not for generic "openai" mentions
+    if (message.includes("401") || message.includes("unauthorized") || 
+        message.includes("invalid api key") || message.includes("api key is not configured") ||
+        message.includes("OPENAI_API_KEY is not set")) {
       return "API configuration error. Please check your OpenAI API key.";
     }
     
