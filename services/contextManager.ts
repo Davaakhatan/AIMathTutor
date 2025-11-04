@@ -37,8 +37,10 @@ export class ContextManager {
     const now = Date.now();
     const toDelete: string[] = [];
 
-    for (const [id, session] of this.sessions.entries()) {
-      if (now - session.createdAt > this.SESSION_TIMEOUT) {
+    // Collect keys first to avoid iterator issues
+    for (const id of this.sessions.keys()) {
+      const session = this.sessions.get(id);
+      if (session && now - session.createdAt > this.SESSION_TIMEOUT) {
         toDelete.push(id);
       }
     }
