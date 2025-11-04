@@ -5,7 +5,7 @@ import { useState, useEffect } from "react";
 /**
  * Hook for managing localStorage with React state
  */
-export function useLocalStorage<T>(key: string, initialValue: T): [T, (value: T) => void] {
+export function useLocalStorage<T>(key: string, initialValue: T): [T, (value: T | ((val: T) => T)) => void] {
   // State to store our value
   const [storedValue, setStoredValue] = useState<T>(() => {
     if (typeof window === "undefined") {

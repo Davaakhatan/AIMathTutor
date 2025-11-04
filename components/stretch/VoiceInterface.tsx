@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect, useRef, useCallback } from "react";
 import { speakNaturally } from "@/lib/voiceUtils";
 
 interface VoiceInterfaceProps {
@@ -87,7 +87,7 @@ export default function VoiceInterface({
     }
   };
 
-  const speak = (text: string) => {
+  const speak = useCallback((text: string) => {
     if (isEnabled && text) {
       speakNaturally(text, {
         onStart: () => setIsSpeaking(true),
@@ -95,7 +95,7 @@ export default function VoiceInterface({
         onError: () => setIsSpeaking(false),
       });
     }
-  };
+  }, [isEnabled]);
 
   // Expose speak function to parent
   useEffect(() => {
