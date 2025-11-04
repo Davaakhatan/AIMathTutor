@@ -1,0 +1,68 @@
+// Problem-related types
+export interface ParsedProblem {
+  text: string;
+  type?: ProblemType;
+  confidence: number;
+}
+
+export enum ProblemType {
+  ARITHMETIC = "arithmetic",
+  ALGEBRA = "algebra",
+  GEOMETRY = "geometry",
+  WORD_PROBLEM = "word_problem",
+  MULTI_STEP = "multi_step",
+  UNKNOWN = "unknown",
+}
+
+// Message-related types
+export interface Message {
+  id: string;
+  role: "user" | "tutor";
+  content: string;
+  timestamp: number;
+  mathContent?: string; // LaTeX equations
+}
+
+// Session-related types
+export interface Session {
+  id: string;
+  problem?: ParsedProblem;
+  messages: Message[];
+  createdAt: number;
+}
+
+export interface ConversationContext {
+  sessionId: string;
+  problem: ParsedProblem;
+  messages: Message[];
+  stuckCount: number;
+  lastHintLevel: number;
+}
+
+// API request/response types
+export interface ParseProblemRequest {
+  type: "text" | "image";
+  data: string; // Base64 for images, text for text input
+}
+
+export interface ParseProblemResponse {
+  success: boolean;
+  problem?: ParsedProblem;
+  error?: string;
+}
+
+export interface ChatRequest {
+  sessionId: string;
+  message: string;
+  problem?: ParsedProblem;
+}
+
+export interface ChatResponse {
+  success: boolean;
+  response?: {
+    text: string;
+    timestamp: number;
+  };
+  error?: string;
+}
+
