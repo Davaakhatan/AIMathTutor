@@ -1,15 +1,31 @@
 name: Deploy to AWS Amplify
 
+# NOTE: This workflow is OPTIONAL
+# AWS Amplify automatically deploys when you connect GitHub repository
+# You only need this if you want to trigger deployments via GitHub Actions
+# 
+# To use this workflow, you need to set up GitHub Secrets:
+# - AWS_ACCESS_KEY_ID
+# - AWS_SECRET_ACCESS_KEY  
+# - AWS_REGION
+# - AMPLIFY_APP_ID
+#
+# If you haven't set these up, AWS Amplify will still auto-deploy from GitHub
+# You can disable this workflow or set up the secrets
+
 on:
-  push:
-    branches:
-      - main
-  workflow_dispatch: # Allows manual triggering
+  workflow_dispatch: # Only manual triggering (optional)
+  # Comment out push trigger if you want Amplify to handle auto-deployment
+  # push:
+  #   branches:
+  #     - main
 
 jobs:
   deploy:
     name: Deploy to AWS Amplify
     runs-on: ubuntu-latest
+    # Only run if secrets are configured
+    if: ${{ secrets.AWS_ACCESS_KEY_ID != '' && secrets.AMPLIFY_APP_ID != '' }}
     
     steps:
       - name: Checkout code
@@ -20,13 +36,18 @@ jobs:
         with:
           aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
           aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
-          aws-region: ${{ secrets.AWS_REGION || 'us-east-1' }}
+          aws-region: ${{ secrets.AWS_REGION || 'us-east-2' }}
 
       - name: Deploy to Amplify
         run: |
-          # Get the latest job ID
           APP_ID=${{ secrets.AMPLIFY_APP_ID }}
           BRANCH_NAME="main"
+          
+          if [ -z "$APP_ID" ]; then
+            echo "⚠️ AMPLIFY_APP_ID secret not set. Skipping deployment."
+            echo "AWS Amplify will auto-deploy from GitHub connection."
+            exit 0
+          fi
           
           # Start a new deployment
           JOB_ID=$(aws amplify start-job \
