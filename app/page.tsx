@@ -25,6 +25,12 @@ import Settings from "@/components/Settings";
 import StudyStreak from "@/components/StudyStreak";
 import PrintView from "@/components/PrintView";
 import SearchProblems from "@/components/SearchProblems";
+import ProblemDifficultyIndicator from "@/components/ProblemDifficultyIndicator";
+import StudyReminder from "@/components/StudyReminder";
+import AchievementBadge from "@/components/AchievementBadge";
+import ProblemSuggestions from "@/components/ProblemSuggestions";
+import SessionResume from "@/components/SessionResume";
+import ProblemProgress from "@/components/ProblemProgress";
 import { ParsedProblem, Message } from "@/types";
 import { normalizeProblemText } from "@/lib/textUtils";
 
@@ -85,30 +91,14 @@ export default function Home() {
     };
   }, []);
 
-  // Load saved session on mount
-  useEffect(() => {
-    try {
-      const savedSession = localStorage.getItem("aitutor-session");
-      const savedProblem = localStorage.getItem("aitutor-problem");
-      const savedMessages = localStorage.getItem("aitutor-messages");
-
-      if (savedSession && savedProblem && savedMessages) {
-        const sessionData = JSON.parse(savedSession);
-        const problemData = JSON.parse(savedProblem);
-        const messagesData = JSON.parse(savedMessages);
-
-        // Check if session is recent (within 1 hour)
-        const sessionAge = Date.now() - sessionData.timestamp;
-        if (sessionAge < 60 * 60 * 1000) {
-          // Optionally restore session - for now, just show a toast
-          showToast("Previous session found. Start a new problem to begin.", "info", 5000);
-        }
-      }
-    } catch (error) {
-      // Ignore localStorage errors
-      console.warn("Failed to load saved session:", error);
-    }
-  }, [showToast]);
+  // Handle session resume
+  const handleResumeSession = (problem: ParsedProblem, messages: Message[], sessionId: string) => {
+    setCurrentProblem(problem);
+    setSessionId(sessionId);
+    setInitialMessages(messages);
+    setAllMessages(messages);
+    showToast("Session resumed!", "success");
+  };
 
   const handleProblemParsed = async (problem: ParsedProblem) => {
     // Auto-save to history
@@ -121,6 +111,12 @@ export default function Home() {
       };
       const updatedHistory = [newProblem, ...history.filter((p: any) => p.text !== problem.text)].slice(0, 20);
       localStorage.setItem("aitutor-problem-history", JSON.stringify(updatedHistory));
+      
+      // Dispatch event for StudyStreak tracking
+      window.dispatchEvent(new CustomEvent("problemStarted"));
+      
+      // Update last study date for StudyReminder
+      localStorage.setItem("aitutor-last-study", new Date().toDateString());
     } catch (error) {
       // Ignore errors
     }
@@ -204,8 +200,9 @@ export default function Home() {
     <>
       <SkipLink />
       <OfflineIndicator />
+      <SessionResume onResume={handleResumeSession} />
       <main id="main-content" className="flex min-h-screen flex-col items-center p-4 sm:p-6 md:p-12 bg-[#fafafa]">
-        <div className="w-full max-w-4xl">
+        <div className="w-full max-w-5xl overflow-visible">
         <div className="text-center mb-8 sm:mb-12">
           <h1 className="text-2xl sm:text-3xl md:text-4xl font-light mb-2 sm:mb-3 text-gray-900 tracking-tight">
             AI Math Tutor
@@ -227,28 +224,34 @@ export default function Home() {
           <div className="space-y-6">
             {/* Problem Display */}
             <div className="bg-white border border-gray-200 rounded-lg p-6">
-              <div className="flex justify-between items-start">
-                <div className="flex-1">
-                  <h2 className="text-sm font-medium text-gray-500 uppercase tracking-wide mb-3">
+              <div className="flex flex-col gap-4">
+                <div className="flex justify-between items-start gap-4">
+                  <h2 className="text-sm font-medium text-gray-500 uppercase tracking-wide">
                     Problem
                   </h2>
-                  <p className="text-gray-900 text-lg leading-relaxed mb-2">
-                    {normalizeProblemText(currentProblem.text)}
-                  </p>
+                  <div className="flex items-center gap-2 flex-shrink-0">
+                    <BookmarkButton problem={currentProblem} />
+                    <button
+                      onClick={handleChangeProblem}
+                      className="text-sm text-gray-500 hover:text-gray-700 transition-colors whitespace-nowrap"
+                    >
+                      Change
+                    </button>
+                  </div>
+                </div>
+                <div className="text-gray-900 text-base sm:text-lg leading-relaxed break-words whitespace-pre-wrap">
+                  {normalizeProblemText(currentProblem.text)}
+                </div>
+                <div className="flex items-center gap-3 flex-wrap pt-2 border-t border-gray-100">
                   {currentProblem.type && (
                     <span className="inline-block text-xs text-gray-400 font-medium uppercase tracking-wide">
                       {currentProblem.type.replace("_", " ")}
                     </span>
                   )}
-                </div>
-                <div className="flex items-center gap-2 ml-4">
-                  <BookmarkButton problem={currentProblem} />
-                  <button
-                    onClick={handleChangeProblem}
-                    className="text-sm text-gray-500 hover:text-gray-700 transition-colors whitespace-nowrap"
-                  >
-                    Change
-                  </button>
+                  <ProblemDifficultyIndicator
+                    problemText={currentProblem.text}
+                    problemType={currentProblem.type}
+                  />
                 </div>
               </div>
             </div>
@@ -324,6 +327,14 @@ export default function Home() {
                   />
                 )}
 
+                {/* Problem Progress */}
+                {sessionId && allMessages.length > 0 && currentProblem && (
+                  <ProblemProgress
+                    messages={allMessages}
+                    problem={currentProblem}
+                  />
+                )}
+
                 {/* Problem Stats */}
                 {sessionId && allMessages.length > 0 && settings.showStats && (
                   <ProblemStats
@@ -396,6 +407,15 @@ export default function Home() {
 
           {/* Search Problems */}
           <SearchProblems onSelectProblem={handleProblemParsed} />
+
+          {/* Study Reminders */}
+          <StudyReminder />
+
+          {/* Achievements */}
+          <AchievementBadge />
+
+          {/* Problem Suggestions */}
+          <ProblemSuggestions onSelectProblem={handleProblemParsed} />
         </main>
       </>
     );

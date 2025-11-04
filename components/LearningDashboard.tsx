@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { useLocalStorage } from "@/hooks/useLocalStorage";
 import { ProblemType } from "@/types";
 
@@ -23,6 +23,21 @@ export default function LearningDashboard() {
   const [isOpen, setIsOpen] = useState(false);
   const [savedProblems] = useLocalStorage<SavedProblem[]>("aitutor-problem-history", []);
   const [stats, setStats] = useState<ProblemStats | null>(null);
+  const panelRef = useRef<HTMLDivElement>(null);
+
+  // Close on outside click
+  useEffect(() => {
+    if (!isOpen) return;
+
+    const handleClickOutside = (event: MouseEvent) => {
+      if (panelRef.current && !panelRef.current.contains(event.target as Node)) {
+        setIsOpen(false);
+      }
+    };
+
+    document.addEventListener("mousedown", handleClickOutside);
+    return () => document.removeEventListener("mousedown", handleClickOutside);
+  }, [isOpen]);
 
   useEffect(() => {
     if (!isOpen || savedProblems.length === 0) {
@@ -60,7 +75,7 @@ export default function LearningDashboard() {
       <button
         onClick={() => setIsOpen(true)}
         className="fixed right-4 z-30 bg-purple-600 text-white rounded-full p-3 shadow-lg hover:bg-purple-700 transition-colors focus:outline-none focus:ring-2 focus:ring-purple-400 focus:ring-offset-2"
-        style={{ bottom: "21rem" }}
+        style={{ bottom: "17rem" }}
         aria-label="Open learning dashboard"
         title="Learning Dashboard"
       >
@@ -86,24 +101,66 @@ export default function LearningDashboard() {
   };
 
   return (
-    <div className="fixed bottom-4 right-4 z-40 bg-white border border-gray-200 rounded-lg shadow-xl w-96 max-w-[calc(100vw-2rem)] max-h-[80vh] flex flex-col">
+    <div 
+      ref={panelRef}
+      className="fixed bottom-4 right-4 z-40 bg-white border border-gray-200 rounded-lg shadow-xl w-96 max-w-[calc(100vw-2rem)] max-h-[80vh] flex flex-col"
+    >
       <div className="flex items-center justify-between p-4 border-b border-gray-200">
         <h3 className="text-sm font-medium text-gray-900">Learning Dashboard</h3>
-        <button
-          onClick={() => setIsOpen(false)}
-          className="text-gray-400 hover:text-gray-600 transition-colors p-1 hover:bg-gray-100 rounded focus:outline-none focus:ring-2 focus:ring-gray-400"
-          aria-label="Close dashboard"
-          type="button"
-        >
-          <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path
-              strokeLinecap="round"
-              strokeLinejoin="round"
-              strokeWidth={2}
-              d="M6 18L18 6M6 6l12 12"
-            />
-          </svg>
-        </button>
+        <div className="flex items-center gap-2">
+          {stats && stats.totalProblems > 0 && (
+            <button
+              onClick={() => {
+                const exportData = {
+                  totalProblems: stats.totalProblems,
+                  problemsSolved: stats.problemsSolved,
+                  totalTime: stats.totalTime,
+                  averageTime: Math.round(stats.totalTime / stats.totalProblems),
+                  problemsByType: stats.problemsByType,
+                  exportedAt: new Date().toISOString(),
+                };
+                const blob = new Blob([JSON.stringify(exportData, null, 2)], {
+                  type: "application/json",
+                });
+                const url = URL.createObjectURL(blob);
+                const a = document.createElement("a");
+                a.href = url;
+                a.download = `learning-stats-${new Date().toISOString().split("T")[0]}.json`;
+                document.body.appendChild(a);
+                a.click();
+                document.body.removeChild(a);
+                URL.revokeObjectURL(url);
+              }}
+              className="text-xs text-gray-600 hover:text-gray-900 transition-colors p-1.5 hover:bg-gray-100 rounded focus:outline-none focus:ring-2 focus:ring-gray-400"
+              title="Export learning data"
+              aria-label="Export learning data"
+            >
+              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  strokeWidth={2}
+                  d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"
+                />
+              </svg>
+            </button>
+          )}
+          <button
+            onClick={() => setIsOpen(false)}
+            className="text-gray-400 hover:text-gray-600 transition-colors p-1 hover:bg-gray-100 rounded focus:outline-none focus:ring-2 focus:ring-gray-400"
+            aria-label="Close dashboard"
+            type="button"
+          >
+            <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                strokeWidth={2}
+                d="M6 18L18 6M6 6l12 12"
+              />
+            </svg>
+          </button>
+        </div>
       </div>
 
       <div className="flex-1 overflow-y-auto p-4 space-y-4">
@@ -182,8 +239,50 @@ export default function LearningDashboard() {
                     </span>
                   </p>
                 )}
+                {stats.totalProblems >= 5 && (
+                  <p>
+                    Average time per problem:{" "}
+                    <span className="font-medium text-gray-900">
+                      {Math.round(stats.totalTime / stats.totalProblems)} minutes
+                    </span>
+                  </p>
+                )}
+                {Object.keys(stats.problemsByType).length < 3 && (
+                  <p className="text-blue-600 font-medium">
+                    💡 Try practicing different problem types for a well-rounded learning experience!
+                  </p>
+                )}
               </div>
             </div>
+
+            {/* Suggestions */}
+            {Object.keys(stats.problemsByType).length > 0 && (
+              <div className="pt-3 border-t border-gray-200">
+                <h4 className="text-xs font-medium text-gray-700 mb-2 uppercase tracking-wide">
+                  Recommendations
+                </h4>
+                <div className="space-y-2 text-xs text-gray-600">
+                  {Object.keys(stats.problemsByType).length < 4 && (
+                    <p>
+                      Consider practicing{" "}
+                      <span className="font-medium text-gray-900">
+                        {["ARITHMETIC", "ALGEBRA", "GEOMETRY", "WORD_PROBLEM"]
+                          .filter((type) => !stats.problemsByType[type])
+                          .map((type) => typeLabels[type])
+                          .slice(0, 2)
+                          .join(" or ")}
+                      </span>{" "}
+                      to expand your skills.
+                    </p>
+                  )}
+                  {stats.totalProblems >= 10 && (
+                    <p className="text-green-600 font-medium">
+                      🎉 Great progress! You've solved {stats.totalProblems} problems!
+                    </p>
+                  )}
+                </div>
+              </div>
+            )}
           </>
         )}
       </div>

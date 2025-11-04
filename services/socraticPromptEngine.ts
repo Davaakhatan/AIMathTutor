@@ -1,5 +1,6 @@
 import { ParsedProblem, Message } from "@/types";
 import { logger } from "@/lib/logger";
+import { normalizeProblemText } from "@/lib/textUtils";
 
 export class SocraticPromptEngine {
   /**
@@ -132,24 +133,8 @@ Remember: Your role is to guide, not to solve. Help the student discover the sol
    * Format the problem for the prompt
    */
   private formatProblem(problem: ParsedProblem): string {
-    // Enhanced normalization for better formatting
-    let normalizedText = problem.text;
-    
-    // Add spaces between letters and numbers (both directions)
-    normalizedText = normalizedText
-      .replace(/([a-zA-Z])([0-9])/g, "$1 $2") // Letter before number
-      .replace(/([0-9])([a-zA-Z])/g, "$1 $2") // Number before letter
-      // Add spaces between lowercase and uppercase letters
-      .replace(/([a-z])([A-Z])/g, "$1 $2")
-      // Add spaces after punctuation if missing
-      .replace(/([.,!?;:])([A-Za-z0-9])/g, "$1 $2")
-      // Add spaces before punctuation if missing (but preserve $ for LaTeX)
-      .replace(/([A-Za-z0-9])([.,!?;:])(?![0-9])/g, "$1 $2")
-      // Normalize multiple spaces
-      .replace(/\s+/g, " ")
-      // Fix spacing around dollar signs (for LaTeX)
-      .replace(/\$\s*([^$]+)\s*\$/, "$$$1$$")
-      .trim();
+    // Use centralized normalization function
+    const normalizedText = normalizeProblemText(problem.text);
 
     let formatted = `Problem: ${normalizedText}`;
     
@@ -199,13 +184,8 @@ Remember: Your role is to guide, not to solve. Help the student discover the sol
    * Build the initial message when starting a conversation
    */
   buildInitialMessage(problem: ParsedProblem): string {
-    // Normalize problem text - fix spacing issues
-    const normalizedText = problem.text
-      .replace(/([a-z])([A-Z])/g, "$1 $2") // Add space between lowercase and uppercase
-      .replace(/([0-9])([A-Za-z])/g, "$1 $2") // Add space between number and letter
-      .replace(/([A-Za-z])([0-9])/g, "$1 $2") // Add space between letter and number
-      .replace(/\s+/g, " ") // Normalize multiple spaces
-      .trim();
+    // Use centralized normalization function
+    const normalizedText = normalizeProblemText(problem.text);
 
     return `I see you're working on: ${normalizedText}
 

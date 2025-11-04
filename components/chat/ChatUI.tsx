@@ -6,6 +6,7 @@ import MessageComponent from "./Message";
 import MessageInput from "./MessageInput";
 import StepVisualization from "../stretch/StepVisualization";
 import VoiceInterface, { speakText } from "../stretch/VoiceInterface";
+import ProgressiveHints from "../ProgressiveHints";
 import { sanitizeInput, formatErrorMessage, isRetryableError, delay } from "@/lib/utils";
 import ErrorRecovery from "../ErrorRecovery";
 
@@ -274,6 +275,33 @@ const ChatUI = memo(function ChatUI({
                 <div className="h-3 bg-gray-200 rounded w-1/2" />
               </div>
             </div>
+          </div>
+        )}
+
+        {/* Progressive Hints */}
+        {enableStretchFeatures && problem && messages.length > 0 && !isLoading && (
+          <div className="px-4 py-2 border-t border-gray-100">
+            <ProgressiveHints
+              problem={problem}
+              sessionMessages={messages}
+              onHintRequest={(hint) => {
+                // Add hint as a tutor message
+                const hintMessage: Message = {
+                  id: Date.now().toString(),
+                  role: "tutor",
+                  content: `💡 Hint: ${hint}`,
+                  timestamp: Date.now(),
+                };
+                setMessages((prev) => [...prev, hintMessage]);
+                if (onMessagesChange) {
+                  onMessagesChange([...messages, hintMessage]);
+                }
+                // Speak hint if voice is enabled
+                if (voiceEnabled) {
+                  speakText(hint);
+                }
+              }}
+            />
           </div>
         )}
 

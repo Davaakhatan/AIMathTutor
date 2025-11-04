@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect, useRef } from "react";
-import { ParsedProblem } from "@/types";
+import { ParsedProblem, ProblemType } from "@/types";
 import { useLocalStorage } from "@/hooks/useLocalStorage";
 
 interface SavedProblem extends ParsedProblem {
@@ -16,15 +16,40 @@ interface ProblemHistoryProps {
 /**
  * Component to view and manage saved problem history
  */
+type SortOption = "recent" | "oldest" | "type" | "alphabetical";
+type FilterType = "all" | ProblemType;
+
 export default function ProblemHistory({ onSelectProblem }: ProblemHistoryProps) {
   const [savedProblems, setSavedProblems] = useLocalStorage<SavedProblem[]>("aitutor-problem-history", []);
   const [isOpen, setIsOpen] = useState(false);
   const [filter, setFilter] = useState<string>("");
+  const [sortBy, setSortBy] = useState<SortOption>("recent");
+  const [filterType, setFilterType] = useState<FilterType>("all");
   const panelRef = useRef<HTMLDivElement>(null);
 
-  const filteredProblems = savedProblems.filter((p) =>
-    p.text.toLowerCase().includes(filter.toLowerCase())
-  );
+  const filteredProblems = savedProblems
+    .filter((p) => {
+      const matchesText = p.text.toLowerCase().includes(filter.toLowerCase());
+      // Handle both string comparison and enum comparison
+      const matchesType = filterType === "all" || 
+        p.type === filterType || 
+        (p.type && String(p.type).toLowerCase() === String(filterType).toLowerCase());
+      return matchesText && matchesType;
+    })
+    .sort((a, b) => {
+      switch (sortBy) {
+        case "recent":
+          return b.savedAt - a.savedAt;
+        case "oldest":
+          return a.savedAt - b.savedAt;
+        case "type":
+          return (a.type || "").localeCompare(b.type || "");
+        case "alphabetical":
+          return a.text.localeCompare(b.text);
+        default:
+          return 0;
+      }
+    });
 
   // Close on outside click
   useEffect(() => {
@@ -121,8 +146,8 @@ export default function ProblemHistory({ onSelectProblem }: ProblemHistoryProps)
         </div>
       </div>
 
-      {savedProblems.length > 5 && (
-        <div className="px-4 pt-3 pb-2 border-b border-gray-200">
+      {savedProblems.length > 0 && (
+        <div className="px-4 pt-3 pb-2 border-b border-gray-200 space-y-2">
           <input
             type="text"
             placeholder="Search problems..."
@@ -130,6 +155,31 @@ export default function ProblemHistory({ onSelectProblem }: ProblemHistoryProps)
             onChange={(e) => setFilter(e.target.value)}
             className="w-full px-3 py-1.5 text-xs border border-gray-300 rounded-lg focus:outline-none focus:ring-1 focus:ring-gray-400"
           />
+          <div className="flex items-center gap-2">
+            <select
+              value={filterType}
+              onChange={(e) => setFilterType(e.target.value as FilterType)}
+              className="flex-1 px-2 py-1 text-xs border border-gray-300 rounded-lg focus:outline-none focus:ring-1 focus:ring-gray-400"
+            >
+              <option value="all">All Types</option>
+              <option value={ProblemType.ARITHMETIC}>Arithmetic</option>
+              <option value={ProblemType.ALGEBRA}>Algebra</option>
+              <option value={ProblemType.GEOMETRY}>Geometry</option>
+              <option value={ProblemType.WORD_PROBLEM}>Word Problems</option>
+              <option value={ProblemType.MULTI_STEP}>Multi-Step</option>
+              <option value={ProblemType.UNKNOWN}>Other</option>
+            </select>
+            <select
+              value={sortBy}
+              onChange={(e) => setSortBy(e.target.value as SortOption)}
+              className="flex-1 px-2 py-1 text-xs border border-gray-300 rounded-lg focus:outline-none focus:ring-1 focus:ring-gray-400"
+            >
+              <option value="recent">Recent</option>
+              <option value="oldest">Oldest</option>
+              <option value="type">By Type</option>
+              <option value="alphabetical">Alphabetical</option>
+            </select>
+          </div>
         </div>
       )}
 

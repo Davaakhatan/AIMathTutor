@@ -40,14 +40,21 @@ export default function StudyStreak() {
         // Already studied today, keep streak
         return;
       } else if (daysDiff === 1) {
-        // Continue streak
+        // Continue streak (yesterday -> today)
         setStreakData({
           currentStreak: streakData.currentStreak + 1,
           longestStreak: Math.max(streakData.longestStreak, streakData.currentStreak + 1),
           lastStudyDate: todayTimestamp,
         });
+      } else if (streakData.lastStudyDate === 0) {
+        // First time studying
+        setStreakData({
+          currentStreak: 1,
+          longestStreak: 1,
+          lastStudyDate: todayTimestamp,
+        });
       } else {
-        // Streak broken, start new
+        // Streak broken (missed days), start new
         setStreakData({
           currentStreak: 1,
           longestStreak: streakData.longestStreak,
