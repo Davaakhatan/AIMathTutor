@@ -103,7 +103,7 @@ export default function VoiceInterface({
       // Store speak function for parent to call
       (window as any).speakTutorResponse = speak;
     }
-  }, [onSpeak]);
+  }, [onSpeak, speak]);
 
   if (!isSupported) {
     return null; // Don't show if not supported

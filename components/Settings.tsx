@@ -8,6 +8,7 @@ interface Settings {
   voiceEnabled: boolean;
   showStats: boolean;
   fontSize: "small" | "medium" | "large";
+  apiKey?: string; // Optional: For display/validation only (server-side still uses env var)
 }
 
 export default function Settings() {
@@ -193,6 +194,33 @@ export default function Settings() {
                 {size.charAt(0).toUpperCase() + size.slice(1)}
               </button>
             ))}
+          </div>
+        </div>
+
+        {/* API Key Info */}
+        <div className="pt-3 border-t border-gray-200">
+          <label className="text-sm font-medium text-gray-900 mb-2 block">OpenAI API Key</label>
+          <div className="bg-blue-50 border border-blue-200 rounded-lg p-3">
+            <p className="text-xs text-blue-900 mb-2">
+              <strong>Note:</strong> API key must be set in AWS Amplify environment variables for production.
+            </p>
+            <p className="text-xs text-blue-700">
+              Go to: Amplify Console → App Settings → Environment Variables → Add <code className="bg-blue-100 px-1 rounded">OPENAI_API_KEY</code>
+            </p>
+          </div>
+          <div className="mt-2">
+            <input
+              type="password"
+              placeholder="Enter API key (for local development only)"
+              value={settings.apiKey || ""}
+              onChange={(e) => setSettings({ ...settings, apiKey: e.target.value })}
+              className="w-full px-3 py-2 text-xs border border-gray-300 rounded-lg focus:outline-none focus:ring-1 focus:ring-gray-400"
+              disabled
+              title="API key must be set in AWS Amplify environment variables for deployed apps"
+            />
+            <p className="text-xs text-gray-500 mt-1">
+              For deployed apps, set this in AWS Amplify Console
+            </p>
           </div>
         </div>
 

@@ -58,7 +58,7 @@ export default function ProgressiveHints({
   if (hintLevel >= 4) {
     return (
       <div className="text-xs text-gray-500 text-center py-2">
-        <p>You've used all available hints. Try working through the problem step by step!</p>
+        <p>You&apos;ve used all available hints. Try working through the problem step by step!</p>
       </div>
     );
   }

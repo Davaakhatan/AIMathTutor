@@ -100,7 +100,7 @@ export default function ProblemProgress({ messages, problem }: ProblemProgressPr
             </div>
           </div>
           <p className="text-xs text-gray-400 pt-2">
-            Keep going! You're making progress through this problem.
+            Keep going! You&apos;re making progress through this problem.
           </p>
         </div>
       )}

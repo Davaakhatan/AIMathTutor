@@ -56,7 +56,7 @@ export default function ErrorRecovery({ error, onRetry, onDismiss }: ErrorRecove
               <ul className="text-xs text-red-600 space-y-1 list-disc list-inside">
                 <li>Check your internet connection</li>
                 <li>Refresh the page and try again</li>
-                <li>Make sure you're not sending too many requests</li>
+                <li>Make sure you&apos;re not sending too many requests</li>
                 <li>Try starting a new problem</li>
               </ul>
             </div>

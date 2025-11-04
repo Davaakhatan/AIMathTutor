@@ -201,7 +201,7 @@ export default function ProblemSuggestions({ onSelectProblem }: ProblemSuggestio
         {savedProblems.length === 0 ? (
           <div className="text-center py-8 text-gray-400">
             <p className="text-sm mb-2">Start practicing to get personalized suggestions!</p>
-            <p className="text-xs">We'll suggest problem types based on your practice history.</p>
+            <p className="text-xs">We&apos;ll suggest problem types based on your practice history.</p>
           </div>
         ) : (
           <>

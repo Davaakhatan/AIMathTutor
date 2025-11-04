@@ -220,7 +220,7 @@ export default function LearningDashboard() {
               <div className="space-y-2 text-xs text-gray-600">
                 {Object.entries(stats.problemsByType).length > 0 && (
                   <p>
-                    You've practiced{" "}
+                    You&apos;ve practiced{" "}
                     <span className="font-medium text-gray-900">
                       {Object.keys(stats.problemsByType).length} different types
                     </span>{" "}
@@ -277,7 +277,7 @@ export default function LearningDashboard() {
                   )}
                   {stats.totalProblems >= 10 && (
                     <p className="text-green-600 font-medium">
-                      🎉 Great progress! You've solved {stats.totalProblems} problems!
+                      🎉 Great progress! You&apos;ve solved {stats.totalProblems} problems!
                     </p>
                   )}
                 </div>
