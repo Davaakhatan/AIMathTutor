@@ -82,7 +82,7 @@ export default function ProblemInput({ onProblemParsed, apiKey }: ProblemInputPr
       setError(err instanceof Error ? err.message : "Failed to process image");
       setIsProcessing(false);
     }
-  }, [onProblemParsed]);
+  }, [onProblemParsed, apiKey]);
 
   const handleTextSubmit = async (e: React.FormEvent) => {
     e.preventDefault();

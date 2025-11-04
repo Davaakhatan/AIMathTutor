@@ -177,7 +177,7 @@ const ChatUI = memo(function ChatUI({
     } finally {
       setIsLoading(false);
     }
-  }, [sessionId, voiceEnabled, enableStretchFeatures, difficultyMode, isLoading]);
+  }, [sessionId, voiceEnabled, enableStretchFeatures, difficultyMode, isLoading, apiKey]);
 
       return (
         <div 

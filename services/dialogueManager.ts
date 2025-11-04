@@ -134,7 +134,15 @@ export class DialogueManager {
       return tutorMsg;
     } catch (error) {
       // Enhanced error logging for debugging
-      const errorDetails = {
+      const errorDetails: {
+        error: string;
+        errorType: string;
+        sessionId: string;
+        hasClientApiKey: boolean;
+        hasEnvApiKey: boolean;
+        stack?: string;
+        apiError?: string;
+      } = {
         error: error instanceof Error ? error.message : "Unknown error",
         errorType: error instanceof Error ? error.constructor.name : typeof error,
         sessionId,
