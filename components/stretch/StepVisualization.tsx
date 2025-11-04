@@ -161,7 +161,7 @@ const StepVisualization = memo(function StepVisualization({
                 </p>
                 {step.math && (
                   <div className="mt-2 text-sm">
-                    <MathRenderer text={step.math} />
+                    <MathRenderer content={step.math} />
                   </div>
                 )}
               </div>
