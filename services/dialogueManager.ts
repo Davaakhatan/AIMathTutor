@@ -86,7 +86,19 @@ export class DialogueManager {
       const tutorResponse = response.choices[0]?.message?.content?.trim();
 
       if (!tutorResponse) {
-        throw new Error("No response from OpenAI");
+        throw new Error("Received empty response from OpenAI. Please try again.");
+      }
+
+      // Basic validation: ensure response is not just whitespace
+      if (tutorResponse.length < 5) {
+        throw new Error("Received invalid response from tutor. Please try again.");
+      }
+
+      // Check if response accidentally contains direct answer (simple heuristic)
+      const hasDirectAnswer = /^(the answer is|x equals|x =|solution is|equals)/i.test(tutorResponse);
+      if (hasDirectAnswer && tutorResponse.length < 50) {
+        // Might be a direct answer, but let it through if it's part of a longer explanation
+        console.warn("Possible direct answer detected:", tutorResponse.substring(0, 50));
       }
 
       // Create tutor message

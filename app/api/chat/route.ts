@@ -52,15 +52,36 @@ export async function POST(request: NextRequest) {
     } as ChatResponse);
   } catch (error) {
     console.error("Error in chat API:", error);
+    
+    // Provide user-friendly error messages
+    let errorMessage = "Failed to process message";
+    let statusCode = 500;
+
+    if (error instanceof Error) {
+      errorMessage = error.message;
+      
+      // Handle specific error types
+      if (error.message.includes("API key") || error.message.includes("OPENAI")) {
+        errorMessage = "OpenAI API configuration error. Please check your API key.";
+        statusCode = 500;
+      } else if (error.message.includes("rate limit") || error.message.includes("429")) {
+        errorMessage = "Too many requests. Please wait a moment and try again.";
+        statusCode = 429;
+      } else if (error.message.includes("timeout")) {
+        errorMessage = "Request timed out. Please try again.";
+        statusCode = 504;
+      } else if (error.message.includes("Session")) {
+        errorMessage = "Session expired. Please start a new conversation.";
+        statusCode = 400;
+      }
+    }
+
     return NextResponse.json(
       {
         success: false,
-        error:
-          error instanceof Error
-            ? error.message
-            : "Failed to process message",
+        error: errorMessage,
       } as ChatResponse,
-      { status: 500 }
+      { status: statusCode }
     );
   }
 }

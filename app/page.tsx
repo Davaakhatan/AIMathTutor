@@ -116,7 +116,18 @@ export default function Home() {
                 </div>
               </div>
             ) : sessionId ? (
-              <ChatUI sessionId={sessionId} initialMessages={initialMessages} />
+              <ChatUI 
+                sessionId={sessionId} 
+                initialMessages={initialMessages}
+                onRestart={() => {
+                  setSessionId(null);
+                  setInitialMessages([]);
+                  // Re-initialize with same problem
+                  if (currentProblem) {
+                    handleProblemParsed(currentProblem);
+                  }
+                }}
+              />
             ) : (
               <div className="bg-white border border-gray-200 rounded-lg p-12 text-center">
                 <p className="text-sm text-gray-400 font-light">Initializing</p>

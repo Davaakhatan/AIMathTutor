@@ -3,6 +3,7 @@
 import { useState } from "react";
 import ImageUpload from "./upload/ImageUpload";
 import { ParsedProblem } from "@/types";
+import { validateProblemText, formatErrorMessage } from "@/lib/utils";
 
 interface ProblemInputProps {
   onProblemParsed: (problem: ParsedProblem) => void;
@@ -27,26 +28,46 @@ export default function ProblemInput({ onProblemParsed }: ProblemInputProps) {
       reader.onload = async () => {
         const base64 = (reader.result as string).split(",")[1];
 
-        const response = await fetch("/api/parse-problem", {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-          },
-          body: JSON.stringify({
-            type: "image",
-            data: base64,
-          }),
-        });
+        // Create abort controller for timeout
+        const controller = new AbortController();
+        const timeoutId = setTimeout(() => controller.abort(), 30000); // 30s timeout
 
-        const result = await response.json();
+        try {
+          const response = await fetch("/api/parse-problem", {
+            method: "POST",
+            headers: {
+              "Content-Type": "application/json",
+            },
+            body: JSON.stringify({
+              type: "image",
+              data: base64,
+            }),
+            signal: controller.signal,
+          });
 
-        if (result.success && result.problem) {
-          setParsedProblem(result.problem);
-          onProblemParsed(result.problem);
-        } else {
-          setError(result.error || "Failed to parse image");
+          clearTimeout(timeoutId);
+
+          if (!response.ok) {
+            const errorData = await response.json().catch(() => ({}));
+            throw new Error(
+              errorData.error || 
+              `Failed to parse image: ${response.status} ${response.statusText}`
+            );
+          }
+
+          const result = await response.json();
+
+          if (result.success && result.problem) {
+            setParsedProblem(result.problem);
+            onProblemParsed(result.problem);
+          } else {
+            setError(result.error || "Failed to parse image. Please try again or enter the problem as text.");
+          }
+        } catch (fetchError) {
+          setError(formatErrorMessage(fetchError) || "Failed to process image. Please try again or enter the problem as text.");
+        } finally {
+          setIsProcessing(false);
         }
-        setIsProcessing(false);
       };
       reader.readAsDataURL(file);
     } catch (err) {
@@ -57,13 +78,24 @@ export default function ProblemInput({ onProblemParsed }: ProblemInputProps) {
 
   const handleTextSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!textInput.trim()) return;
+    const trimmedInput = textInput.trim();
+    if (!trimmedInput) return;
+
+    // Validate input
+    const validation = validateProblemText(trimmedInput);
+    if (!validation.valid) {
+      setError(validation.error || "Invalid input");
+      return;
+    }
 
     setIsProcessing(true);
     setError(null);
     setParsedProblem(null);
 
     try {
+      const controller = new AbortController();
+      const timeoutId = setTimeout(() => controller.abort(), 15000); // 15s timeout for text
+
       const response = await fetch("/api/parse-problem", {
         method: "POST",
         headers: {
@@ -71,9 +103,20 @@ export default function ProblemInput({ onProblemParsed }: ProblemInputProps) {
         },
         body: JSON.stringify({
           type: "text",
-          data: textInput.trim(),
+          data: trimmedInput,
         }),
+        signal: controller.signal,
       });
+
+      clearTimeout(timeoutId);
+
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => ({}));
+        throw new Error(
+          errorData.error || 
+          `Failed to parse problem: ${response.status}`
+        );
+      }
 
       const result = await response.json();
 
@@ -82,11 +125,11 @@ export default function ProblemInput({ onProblemParsed }: ProblemInputProps) {
         onProblemParsed(result.problem);
         setTextInput("");
       } else {
-        setError(result.error || "Failed to parse problem");
+        setError(result.error || "Failed to parse problem. Please try again.");
       }
       setIsProcessing(false);
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Failed to process text");
+      setError(formatErrorMessage(err) || "Failed to process text. Please try again.");
       setIsProcessing(false);
     }
   };
