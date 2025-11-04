@@ -12,6 +12,7 @@ This project includes comprehensive documentation:
 - **[EXAMPLES.md](./EXAMPLES.md)** - Example walkthroughs demonstrating Socratic dialogue
 - **[PROMPT_ENGINEERING.md](./PROMPT_ENGINEERING.md)** - Prompt engineering approach and best practices
 - **[DEPLOYMENT.md](./DEPLOYMENT.md)** - Deployment guide for production
+- **[VERCEL_SETUP.md](./VERCEL_SETUP.md)** - Quick Vercel deployment guide (fix API key errors)
 - **[memory-bank/](./memory-bank/)** - Project memory bank with context and patterns
 
 ## 🎯 Project Overview
