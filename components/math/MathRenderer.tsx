@@ -2,6 +2,7 @@
 
 import { InlineMath, BlockMath } from "react-katex";
 import "katex/dist/katex.min.css";
+import { normalizeProblemText } from "@/lib/textUtils";
 
 interface MathRendererProps {
   content: string;
@@ -12,17 +13,20 @@ export default function MathRenderer({
   content,
   displayMode = "inline",
 }: MathRendererProps) {
+  // Normalize text first to fix spacing issues
+  const normalizedContent = normalizeProblemText(content);
+  
   // Enhanced regex to detect LaTeX math (handles various formats)
   const mathRegex = /\$\$[\s\S]*?\$\$|\\\[[\s\S]*?\\\]|\\\([\s\S]*?\\\)|\$[^$\n]+?\$|\\begin\{[\s\S]*?\\end\{/g;
   
   // Check if content has math
-  const hasMath = mathRegex.test(content);
+  const hasMath = mathRegex.test(normalizedContent);
 
   if (!hasMath) {
     // No math, just render as text with line breaks
     return (
       <span className="whitespace-pre-wrap break-words">
-        {content}
+        {normalizedContent}
       </span>
     );
   }
@@ -34,7 +38,7 @@ export default function MathRenderer({
 
   // Reset regex
   const regex = new RegExp(mathRegex.source, "g");
-  const contentCopy = content;
+  const contentCopy = normalizedContent;
 
   while ((match = regex.exec(contentCopy)) !== null) {
     // Add text before math
@@ -101,15 +105,24 @@ export default function MathRenderer({
               <InlineMath key={index} math={part.content} />
             );
           } catch (error) {
-            // If KaTeX fails, render as code with error indicator
+            // If KaTeX fails, try to render a simpler version or show as text
+            console.warn("Math rendering error:", error, "Content:", part.content);
+            
+            // Try to extract just the expression without complex formatting
+            const simpleMath = part.content
+              .replace(/\\/g, "")
+              .replace(/\{/g, "")
+              .replace(/\}/g, "")
+              .trim();
+            
             return (
-              <code
+              <span
                 key={index}
-                className="bg-gray-100 px-1 py-0.5 rounded text-xs font-mono"
-                title="Math rendering error"
+                className="inline-block bg-gray-100 px-2 py-1 rounded text-xs font-mono text-gray-700 border border-gray-300"
+                title={`Math: ${part.content}`}
               >
-                {part.content}
-              </code>
+                {simpleMath || part.content}
+              </span>
             );
           }
         }

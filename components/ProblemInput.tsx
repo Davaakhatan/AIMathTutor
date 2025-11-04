@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useCallback } from "react";
 import ImageUpload from "./upload/ImageUpload";
 import { ParsedProblem } from "@/types";
 import { validateProblemText, formatErrorMessage } from "@/lib/utils";
@@ -17,7 +17,7 @@ export default function ProblemInput({ onProblemParsed }: ProblemInputProps) {
     null
   );
 
-  const handleImageUpload = async (file: File) => {
+  const handleImageUpload = useCallback(async (file: File) => {
     setIsProcessing(true);
     setError(null);
     setParsedProblem(null);
@@ -69,12 +69,18 @@ export default function ProblemInput({ onProblemParsed }: ProblemInputProps) {
           setIsProcessing(false);
         }
       };
+      
+      reader.onerror = () => {
+        setError("Failed to read image file. Please try again.");
+        setIsProcessing(false);
+      };
+      
       reader.readAsDataURL(file);
     } catch (err) {
       setError(err instanceof Error ? err.message : "Failed to process image");
       setIsProcessing(false);
     }
-  };
+  }, [onProblemParsed]);
 
   const handleTextSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -146,15 +152,28 @@ export default function ProblemInput({ onProblemParsed }: ProblemInputProps) {
             <input
               type="text"
               value={textInput}
-              onChange={(e) => setTextInput(e.target.value)}
+              onChange={(e) => {
+                const value = e.target.value;
+                // Limit to 500 characters
+                if (value.length <= 500) {
+                  setTextInput(value);
+                  // Clear error when user starts typing
+                  if (error) setError(null);
+                }
+              }}
               placeholder="e.g., 2x + 5 = 13"
+              maxLength={500}
               className="flex-1 px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-1 focus:ring-gray-400 focus:border-gray-400 transition-all text-gray-900 placeholder-gray-400"
               disabled={isProcessing}
+              aria-label="Problem text input"
+              autoComplete="off"
+              spellCheck="false"
             />
             <button
               type="submit"
               disabled={isProcessing || !textInput.trim()}
-              className="px-6 py-3 bg-gray-900 text-white rounded-lg hover:bg-gray-800 disabled:bg-gray-300 disabled:text-gray-500 disabled:cursor-not-allowed transition-colors font-medium text-sm"
+              className="px-6 py-3 bg-gray-900 text-white rounded-lg hover:bg-gray-800 disabled:bg-gray-300 disabled:text-gray-500 disabled:cursor-not-allowed transition-colors font-medium text-sm focus:outline-none focus:ring-2 focus:ring-gray-400 focus:ring-offset-2"
+              aria-label="Submit problem"
             >
               {isProcessing ? "Processing" : "Submit"}
             </button>
@@ -190,16 +209,37 @@ export default function ProblemInput({ onProblemParsed }: ProblemInputProps) {
 
         {/* Parsed Problem Display */}
         {parsedProblem && (
-          <div className="mt-6 p-4 bg-gray-50 border border-gray-200 rounded-lg">
-            <p className="text-xs font-medium text-gray-500 uppercase tracking-wide mb-2">
-              Problem recognized
-            </p>
-            <p className="text-gray-900 leading-relaxed">{parsedProblem.text}</p>
-            {parsedProblem.type && (
-              <span className="inline-block mt-3 text-xs text-gray-400 font-medium uppercase tracking-wide">
-                {parsedProblem.type.replace("_", " ")}
-              </span>
-            )}
+          <div className="mt-6 p-4 bg-gray-50 border border-gray-200 rounded-lg animate-in fade-in slide-in-from-bottom-2">
+            <div className="flex items-start justify-between gap-3">
+              <div className="flex-1">
+                <p className="text-xs font-medium text-gray-500 uppercase tracking-wide mb-2">
+                  Problem recognized
+                </p>
+                <p className="text-gray-900 leading-relaxed">{parsedProblem.text}</p>
+                {parsedProblem.type && (
+                  <span className="inline-block mt-3 text-xs text-gray-400 font-medium uppercase tracking-wide">
+                    {parsedProblem.type.replace("_", " ")}
+                  </span>
+                )}
+              </div>
+              <button
+                onClick={() => {
+                  setParsedProblem(null);
+                  setError(null);
+                }}
+                className="text-gray-400 hover:text-gray-600 transition-colors"
+                aria-label="Clear parsed problem"
+              >
+                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    strokeWidth={2}
+                    d="M6 18L18 6M6 6l12 12"
+                  />
+                </svg>
+              </button>
+            </div>
           </div>
         )}
 

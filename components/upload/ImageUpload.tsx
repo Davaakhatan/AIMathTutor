@@ -19,8 +19,21 @@ export default function ImageUpload({
   const [isProcessing, setIsProcessing] = useState(false);
 
   const onDrop = useCallback(
-    (acceptedFiles: File[]) => {
+    (acceptedFiles: File[], rejectedFiles: any[]) => {
       setError(null);
+
+      // Handle rejected files
+      if (rejectedFiles.length > 0) {
+        const rejection = rejectedFiles[0];
+        if (rejection.errors.some((e: any) => e.code === "file-too-large")) {
+          setError(`File size must be less than ${maxSize / (1024 * 1024)}MB`);
+        } else if (rejection.errors.some((e: any) => e.code === "file-invalid-type")) {
+          setError("Please upload a valid image file (JPG, PNG)");
+        } else {
+          setError("File upload failed. Please try again.");
+        }
+        return;
+      }
 
       if (acceptedFiles.length === 0) {
         setError("Please upload a valid image file (JPG, PNG)");
@@ -29,7 +42,7 @@ export default function ImageUpload({
 
       const file = acceptedFiles[0];
 
-      // Validate file size
+      // Double-check file size (dropzone should handle this, but just in case)
       if (file.size > maxSize) {
         setError(`File size must be less than ${maxSize / (1024 * 1024)}MB`);
         return;
@@ -39,6 +52,9 @@ export default function ImageUpload({
       const reader = new FileReader();
       reader.onload = () => {
         setPreview(reader.result as string);
+      };
+      reader.onerror = () => {
+        setError("Failed to read image file. Please try again.");
       };
       reader.readAsDataURL(file);
 
@@ -118,8 +134,15 @@ export default function ImageUpload({
           />
           <button
             onClick={handleRemove}
-            className="absolute top-3 right-3 bg-white border border-gray-300 rounded-lg p-2 hover:bg-gray-50 transition-colors opacity-0 group-hover:opacity-100"
+            onKeyDown={(e) => {
+              if (e.key === "Enter" || e.key === " ") {
+                e.preventDefault();
+                handleRemove();
+              }
+            }}
+            className="absolute top-3 right-3 bg-white border border-gray-300 rounded-lg p-2 hover:bg-gray-50 transition-colors opacity-0 group-hover:opacity-100 focus:opacity-100 focus:outline-none focus:ring-2 focus:ring-gray-400 focus:ring-offset-2"
             aria-label="Remove image"
+            tabIndex={0}
           >
             <svg
               className="w-4 h-4 text-gray-600"

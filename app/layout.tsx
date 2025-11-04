@@ -1,9 +1,17 @@
 import type { Metadata } from "next";
 import "./globals.css";
+import ErrorBoundary from "@/components/ErrorBoundary";
 
 export const metadata: Metadata = {
   title: "AI Math Tutor - Socratic Learning Assistant",
   description: "An AI-powered math tutor that guides students through problem-solving using the Socratic method",
+  keywords: ["math tutor", "AI tutor", "Socratic method", "math learning", "problem solving"],
+  authors: [{ name: "SuperBuilders" }],
+  viewport: "width=device-width, initial-scale=1",
+  icons: {
+    icon: "/icon.svg",
+    apple: "/icon.svg",
+  },
 };
 
 export default function RootLayout({
@@ -13,7 +21,11 @@ export default function RootLayout({
 }>) {
   return (
     <html lang="en">
-      <body>{children}</body>
+      <body>
+        <ErrorBoundary>
+          {children}
+        </ErrorBoundary>
+      </body>
     </html>
   );
 }

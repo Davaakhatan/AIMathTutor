@@ -1,6 +1,7 @@
 "use client";
 
-import { useState, KeyboardEvent } from "react";
+import { useState, KeyboardEvent, useCallback } from "react";
+import { sanitizeInput } from "@/lib/utils";
 
 interface MessageInputProps {
   onSendMessage: (message: string) => void;
@@ -13,13 +14,18 @@ export default function MessageInput({
 }: MessageInputProps) {
   const [message, setMessage] = useState("");
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = useCallback((e: React.FormEvent) => {
     e.preventDefault();
-    if (message.trim() && !disabled) {
-      onSendMessage(message.trim());
-      setMessage("");
+    const trimmed = message.trim();
+    if (trimmed && !disabled) {
+      // Sanitize input before sending
+      const sanitized = sanitizeInput(trimmed, 1000);
+      if (sanitized) {
+        onSendMessage(sanitized);
+        setMessage("");
+      }
     }
-  };
+  }, [message, disabled, onSendMessage]);
 
   const handleKeyDown = (e: KeyboardEvent<HTMLTextAreaElement>) => {
     if (e.key === "Enter" && !e.shiftKey) {
@@ -36,13 +42,21 @@ export default function MessageInput({
       <div className="flex gap-2 sm:gap-3">
         <textarea
           value={message}
-          onChange={(e) => setMessage(e.target.value)}
+          onChange={(e) => {
+            const value = e.target.value;
+            // Limit to 1000 characters
+            if (value.length <= 1000) {
+              setMessage(value);
+            }
+          }}
           onKeyDown={handleKeyDown}
           placeholder="Type your response..."
           disabled={disabled}
           rows={2}
+          maxLength={1000}
           className="flex-1 px-3 py-2 sm:px-4 sm:py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-1 focus:ring-gray-400 focus:border-gray-400 disabled:bg-gray-50 disabled:cursor-not-allowed disabled:text-gray-400 resize-none text-gray-900 placeholder-gray-400 font-light text-sm"
           aria-label="Message input"
+          aria-describedby="char-count"
         />
         <button
           type="submit"
@@ -53,9 +67,21 @@ export default function MessageInput({
           Send
         </button>
       </div>
-      <p className="text-xs text-gray-400 mt-2 font-light hidden sm:block">
-        Press Enter to send
-      </p>
+      <div className="flex justify-between items-center mt-2">
+        <p className="text-xs text-gray-400 font-light hidden sm:block">
+          Press Enter to send
+        </p>
+        {message.length > 0 && (
+          <p 
+            id="char-count"
+            className={`text-xs font-light ${
+              message.length > 900 ? "text-orange-500" : "text-gray-400"
+            }`}
+          >
+            {message.length}/1000
+          </p>
+        )}
+      </div>
     </form>
   );
 }

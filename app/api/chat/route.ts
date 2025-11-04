@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { dialogueManager } from "@/services/dialogueManager";
 import { contextManager } from "@/services/contextManager";
 import { ChatRequest, ChatResponse } from "@/types";
-import { chatRateLimiter, getClientId } from "@/lib/rateLimit";
+import { chatRateLimiter, getClientId, createRateLimitHeaders } from "@/lib/rateLimit";
 import { logger } from "@/lib/logger";
 
 export async function POST(request: NextRequest) {
@@ -20,11 +20,7 @@ export async function POST(request: NextRequest) {
         } as ChatResponse,
         { 
           status: 429,
-          headers: {
-            "X-RateLimit-Limit": "20",
-            "X-RateLimit-Remaining": "0",
-            "X-RateLimit-Reset": new Date(rateLimit.resetAt).toISOString(),
-          },
+          headers: createRateLimitHeaders(20, 0, rateLimit.resetAt),
         }
       );
     }
@@ -39,6 +35,9 @@ export async function POST(request: NextRequest) {
 
       // Return the initial tutor message
       const initialMessage = history.find((msg) => msg.role === "tutor");
+      
+      // Note: Difficulty mode is applied in subsequent messages, not initialization
+      // The initial message uses default mode
       
       return NextResponse.json({
         success: true,
@@ -61,10 +60,36 @@ export async function POST(request: NextRequest) {
       );
     }
 
+    // Validate session exists
+    const session = contextManager.getSession(body.sessionId);
+    if (!session) {
+      logger.warn(`Session not found: ${body.sessionId}`);
+      return NextResponse.json(
+        {
+          success: false,
+          error: "Session expired. Please start a new conversation.",
+        } as ChatResponse,
+        { status: 400 }
+      );
+    }
+
+    // Validate message length
+    if (body.message.length > 1000) {
+      return NextResponse.json(
+        {
+          success: false,
+          error: "Message is too long. Please keep it under 1000 characters.",
+        } as ChatResponse,
+        { status: 400 }
+      );
+    }
+
     // Process user message
+    const difficultyMode = body.difficultyMode || "middle";
     const tutorResponse = await dialogueManager.processMessage(
       body.sessionId,
-      body.message
+      body.message,
+      difficultyMode as "elementary" | "middle" | "high" | "advanced"
     );
 
     const response = NextResponse.json({
@@ -76,9 +101,10 @@ export async function POST(request: NextRequest) {
     } as ChatResponse);
 
     // Add rate limit headers
-    response.headers.set("X-RateLimit-Limit", "20");
-    response.headers.set("X-RateLimit-Remaining", rateLimit.remaining.toString());
-    response.headers.set("X-RateLimit-Reset", new Date(rateLimit.resetAt).toISOString());
+    const headers = createRateLimitHeaders(20, rateLimit.remaining, rateLimit.resetAt);
+    Object.entries(headers).forEach(([key, value]) => {
+      response.headers.set(key, value);
+    });
 
     return response;
   } catch (error) {

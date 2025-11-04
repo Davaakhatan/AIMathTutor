@@ -1,4 +1,5 @@
 import { ParsedProblem, Message } from "@/types";
+import { logger } from "@/lib/logger";
 
 export interface ValidationResult {
   isCorrect: boolean;

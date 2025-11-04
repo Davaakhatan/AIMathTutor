@@ -1,11 +1,16 @@
 import { ParsedProblem, Message } from "@/types";
+import { logger } from "@/lib/logger";
 
 export class SocraticPromptEngine {
   /**
    * Generate the base system prompt for Socratic tutoring
    */
-  generateSystemPrompt(): string {
+  generateSystemPrompt(difficultyMode: "elementary" | "middle" | "high" | "advanced" = "middle"): string {
+    const modeInstructions = this.getDifficultyInstructions(difficultyMode);
+    
     return `You are a patient math tutor following the Socratic method. Your goal is to guide students through problem-solving by asking thoughtful questions, not by providing direct answers.
+
+${modeInstructions}
 
 Core Principles:
 1. NEVER give direct answers - only guide through questions
@@ -43,17 +48,57 @@ Remember: Your role is to guide, not to solve. Help the student discover the sol
   }
 
   /**
+   * Get difficulty-specific instructions
+   */
+  private getDifficultyInstructions(mode: "elementary" | "middle" | "high" | "advanced"): string {
+    switch (mode) {
+      case "elementary":
+        return `Difficulty Level: Elementary
+- Use simple, clear language
+- Break problems into very small steps
+- Provide more encouragement and positive reinforcement
+- Use concrete examples and analogies
+- Ask very specific questions to guide thinking`;
+      case "middle":
+        return `Difficulty Level: Middle School
+- Use age-appropriate language
+- Balance guidance with independence
+- Break problems into manageable steps
+- Encourage critical thinking
+- Ask guiding questions that help students discover solutions`;
+      case "high":
+        return `Difficulty Level: High School
+- Use more sophisticated language when appropriate
+- Encourage independent problem-solving
+- Provide less scaffolding, more challenging questions
+- Focus on conceptual understanding
+- Ask questions that require deeper thinking`;
+      case "advanced":
+        return `Difficulty Level: Advanced
+- Use precise mathematical language
+- Minimal scaffolding, encourage self-discovery
+- Focus on rigorous problem-solving approaches
+- Challenge students with complex questions
+- Guide toward elegant solutions and multiple methods`;
+      default:
+        return "";
+    }
+  }
+
+  /**
    * Build the full prompt with context for the LLM
    */
   buildContext(
     problem: ParsedProblem,
     history: Message[],
-    stuckCount: number
+    stuckCount: number,
+    difficultyMode: "elementary" | "middle" | "high" | "advanced" = "middle"
   ): string {
     const problemContext = this.formatProblem(problem);
-    const conversationHistory = this.formatHistory(history);
     const adaptation = this.getAdaptation(stuckCount);
-    const recentMessages = history.slice(-6); // Last 3 exchanges
+    
+    // Use last 6 messages (3 exchanges) to avoid token bloat
+    const recentMessages = history.slice(-6);
 
     let prompt = `Problem: ${problemContext}\n\n`;
 
@@ -61,14 +106,24 @@ Remember: Your role is to guide, not to solve. Help the student discover the sol
       prompt += "Recent conversation:\n";
       recentMessages.forEach((msg) => {
         const role = msg.role === "user" ? "Student" : "Tutor";
-        prompt += `${role}: ${msg.content}\n`;
+        // Truncate very long messages to prevent token bloat
+        const content = msg.content.length > 200 
+          ? msg.content.substring(0, 200) + "..." 
+          : msg.content;
+        prompt += `${role}: ${content}\n`;
       });
     } else {
       prompt += "This is the start of the conversation.\n";
     }
 
     prompt += `\n${adaptation}\n\n`;
-    prompt += "Respond with your next guiding question or hint. Keep it concise and focused.";
+    prompt += "Respond with your next guiding question or hint. Keep it concise and focused (max 250 tokens).";
+
+    // Log prompt length for monitoring
+    const promptLength = prompt.length;
+    if (promptLength > 2000) {
+      logger.warn("Prompt is very long", { length: promptLength, stuckCount });
+    }
 
     return prompt;
   }
@@ -77,7 +132,26 @@ Remember: Your role is to guide, not to solve. Help the student discover the sol
    * Format the problem for the prompt
    */
   private formatProblem(problem: ParsedProblem): string {
-    let formatted = `Problem: ${problem.text}`;
+    // Enhanced normalization for better formatting
+    let normalizedText = problem.text;
+    
+    // Add spaces between letters and numbers (both directions)
+    normalizedText = normalizedText
+      .replace(/([a-zA-Z])([0-9])/g, "$1 $2") // Letter before number
+      .replace(/([0-9])([a-zA-Z])/g, "$1 $2") // Number before letter
+      // Add spaces between lowercase and uppercase letters
+      .replace(/([a-z])([A-Z])/g, "$1 $2")
+      // Add spaces after punctuation if missing
+      .replace(/([.,!?;:])([A-Za-z0-9])/g, "$1 $2")
+      // Add spaces before punctuation if missing (but preserve $ for LaTeX)
+      .replace(/([A-Za-z0-9])([.,!?;:])(?![0-9])/g, "$1 $2")
+      // Normalize multiple spaces
+      .replace(/\s+/g, " ")
+      // Fix spacing around dollar signs (for LaTeX)
+      .replace(/\$\s*([^$]+)\s*\$/, "$$$1$$")
+      .trim();
+
+    let formatted = `Problem: ${normalizedText}`;
     
     if (problem.type) {
       formatted += `\nProblem Type: ${problem.type.replace("_", " ")}`;
@@ -125,7 +199,15 @@ Remember: Your role is to guide, not to solve. Help the student discover the sol
    * Build the initial message when starting a conversation
    */
   buildInitialMessage(problem: ParsedProblem): string {
-    return `I see you're working on: ${problem.text}
+    // Normalize problem text - fix spacing issues
+    const normalizedText = problem.text
+      .replace(/([a-z])([A-Z])/g, "$1 $2") // Add space between lowercase and uppercase
+      .replace(/([0-9])([A-Za-z])/g, "$1 $2") // Add space between number and letter
+      .replace(/([A-Za-z])([0-9])/g, "$1 $2") // Add space between letter and number
+      .replace(/\s+/g, " ") // Normalize multiple spaces
+      .trim();
+
+    return `I see you're working on: ${normalizedText}
 
 Let's work through this together! What are we trying to find or solve in this problem?`;
   }

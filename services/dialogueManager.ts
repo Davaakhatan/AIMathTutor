@@ -4,6 +4,7 @@ import { socraticPromptEngine } from "./socraticPromptEngine";
 import { responseValidator } from "./responseValidator";
 import { ParsedProblem, Message, Session } from "@/types";
 import { v4 as uuidv4 } from "uuid";
+import { logger } from "@/lib/logger";
 
 export class DialogueManager {
   /**
@@ -30,7 +31,8 @@ export class DialogueManager {
    */
   async processMessage(
     sessionId: string,
-    userMessage: string
+    userMessage: string,
+    difficultyMode: "elementary" | "middle" | "high" | "advanced" = "middle"
   ): Promise<Message> {
     // Add user message to context
     const userMsg: Message = {
@@ -52,7 +54,8 @@ export class DialogueManager {
     const prompt = socraticPromptEngine.buildContext(
       context.problem,
       context.messages,
-      context.stuckCount
+      context.stuckCount,
+      difficultyMode
     );
 
     try {
@@ -72,7 +75,7 @@ export class DialogueManager {
         messages: [
           {
             role: "system",
-            content: socraticPromptEngine.generateSystemPrompt(),
+            content: socraticPromptEngine.generateSystemPrompt(difficultyMode),
           },
           {
             role: "user",
@@ -98,7 +101,10 @@ export class DialogueManager {
       const hasDirectAnswer = /^(the answer is|x equals|x =|solution is|equals)/i.test(tutorResponse);
       if (hasDirectAnswer && tutorResponse.length < 50) {
         // Might be a direct answer, but let it through if it's part of a longer explanation
-        console.warn("Possible direct answer detected:", tutorResponse.substring(0, 50));
+        logger.warn("Possible direct answer detected", { 
+          response: tutorResponse.substring(0, 50),
+          sessionId 
+        });
       }
 
       // Create tutor message
@@ -114,7 +120,26 @@ export class DialogueManager {
 
       return tutorMsg;
     } catch (error) {
-      console.error("Error processing message:", error);
+      logger.error("Error processing message", { 
+        error: error instanceof Error ? error.message : "Unknown error",
+        sessionId 
+      });
+      
+      // Re-throw with more context
+      if (error instanceof Error) {
+        // Check for specific OpenAI errors
+        if (error.message.includes("API key") || error.message.includes("401")) {
+          throw new Error("OpenAI API configuration error. Please check your API key.");
+        }
+        if (error.message.includes("rate limit") || error.message.includes("429")) {
+          throw new Error("Rate limit exceeded. Please wait a moment and try again.");
+        }
+        if (error.message.includes("timeout")) {
+          throw new Error("Request timed out. Please try again.");
+        }
+        throw error;
+      }
+      
       throw new Error(
         `Failed to get tutor response: ${error instanceof Error ? error.message : "Unknown error"}`
       );

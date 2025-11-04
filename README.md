@@ -10,6 +10,7 @@ This project includes comprehensive documentation:
 - **[EXAMPLES.md](./EXAMPLES.md)** - Example walkthroughs demonstrating Socratic dialogue (10+ examples)
 - **[PROMPT_ENGINEERING.md](./PROMPT_ENGINEERING.md)** - Prompt engineering approach and Socratic method implementation
 - **[TESTING_GUIDE.md](./TESTING_GUIDE.md)** - Comprehensive testing guide for all problem types
+- **[UTILITIES.md](./UTILITIES.md)** - Development utilities and tools guide
 - **[VERCEL_SETUP.md](./VERCEL_SETUP.md)** - Quick Vercel deployment guide (fix API key errors)
 - **[memory-bank/](./memory-bank/)** - Project memory bank with context and patterns
 
@@ -117,7 +118,34 @@ Tutor: "Exactly! How do we undo adding 5?"
 
 ## 🧪 Testing
 
-Test with these problem types:
+### Quick Test
+```bash
+# Start dev server
+npm run dev
+
+# Open http://localhost:3000
+```
+
+### Comprehensive Testing
+- **[TESTING_GUIDE.md](./TESTING_GUIDE.md)** - Core features testing
+- **[STRETCH_FEATURES_TESTING.md](./STRETCH_FEATURES_TESTING.md)** - Stretch features testing guide
+
+### Test Scripts
+```bash
+# Test all problem types
+npm run test:all
+
+# Test specific type
+npm run test:type arithmetic
+
+# Test parsing
+npm run test:parse "2x + 5 = 13"
+
+# Test chat
+npm run test:chat "2x + 5 = 13"
+```
+
+### Test Problem Types
 - Simple arithmetic
 - Algebra (linear equations, quadratics)
 - Geometry (area, perimeter, angles)

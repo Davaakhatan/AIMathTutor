@@ -55,6 +55,7 @@ export interface ChatRequest {
   sessionId: string;
   message: string;
   problem?: ParsedProblem;
+  difficultyMode?: "elementary" | "middle" | "high" | "advanced";
 }
 
 export interface ChatResponse {

@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { problemParser } from "@/services/problemParser";
 import { ParseProblemRequest, ParseProblemResponse } from "@/types";
-import { parseRateLimiter, getClientId } from "@/lib/rateLimit";
+import { parseRateLimiter, getClientId, createRateLimitHeaders } from "@/lib/rateLimit";
 import { logger } from "@/lib/logger";
 
 export async function POST(request: NextRequest) {
@@ -19,11 +19,7 @@ export async function POST(request: NextRequest) {
         } as ParseProblemResponse,
         { 
           status: 429,
-          headers: {
-            "X-RateLimit-Limit": "10",
-            "X-RateLimit-Remaining": "0",
-            "X-RateLimit-Reset": new Date(rateLimit.resetAt).toISOString(),
-          },
+          headers: createRateLimitHeaders(10, 0, rateLimit.resetAt),
         }
       );
     }
@@ -38,6 +34,57 @@ export async function POST(request: NextRequest) {
         } as ParseProblemResponse,
         { status: 400 }
       );
+    }
+
+    // Validate input data
+    if (body.type === "text") {
+      if (typeof body.data !== "string") {
+        return NextResponse.json(
+          {
+            success: false,
+            error: "Invalid data type for text input",
+          } as ParseProblemResponse,
+          { status: 400 }
+        );
+      }
+      if (body.data.length > 500) {
+        return NextResponse.json(
+          {
+            success: false,
+            error: "Text input is too long. Maximum 500 characters.",
+          } as ParseProblemResponse,
+          { status: 400 }
+        );
+      }
+      if (body.data.trim().length === 0) {
+        return NextResponse.json(
+          {
+            success: false,
+            error: "Text input cannot be empty",
+          } as ParseProblemResponse,
+          { status: 400 }
+        );
+      }
+    } else if (body.type === "image") {
+      if (typeof body.data !== "string") {
+        return NextResponse.json(
+          {
+            success: false,
+            error: "Invalid data type for image input",
+          } as ParseProblemResponse,
+          { status: 400 }
+        );
+      }
+      // Basic base64 validation
+      if (!body.data || body.data.length === 0) {
+        return NextResponse.json(
+          {
+            success: false,
+            error: "Image data is empty",
+          } as ParseProblemResponse,
+          { status: 400 }
+        );
+      }
     }
 
     let parsedProblem;
@@ -64,9 +111,10 @@ export async function POST(request: NextRequest) {
     } as ParseProblemResponse);
 
     // Add rate limit headers
-    response.headers.set("X-RateLimit-Limit", "10");
-    response.headers.set("X-RateLimit-Remaining", rateLimit.remaining.toString());
-    response.headers.set("X-RateLimit-Reset", new Date(rateLimit.resetAt).toISOString());
+    const headers = createRateLimitHeaders(10, rateLimit.remaining, rateLimit.resetAt);
+    Object.entries(headers).forEach(([key, value]) => {
+      response.headers.set(key, value);
+    });
 
     return response;
   } catch (error) {

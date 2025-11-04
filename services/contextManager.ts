@@ -1,5 +1,6 @@
 import { v4 as uuidv4 } from "uuid";
 import { Session, Message, ConversationContext, ParsedProblem } from "@/types";
+import { logger } from "@/lib/logger";
 
 /**
  * Context Manager for maintaining conversation state
@@ -7,6 +8,12 @@ import { Session, Message, ConversationContext, ParsedProblem } from "@/types";
  */
 export class ContextManager {
   private sessions: Map<string, Session> = new Map();
+  private readonly SESSION_TIMEOUT = 30 * 60 * 1000; // 30 minutes
+
+  constructor() {
+    // Clean up old sessions every 5 minutes
+    setInterval(() => this.cleanupOldSessions(), 5 * 60 * 1000);
+  }
 
   /**
    * Create a new session
@@ -21,6 +28,25 @@ export class ContextManager {
 
     this.sessions.set(session.id, session);
     return session;
+  }
+
+  /**
+   * Clean up sessions that are older than timeout
+   */
+  private cleanupOldSessions(): void {
+    const now = Date.now();
+    const toDelete: string[] = [];
+
+    for (const [id, session] of this.sessions.entries()) {
+      if (now - session.createdAt > this.SESSION_TIMEOUT) {
+        toDelete.push(id);
+      }
+    }
+
+    toDelete.forEach((id) => this.sessions.delete(id));
+    if (toDelete.length > 0) {
+      logger.debug(`Cleaned up ${toDelete.length} expired sessions`);
+    }
   }
 
   /**
@@ -39,7 +65,19 @@ export class ContextManager {
       throw new Error(`Session ${sessionId} not found`);
     }
 
+    // Check if session has expired
+    const now = Date.now();
+    if (now - session.createdAt > this.SESSION_TIMEOUT) {
+      this.sessions.delete(sessionId);
+      throw new Error(`Session ${sessionId} has expired`);
+    }
+
     session.messages.push(message);
+    
+    // Limit message history to prevent memory issues (keep last 100 messages)
+    if (session.messages.length > 100) {
+      session.messages = session.messages.slice(-100);
+    }
   }
 
   /**
@@ -48,6 +86,14 @@ export class ContextManager {
   getContext(sessionId: string): ConversationContext | null {
     const session = this.sessions.get(sessionId);
     if (!session || !session.problem) {
+      return null;
+    }
+
+    // Check if session has expired
+    const now = Date.now();
+    if (now - session.createdAt > this.SESSION_TIMEOUT) {
+      // Session expired, clean it up
+      this.sessions.delete(sessionId);
       return null;
     }
 

@@ -66,11 +66,17 @@ class RateLimiter {
    */
   private cleanup(): void {
     const now = Date.now();
-    for (const [key, entry] of this.store.entries()) {
+    const keysToDelete: string[] = [];
+    
+    // Collect keys to delete
+    this.store.forEach((entry, key) => {
       if (now > entry.resetAt) {
-        this.store.delete(key);
+        keysToDelete.push(key);
       }
-    }
+    });
+    
+    // Delete collected keys
+    keysToDelete.forEach((key) => this.store.delete(key));
   }
 
   /**
@@ -99,6 +105,28 @@ export function getClientId(request: Request): string {
   // Try to get IP from headers (X-Forwarded-For for Vercel)
   const forwarded = request.headers.get("x-forwarded-for");
   const ip = forwarded ? forwarded.split(",")[0].trim() : "unknown";
+  
+  // Also try other common headers
+  if (ip === "unknown") {
+    const realIp = request.headers.get("x-real-ip");
+    if (realIp) return realIp;
+  }
+  
   return ip;
+}
+
+/**
+ * Create rate limit headers for response
+ */
+export function createRateLimitHeaders(
+  limit: number,
+  remaining: number,
+  resetAt: number
+): Record<string, string> {
+  return {
+    "X-RateLimit-Limit": limit.toString(),
+    "X-RateLimit-Remaining": remaining.toString(),
+    "X-RateLimit-Reset": new Date(resetAt).toISOString(),
+  };
 }
 

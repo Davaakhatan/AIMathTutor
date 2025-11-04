@@ -1,30 +1,88 @@
 "use client";
 
-import { useState, useRef, useEffect } from "react";
-import { Message } from "@/types";
+import { useState, useRef, useEffect, useCallback, memo } from "react";
+import { Message, ParsedProblem } from "@/types";
 import MessageComponent from "./Message";
 import MessageInput from "./MessageInput";
+import StepVisualization from "../stretch/StepVisualization";
+import VoiceInterface, { speakText } from "../stretch/VoiceInterface";
 import { sanitizeInput, formatErrorMessage, isRetryableError, delay } from "@/lib/utils";
+import ErrorRecovery from "../ErrorRecovery";
 
 interface ChatUIProps {
   sessionId: string;
   initialMessages?: Message[];
   onRestart?: () => void;
+  problem?: ParsedProblem;
+  enableStretchFeatures?: boolean;
+  difficultyMode?: "elementary" | "middle" | "high" | "advanced";
+  voiceEnabled?: boolean;
+  onMessagesChange?: (messages: Message[]) => void;
 }
 
-export default function ChatUI({ sessionId, initialMessages = [], onRestart }: ChatUIProps) {
+const ChatUI = memo(function ChatUI({ 
+  sessionId, 
+  initialMessages = [], 
+  onRestart,
+  problem,
+  enableStretchFeatures = true,
+  difficultyMode = "middle",
+  voiceEnabled: propVoiceEnabled = true,
+  onMessagesChange,
+}: ChatUIProps) {
   const [messages, setMessages] = useState<Message[]>(initialMessages);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [voiceEnabled, setVoiceEnabled] = useState(propVoiceEnabled);
+  
+  // Sync with prop
+  useEffect(() => {
+    setVoiceEnabled(propVoiceEnabled);
+  }, [propVoiceEnabled]);
   const messagesEndRef = useRef<HTMLDivElement>(null);
+  const scrollTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+  const chatContainerRef = useRef<HTMLDivElement>(null);
+
+  // Sync initialMessages when they change
+  useEffect(() => {
+    if (initialMessages.length > 0 && messages.length === 0) {
+      setMessages(initialMessages);
+    }
+  }, [initialMessages, messages.length]);
+
+  // Notify parent of message changes
+  useEffect(() => {
+    if (onMessagesChange) {
+      onMessagesChange(messages);
+    }
+  }, [messages, onMessagesChange]);
 
   // Auto-scroll to bottom when new messages arrive
   useEffect(() => {
-    messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
+    // Clear any pending scroll
+    if (scrollTimeoutRef.current) {
+      clearTimeout(scrollTimeoutRef.current);
+    }
+    
+    // Delay scroll slightly to ensure DOM is updated
+    scrollTimeoutRef.current = setTimeout(() => {
+      messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
+    }, 100);
+
+    return () => {
+      if (scrollTimeoutRef.current) {
+        clearTimeout(scrollTimeoutRef.current);
+      }
+    };
   }, [messages]);
 
-  const handleSendMessage = async (message: string) => {
+  const handleSendMessage = useCallback(async (message: string) => {
     if (!message.trim() || isLoading) return;
+    
+    // Handle voice input if needed
+    if (enableStretchFeatures && voiceEnabled) {
+      // Voice input is already handled by VoiceInterface onTranscript
+    }
 
     // Sanitize input
     const sanitizedMessage = sanitizeInput(message, 1000);
@@ -60,6 +118,7 @@ export default function ChatUI({ sessionId, initialMessages = [], onRestart }: C
             body: JSON.stringify({
               sessionId,
               message: sanitizedMessage,
+              difficultyMode: difficultyMode,
             }),
             signal: controller.signal,
           });
@@ -85,6 +144,12 @@ export default function ChatUI({ sessionId, initialMessages = [], onRestart }: C
             };
 
             setMessages((prev) => [...prev, tutorMessage]);
+            
+            // Speak tutor response if voice is enabled
+            if (voiceEnabled && enableStretchFeatures) {
+              speakText(result.response.text);
+            }
+            
             return; // Success, exit retry loop
           } else {
             throw new Error(result.error || "Failed to get response from tutor");
@@ -108,19 +173,61 @@ export default function ChatUI({ sessionId, initialMessages = [], onRestart }: C
     } finally {
       setIsLoading(false);
     }
-  };
+  }, [sessionId, voiceEnabled, enableStretchFeatures, difficultyMode]);
 
-  return (
-    <div className="flex flex-col h-full max-h-[500px] sm:max-h-[600px] bg-white border border-gray-200 rounded-lg overflow-hidden">
-      {/* Header with restart button */}
-      {onRestart && messages.length > 0 && (
-        <div className="border-b border-gray-200 px-4 py-2 flex justify-end">
-          <button
-            onClick={onRestart}
-            className="text-xs text-gray-500 hover:text-gray-700 transition-colors font-light"
-          >
-            Restart conversation
-          </button>
+      return (
+        <div 
+          ref={chatContainerRef}
+          className="flex flex-col h-full max-h-[500px] sm:max-h-[600px] bg-white border border-gray-200 rounded-lg overflow-hidden"
+          role="log"
+          aria-label="Conversation with math tutor"
+          aria-live="polite"
+          aria-atomic="false"
+        >
+      {/* Header with restart button and voice toggle */}
+      {(onRestart || enableStretchFeatures) && messages.length > 0 && (
+        <div className="border-b border-gray-200 px-4 py-2 flex justify-between items-center">
+          <div className="flex items-center gap-2">
+            {enableStretchFeatures && (
+              <>
+                <VoiceInterface
+                  onTranscript={handleSendMessage}
+                  onSpeak={() => {}}
+                  isEnabled={voiceEnabled}
+                />
+                <span className="text-xs text-gray-400 hidden sm:inline">
+                  Voice input
+                </span>
+              </>
+            )}
+          </div>
+          <div className="flex items-center gap-2">
+            {enableStretchFeatures && (
+              <button
+                onClick={() => setVoiceEnabled(!voiceEnabled)}
+                className="text-xs text-gray-500 hover:text-gray-700 transition-colors font-light px-2 py-1"
+                aria-label={voiceEnabled ? "Disable voice" : "Enable voice"}
+                title={voiceEnabled ? "Disable voice" : "Enable voice"}
+              >
+                {voiceEnabled ? "🔊" : "🔇"}
+              </button>
+            )}
+            {onRestart && (
+              <button
+                onClick={onRestart}
+                onKeyDown={(e) => {
+                  if (e.key === "Enter" || e.key === " ") {
+                    e.preventDefault();
+                    onRestart();
+                  }
+                }}
+                className="text-xs text-gray-500 hover:text-gray-700 transition-colors font-light focus:outline-none focus:ring-2 focus:ring-gray-400 focus:ring-offset-1 rounded px-2 py-1"
+                aria-label="Restart conversation"
+              >
+                Restart conversation
+              </button>
+            )}
+          </div>
         </div>
       )}
 
@@ -128,52 +235,63 @@ export default function ChatUI({ sessionId, initialMessages = [], onRestart }: C
       <div className="flex-1 overflow-y-auto p-4 sm:p-6 space-y-4 sm:space-y-6">
         {messages.length === 0 ? (
           <div className="text-center text-gray-400 py-8 sm:py-12">
-            <p className="text-sm font-light">Start the conversation</p>
+            <p className="text-sm font-light mb-2">Start the conversation</p>
+            <p className="text-xs font-light text-gray-300">
+              {enableStretchFeatures && "Try using voice input or type your response"}
+            </p>
           </div>
         ) : (
-          messages.map((message, index) => (
-            <div
-              key={message.id}
-              className="animate-in fade-in slide-in-from-bottom-2 duration-300"
-              style={{ animationDelay: `${index * 50}ms` }}
-            >
-              <MessageComponent message={message} />
-            </div>
-          ))
+          <>
+            {/* Step Visualization */}
+            {enableStretchFeatures && problem && messages.length > 1 && (
+              <div className="animate-in fade-in slide-in-from-bottom-2 duration-300">
+                <StepVisualization messages={messages} problem={problem.text} />
+              </div>
+            )}
+            
+            {messages.map((message, index) => (
+              <div
+                key={message.id}
+                className="animate-in fade-in slide-in-from-bottom-2 duration-300"
+                style={{ animationDelay: `${index * 50}ms` }}
+              >
+                <MessageComponent message={message} />
+              </div>
+            ))}
+          </>
         )}
 
         {isLoading && (
-          <div className="flex items-center gap-3 text-gray-400 animate-in fade-in">
-            <div className="w-4 h-4 border-2 border-gray-300 border-t-gray-600 rounded-full animate-spin" />
-            <span className="text-sm font-light">Tutor is thinking...</span>
+          <div className="flex flex-col gap-3 text-gray-400 animate-in fade-in">
+            <div className="flex items-center gap-3">
+              <div className="w-4 h-4 border-2 border-gray-300 border-t-gray-600 rounded-full animate-spin" />
+              <span className="text-sm font-light">Tutor is thinking...</span>
+            </div>
+            {/* Loading skeleton for upcoming message */}
+            <div className="flex justify-start animate-pulse">
+              <div className="max-w-[75%] bg-gray-100 rounded-lg px-4 py-3 space-y-2">
+                <div className="h-3 bg-gray-200 rounded w-3/4" />
+                <div className="h-3 bg-gray-200 rounded w-1/2" />
+              </div>
+            </div>
           </div>
         )}
 
         {error && (
-          <div className="p-4 bg-red-50 border border-red-100 rounded-lg">
-            <div className="flex items-start justify-between gap-3">
-              <p className="text-sm text-red-700 font-medium flex-1">{error}</p>
-              <button
-                onClick={() => setError(null)}
-                className="text-red-600 hover:text-red-800 transition-colors"
-                aria-label="Dismiss error"
-              >
-                <svg
-                  className="w-4 h-4"
-                  fill="none"
-                  stroke="currentColor"
-                  viewBox="0 0 24 24"
-                >
-                  <path
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                    strokeWidth={2}
-                    d="M6 18L18 6M6 6l12 12"
-                  />
-                </svg>
-              </button>
-            </div>
-          </div>
+          <ErrorRecovery
+            error={error}
+            onRetry={() => {
+              setError(null);
+              // Get the last user message and retry
+              const lastUserMessage = messages
+                .filter((m) => m.role === "user")
+                .pop();
+              if (lastUserMessage) {
+                handleSendMessage(lastUserMessage.content);
+              }
+            }}
+            onDismiss={() => setError(null)}
+          />
         )}
 
         <div ref={messagesEndRef} />
@@ -186,5 +304,7 @@ export default function ChatUI({ sessionId, initialMessages = [], onRestart }: C
       />
     </div>
   );
-}
+});
+
+export default ChatUI;
 
