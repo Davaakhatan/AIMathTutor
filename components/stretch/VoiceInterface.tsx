@@ -101,11 +101,9 @@ export default function VoiceInterface({
 
   // Expose speak function to parent
   useEffect(() => {
-    if (onSpeak) {
-      // Store speak function for parent to call
-      (window as any).speakTutorResponse = speak;
-    }
-  }, [onSpeak, speak]);
+    // Store speak function for parent to call
+    (window as any).speakTutorResponse = speak;
+  }, [speak]);
 
   if (!isSupported) {
     return null; // Don't show if not supported
