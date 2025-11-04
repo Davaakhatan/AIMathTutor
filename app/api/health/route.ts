@@ -20,9 +20,10 @@ export async function GET() {
     let openaiAvailable = false;
     let openaiError: string | null = null;
     try {
-      // Try to access the OpenAI client
+      // Try to access the OpenAI client (only check if chat property exists)
+      // Don't actually call anything, just verify it's accessible
       const testClient = openai;
-      openaiAvailable = !!testClient;
+      openaiAvailable = !!testClient && typeof testClient.chat !== "undefined";
     } catch (error) {
       openaiAvailable = false;
       openaiError = error instanceof Error ? error.message : "Unknown error";
