@@ -52,6 +52,10 @@ export async function POST(request: NextRequest) {
         // Return the initial tutor message
         const initialMessage = history.find((msg) => msg.role === "tutor");
         
+        if (!initialMessage) {
+          logger.warn("No initial tutor message found", { sessionId: session.id });
+        }
+        
         // Note: Difficulty mode is applied in subsequent messages, not initialization
         // The initial message uses default mode
         
@@ -64,10 +68,18 @@ export async function POST(request: NextRequest) {
           sessionId: session.id,
         } as ChatResponse & { sessionId: string });
       } catch (initError) {
-        logger.error("Error initializing conversation", {
+        const errorDetails = {
           error: initError instanceof Error ? initError.message : "Unknown error",
-          problem: body.problem,
-        });
+          errorType: initError instanceof Error ? initError.constructor.name : typeof initError,
+          stack: initError instanceof Error ? initError.stack : undefined,
+          problem: body.problem ? {
+            text: body.problem.text?.substring(0, 100),
+            type: body.problem.type,
+          } : null,
+        };
+        
+        logger.error("Error initializing conversation", errorDetails);
+        
         return NextResponse.json(
           {
             success: false,
@@ -138,7 +150,14 @@ export async function POST(request: NextRequest) {
 
     return response;
   } catch (error) {
-    logger.error("Error in chat API:", error);
+    // Enhanced error logging for debugging
+    const errorInfo = {
+      error: error instanceof Error ? error.message : "Unknown error",
+      errorType: error instanceof Error ? error.constructor.name : typeof error,
+      stack: error instanceof Error ? error.stack : undefined,
+    };
+    
+    logger.error("Error in chat API:", errorInfo);
     
     // Provide user-friendly error messages
     let errorMessage = "Failed to process message";
@@ -158,6 +177,9 @@ export async function POST(request: NextRequest) {
       } else if (error.message.includes("rate limit") || error.message.includes("429")) {
         errorMessage = "Too many requests. Please wait a moment and try again.";
         statusCode = 429;
+      } else if (error.message.includes("insufficient_quota") || error.message.includes("quota")) {
+        errorMessage = "OpenAI account quota exceeded. Please check your OpenAI account credits.";
+        statusCode = 500;
       } else if (error.message.includes("timeout")) {
         errorMessage = "Request timed out. Please try again.";
         statusCode = 504;
@@ -167,11 +189,22 @@ export async function POST(request: NextRequest) {
       }
     }
 
+    // Return error response with more details in development
+    const errorResponse: ChatResponse = {
+      success: false,
+      error: errorMessage,
+    };
+
+    // Include more details in development mode
+    if (process.env.NODE_ENV === "development") {
+      (errorResponse as any).debug = {
+        originalError: error instanceof Error ? error.message : String(error),
+        errorType: errorInfo.errorType,
+      };
+    }
+
     return NextResponse.json(
-      {
-        success: false,
-        error: errorMessage,
-      } as ChatResponse,
+      errorResponse,
       { status: statusCode }
     );
   }
