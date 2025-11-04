@@ -1,9 +1,33 @@
 import { NextRequest, NextResponse } from "next/server";
 import { problemParser } from "@/services/problemParser";
 import { ParseProblemRequest, ParseProblemResponse } from "@/types";
+import { parseRateLimiter, getClientId } from "@/lib/rateLimit";
+import { logger } from "@/lib/logger";
 
 export async function POST(request: NextRequest) {
   try {
+    // Rate limiting
+    const clientId = getClientId(request);
+    const rateLimit = parseRateLimiter.check(clientId);
+    
+    if (!rateLimit.allowed) {
+      logger.warn(`Rate limit exceeded for parse-problem: ${clientId}`);
+      return NextResponse.json(
+        {
+          success: false,
+          error: "Too many requests. Please wait a moment and try again.",
+        } as ParseProblemResponse,
+        { 
+          status: 429,
+          headers: {
+            "X-RateLimit-Limit": "10",
+            "X-RateLimit-Remaining": "0",
+            "X-RateLimit-Reset": new Date(rateLimit.resetAt).toISOString(),
+          },
+        }
+      );
+    }
+
     const body: ParseProblemRequest = await request.json();
 
     if (!body.type || !body.data) {
@@ -34,12 +58,19 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    return NextResponse.json({
+    const response = NextResponse.json({
       success: true,
       problem: parsedProblem,
     } as ParseProblemResponse);
+
+    // Add rate limit headers
+    response.headers.set("X-RateLimit-Limit", "10");
+    response.headers.set("X-RateLimit-Remaining", rateLimit.remaining.toString());
+    response.headers.set("X-RateLimit-Reset", new Date(rateLimit.resetAt).toISOString());
+
+    return response;
   } catch (error) {
-    console.error("Error parsing problem:", error);
+    logger.error("Error parsing problem:", error);
     return NextResponse.json(
       {
         success: false,

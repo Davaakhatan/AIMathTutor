@@ -2,9 +2,33 @@ import { NextRequest, NextResponse } from "next/server";
 import { dialogueManager } from "@/services/dialogueManager";
 import { contextManager } from "@/services/contextManager";
 import { ChatRequest, ChatResponse } from "@/types";
+import { chatRateLimiter, getClientId } from "@/lib/rateLimit";
+import { logger } from "@/lib/logger";
 
 export async function POST(request: NextRequest) {
   try {
+    // Rate limiting
+    const clientId = getClientId(request);
+    const rateLimit = chatRateLimiter.check(clientId);
+    
+    if (!rateLimit.allowed) {
+      logger.warn(`Rate limit exceeded for client: ${clientId}`);
+      return NextResponse.json(
+        {
+          success: false,
+          error: "Too many requests. Please wait a moment and try again.",
+        } as ChatResponse,
+        { 
+          status: 429,
+          headers: {
+            "X-RateLimit-Limit": "20",
+            "X-RateLimit-Remaining": "0",
+            "X-RateLimit-Reset": new Date(rateLimit.resetAt).toISOString(),
+          },
+        }
+      );
+    }
+
     const body: ChatRequest = await request.json();
 
     // If this is the first message and includes a problem, initialize conversation
@@ -43,15 +67,22 @@ export async function POST(request: NextRequest) {
       body.message
     );
 
-    return NextResponse.json({
+    const response = NextResponse.json({
       success: true,
       response: {
         text: tutorResponse.content,
         timestamp: tutorResponse.timestamp,
       },
     } as ChatResponse);
+
+    // Add rate limit headers
+    response.headers.set("X-RateLimit-Limit", "20");
+    response.headers.set("X-RateLimit-Remaining", rateLimit.remaining.toString());
+    response.headers.set("X-RateLimit-Reset", new Date(rateLimit.resetAt).toISOString());
+
+    return response;
   } catch (error) {
-    console.error("Error in chat API:", error);
+    logger.error("Error in chat API:", error);
     
     // Provide user-friendly error messages
     let errorMessage = "Failed to process message";
