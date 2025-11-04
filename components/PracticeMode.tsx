@@ -22,7 +22,7 @@ export default function PracticeMode({ onStartPractice }: PracticeModeProps) {
     ProblemType.MULTI_STEP,
   ];
 
-  const problemTemplates: Record<ProblemType, string[]> = {
+  const problemTemplates: Partial<Record<ProblemType, string[]>> = {
     [ProblemType.ARITHMETIC]: [
       "15 + 23 = ?",
       "48 - 19 = ?",
