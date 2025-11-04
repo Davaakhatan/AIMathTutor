@@ -34,27 +34,27 @@ export default function VoiceInterface({
       const SpeechRecognition =
         (window as any).SpeechRecognition ||
         (window as any).webkitSpeechRecognition;
-      recognitionRef.current = new SpeechRecognition();
-      if (recognitionRef.current) {
-        recognitionRef.current.continuous = false;
-        recognitionRef.current.interimResults = false;
-        recognitionRef.current.lang = "en-US";
+      const recognition = new SpeechRecognition();
+      recognitionRef.current = recognition;
+      
+      recognition.continuous = false;
+      recognition.interimResults = false;
+      recognition.lang = "en-US";
 
-        recognitionRef.current.onresult = (event: SpeechRecognitionEvent) => {
-          const transcript = event.results[0][0].transcript;
-          onTranscript(transcript);
-          setIsListening(false);
-        };
+      recognition.onresult = (event: SpeechRecognitionEvent) => {
+        const transcript = event.results[0][0].transcript;
+        onTranscript(transcript);
+        setIsListening(false);
+      };
 
-        recognitionRef.current.onerror = (event: SpeechRecognitionErrorEvent) => {
-          console.error("Speech recognition error:", event.error);
-          setIsListening(false);
-        };
+      recognition.onerror = (event: SpeechRecognitionErrorEvent) => {
+        console.error("Speech recognition error:", event.error);
+        setIsListening(false);
+      };
 
-        recognitionRef.current.onend = () => {
-          setIsListening(false);
-        };
-      }
+      recognition.onend = () => {
+        setIsListening(false);
+      };
     }
 
     if (hasSpeechSynthesis) {
