@@ -3,8 +3,8 @@ const nextConfig = {
   images: {
     domains: [],
   },
-  // Enable standalone output for Docker deployments
-  output: 'standalone',
+  // Enable standalone output for Docker deployments (only in production)
+  // output: 'standalone', // Commented out - causes issues in dev mode
   // Allow build to continue with warnings (for production)
   eslint: {
     // Warning: This allows production builds to successfully complete even if
