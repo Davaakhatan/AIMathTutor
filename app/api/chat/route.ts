@@ -118,7 +118,11 @@ export async function POST(request: NextRequest) {
       errorMessage = error.message;
       
       // Handle specific error types
-      if (error.message.includes("API key") || error.message.includes("OPENAI")) {
+      if (error.message.includes("API key is not configured") || 
+          error.message.includes("OPENAI_API_KEY is not set") ||
+          error.message.includes("invalid api key") ||
+          error.message.includes("401") ||
+          error.message.includes("unauthorized")) {
         errorMessage = "OpenAI API configuration error. Please check your API key.";
         statusCode = 500;
       } else if (error.message.includes("rate limit") || error.message.includes("429")) {
