@@ -7,7 +7,9 @@ An AI-powered math tutor that guides students through problem-solving using the 
 This project includes comprehensive documentation:
 
 - **[ARCHITECTURE.md](./ARCHITECTURE.md)** - System architecture and technical design
-- **[EXAMPLES.md](./EXAMPLES.md)** - Example walkthroughs demonstrating Socratic dialogue
+- **[EXAMPLES.md](./EXAMPLES.md)** - Example walkthroughs demonstrating Socratic dialogue (10+ examples)
+- **[PROMPT_ENGINEERING.md](./PROMPT_ENGINEERING.md)** - Prompt engineering approach and Socratic method implementation
+- **[TESTING_GUIDE.md](./TESTING_GUIDE.md)** - Comprehensive testing guide for all problem types
 - **[VERCEL_SETUP.md](./VERCEL_SETUP.md)** - Quick Vercel deployment guide (fix API key errors)
 - **[memory-bank/](./memory-bank/)** - Project memory bank with context and patterns
 
