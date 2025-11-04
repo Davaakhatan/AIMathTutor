@@ -45,63 +45,65 @@ export default function ChatUI({ sessionId, initialMessages = [], onRestart }: C
     let lastError: Error | null = null;
     const maxRetries = 2;
     
-    for (let attempt = 0; attempt <= maxRetries; attempt++) {
-      try {
-        // Create abort controller for timeout
-        const controller = new AbortController();
-        const timeoutId = setTimeout(() => controller.abort(), 30000); // 30s timeout
+    try {
+      for (let attempt = 0; attempt <= maxRetries; attempt++) {
+        try {
+          // Create abort controller for timeout
+          const controller = new AbortController();
+          const timeoutId = setTimeout(() => controller.abort(), 30000); // 30s timeout
 
-        const response = await fetch("/api/chat", {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-          },
-          body: JSON.stringify({
-            sessionId,
-            message: sanitizedMessage,
-          }),
-          signal: controller.signal,
-        });
+          const response = await fetch("/api/chat", {
+            method: "POST",
+            headers: {
+              "Content-Type": "application/json",
+            },
+            body: JSON.stringify({
+              sessionId,
+              message: sanitizedMessage,
+            }),
+            signal: controller.signal,
+          });
 
-        clearTimeout(timeoutId);
+          clearTimeout(timeoutId);
 
-        if (!response.ok) {
-          const errorData = await response.json().catch(() => ({}));
-          throw new Error(
-            errorData.error || 
-            `Server error: ${response.status} ${response.statusText}`
-          );
+          if (!response.ok) {
+            const errorData = await response.json().catch(() => ({}));
+            throw new Error(
+              errorData.error || 
+              `Server error: ${response.status} ${response.statusText}`
+            );
+          }
+
+          const result = await response.json();
+
+          if (result.success && result.response) {
+            const tutorMessage: Message = {
+              id: (Date.now() + 1).toString(),
+              role: "tutor",
+              content: result.response.text,
+              timestamp: result.response.timestamp,
+            };
+
+            setMessages((prev) => [...prev, tutorMessage]);
+            return; // Success, exit retry loop
+          } else {
+            throw new Error(result.error || "Failed to get response from tutor");
+          }
+        } catch (err) {
+          lastError = err instanceof Error ? err : new Error("Unknown error");
+          
+          // Check if it's a retryable error
+          const isRetryable = isRetryableError(err);
+
+          // If last attempt or not retryable, show error
+          if (attempt === maxRetries || !isRetryable) {
+            setError(formatErrorMessage(err));
+            break;
+          }
+          
+          // Wait before retry (exponential backoff)
+          await delay(attempt);
         }
-
-        const result = await response.json();
-
-        if (result.success && result.response) {
-          const tutorMessage: Message = {
-            id: (Date.now() + 1).toString(),
-            role: "tutor",
-            content: result.response.text,
-            timestamp: result.response.timestamp,
-          };
-
-          setMessages((prev) => [...prev, tutorMessage]);
-          return; // Success, exit retry loop
-        } else {
-          throw new Error(result.error || "Failed to get response from tutor");
-        }
-      } catch (err) {
-        lastError = err instanceof Error ? err : new Error("Unknown error");
-        
-        // Check if it's a retryable error
-        const isRetryable = isRetryableError(err);
-
-        // If last attempt or not retryable, show error
-        if (attempt === maxRetries || !isRetryable) {
-          setError(formatErrorMessage(err));
-          break;
-        }
-        
-        // Wait before retry (exponential backoff)
-        await delay(attempt);
       }
     } finally {
       setIsLoading(false);

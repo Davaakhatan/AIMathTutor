@@ -1,58 +1,126 @@
-# Product Context: AI Math Tutor
+# Product Context
+## AI Math Tutor - Socratic Learning Assistant
 
-## Why This Project Exists
-Traditional math tutoring often provides direct answers, which can hinder deep understanding. Students learn better when they discover solutions through guided questioning—the Socratic method. This project addresses the need for scalable, personalized math tutoring that promotes genuine learning.
+---
 
-## Problems It Solves
-1. **Limited Access to Quality Tutoring**: Not all students have access to skilled tutors who use effective pedagogical methods
-2. **Passive Learning**: Direct answers create dependency rather than understanding
-3. **Lack of Personalized Pace**: Students learn at different speeds and need adaptive scaffolding
-4. **Problem Input Friction**: Students should be able to input problems naturally (text or image)
+## Problem Statement
 
-## How It Should Work
+Students often struggle with math problems and need guidance, but traditional tutoring is expensive and not always available. An AI tutor that uses the Socratic method can provide 24/7 personalized guidance, helping students discover solutions through questioning rather than giving direct answers.
 
-### User Journey
-1. **Problem Input**: Student enters problem via text or uploads image
-2. **Problem Parsing**: System extracts problem statement and context
-3. **Initial Assessment**: Tutor identifies what the student needs to find
-4. **Guided Discovery**: Tutor asks leading questions to help student think through solution
-5. **Validation**: Tutor confirms understanding at each step
-6. **Completion**: Student reaches solution independently
-
-### Core Interaction Pattern
-```
-Student: [uploads "2x + 5 = 13"]
-Tutor: "What are we trying to find?"
-Student: "x"
-Tutor: "Right! To get x alone, we need to undo the +5 and ×2. Which should we undo first?"
-Student: "the +5?"
-Tutor: "Exactly! How do we undo adding 5?"
-```
+---
 
 ## User Experience Goals
 
-### Primary Goals
-- **Intuitive**: Minimal learning curve, familiar chat interface
-- **Responsive**: Fast feedback, clear math rendering
-- **Encouraging**: Positive reinforcement, patient guidance
-- **Educational**: Promotes understanding over quick answers
+### Primary User: Students Learning Math
 
-### Key UX Principles
-1. **Never Break Character**: Always maintain Socratic tutor persona
-2. **Progressive Disclosure**: Start with broad questions, narrow to specifics
-3. **Adaptive Scaffolding**: Increase hints if student is stuck >2 turns
-4. **Visual Clarity**: Math equations rendered beautifully and clearly
-5. **Context Preservation**: Remember conversation history throughout session
+**Pain Points**:
+- Difficulty understanding where to start with problems
+- Need step-by-step guidance without spoiling the answer
+- Want to learn the reasoning, not just get answers
+- Need encouragement and validation
 
-## Target Users
-- Middle and high school students (primary)
-- Students needing homework help
-- Learners preparing for exams
-- Self-directed learners
+**Goals**:
+- Learn problem-solving strategies
+- Build confidence through discovery
+- Understand the "why" behind solutions
+- Practice independently with guidance
+
+### User Experience Principles
+
+1. **Minimalist Design**: Clean, uncluttered interface that doesn't distract from learning
+2. **User-Friendly**: Intuitive controls, clear feedback, accessible
+3. **Modern Aesthetics**: Contemporary design that feels approachable
+4. **Responsive**: Works seamlessly on desktop, tablet, and mobile
+5. **No Emojis**: Professional, clean interface without emoji clutter
+
+---
+
+## Key User Flows
+
+### Flow 1: Problem Input (Text)
+1. User enters problem text
+2. System validates and parses
+3. System displays parsed problem
+4. Conversation begins with tutor's first question
+
+### Flow 2: Problem Input (Image)
+1. User drags/drops or selects image
+2. System shows preview
+3. System processes image with Vision API
+4. System displays parsed problem
+5. Conversation begins with tutor's first question
+
+### Flow 3: Socratic Dialogue
+1. Tutor asks guiding question
+2. Student responds
+3. Tutor validates and asks next question
+4. Process continues until problem solved
+5. If stuck >2 turns, tutor provides hint
+6. Student reaches solution through guided discovery
+
+---
+
+## Design Principles
+
+### Socratic Method Implementation
+- **Never Direct Answers**: System must guide, not solve
+- **Progressive Disclosure**: Start broad, narrow to specifics
+- **Adaptive Scaffolding**: Increase hints when needed
+- **Encouraging Language**: Positive reinforcement throughout
+
+### UI/UX Best Practices
+- **Minimalist**: Clean, focused interface
+- **Modern**: Contemporary design language
+- **User-Friendly**: Intuitive, accessible
+- **Responsive**: Mobile-first design
+- **Accessible**: WCAG compliance where possible
+
+---
 
 ## Success Metrics
-- Student completes problems without direct answers
-- Student demonstrates understanding through responses
-- Conversation feels natural and helpful
-- Problems are correctly parsed and understood
+
+- Students complete problems without direct answers
+- Students understand the reasoning (not just answers)
+- Students feel encouraged and supported
+- System maintains context throughout conversation
+- System adapts to student's understanding level
+
+---
+
+## User Stories
+
+**As a student**, I want to:
+- Upload a problem image so I don't have to type complex equations
+- Get guided questions so I can discover the solution myself
+- See math equations rendered properly so I can read them clearly
+- Get hints when stuck so I can continue learning
+- Restart conversations so I can try problems again
+
+**As a student**, I want the system to:
+- Never give me direct answers so I can learn through discovery
+- Remember our conversation so I don't have to repeat context
+- Encourage me so I feel supported
+- Adapt to my level so I'm not overwhelmed or bored
+
+---
+
+## Edge Cases
+
+- Handwritten vs printed text in images
+- Complex multi-step problems
+- Student provides incorrect answers multiple times
+- Student asks for direct answer
+- Network errors during conversation
+- Image parsing failures
+- Very long conversations
+
+---
+
+## Future Enhancements
+
+- Save conversation history
+- Review past problems
+- Track progress over time
+- Difficulty levels
+- Problem generation for practice
 

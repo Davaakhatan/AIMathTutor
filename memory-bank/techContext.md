@@ -1,82 +1,219 @@
 # Technical Context
+## AI Math Tutor - Socratic Learning Assistant
+
+---
 
 ## Technology Stack
 
 ### Frontend
-- **Framework**: React/Next.js (recommended for clean UI and deployment)
-- **Math Rendering**: KaTeX or MathJax for LaTeX equations
-- **UI Components**: Tailwind CSS or Material-UI for modern interface
-- **Image Handling**: File upload with preview
+- **Framework**: Next.js 14+ (App Router)
+- **Language**: TypeScript
+- **Styling**: Tailwind CSS
+- **Math Rendering**: KaTeX
+- **File Upload**: react-dropzone
+- **State Management**: React hooks (useState, useEffect)
 
 ### Backend
-- **API Framework**: Next.js API routes or Express.js
-- **LLM Integration**: OpenAI API (GPT-4 Vision for image parsing, GPT-4 for dialogue)
-- **OCR/Vision**: OpenAI Vision API for image-to-text conversion
-- **Session Management**: In-memory or Redis for conversation context
+- **Runtime**: Node.js 18+
+- **Framework**: Next.js API Routes
+- **LLM Integration**: OpenAI SDK
+- **Vision API**: OpenAI GPT-4 Vision
 
 ### Development Tools
-- **TypeScript**: For type safety
-- **Package Manager**: npm or yarn
+- **Package Manager**: npm
+- **Linting**: ESLint
 - **Version Control**: Git
-- **Deployment**: Vercel (for Next.js) or similar platform
+- **Deployment**: Vercel
 
-## Technical Constraints
+---
 
-### Image Processing
-- Start with printed text (easier OCR accuracy)
-- Handwritten text can be stretch feature
-- Support common formats: PNG, JPG, JPEG
+## Key Technical Constraints
 
-### LLM Requirements
-- **Vision Model**: GPT-4 Vision for image parsing
-- **Dialogue Model**: GPT-4 for Socratic conversation
-- **Context Window**: Must maintain conversation history
-- **Rate Limiting**: Handle API limits gracefully
+### API Limitations
+- OpenAI API rate limits
+- Token usage costs
+- Context window limits (GPT-4)
+- Vision API file size limits (20MB)
 
 ### Performance Requirements
-- Response time: <3 seconds for typical interactions
-- Math rendering: Instant display
-- Image upload: Handle files up to 10MB
+- Fast response times (<3s for chat)
+- Image parsing (<10s)
+- Smooth UI interactions
+- Mobile optimization
 
-## Development Setup
+### Security Requirements
+- API keys never exposed to frontend
+- Input sanitization
+- File upload validation
+- Error handling without exposing internals
 
-### Prerequisites
-- Node.js 18+ 
-- npm or yarn
-- OpenAI API key
-- Modern web browser
+---
 
-### Environment Variables
+## Architecture Decisions
+
+### Why Next.js?
+- Server-side API routes for secure API key handling
+- Built-in optimizations
+- Easy deployment to Vercel
+- TypeScript support
+
+### Why KaTeX?
+- Fast math rendering
+- Lightweight
+- Good browser support
+- Easy integration
+
+### Why In-Memory Sessions?
+- MVP simplicity
+- Fast development
+- Sufficient for initial launch
+- Can migrate to Redis later
+
+---
+
+## API Integration
+
+### OpenAI GPT-4
+- **Model**: `gpt-4o` (or `gpt-4` if needed)
+- **Vision Model**: `gpt-4o` for image parsing
+- **Temperature**: Adaptive (0.7 normal, 0.5 when stuck)
+- **Max Tokens**: 250 (keeps responses concise)
+
+### API Endpoints
+- `/api/parse-problem` - Parse text or image
+- `/api/chat` - Send message, get tutor response
+- `/api/session` - Create new session
+
+---
+
+## Environment Variables
+
+### Required
+- `OPENAI_API_KEY` - OpenAI API key
+
+### Optional
+- `NEXT_PUBLIC_APP_URL` - Application URL
+- `NODE_ENV` - Environment (development/production)
+
+---
+
+## File Structure
+
 ```
-OPENAI_API_KEY=your_api_key_here
-NEXT_PUBLIC_APP_URL=http://localhost:3000 (development)
+AITutor/
+├── app/
+│   ├── api/
+│   │   ├── chat/
+│   │   ├── parse-problem/
+│   │   └── session/
+│   ├── globals.css
+│   ├── layout.tsx
+│   └── page.tsx
+├── components/
+│   ├── chat/
+│   ├── math/
+│   └── upload/
+├── lib/
+│   ├── openai.ts
+│   └── utils.ts
+├── services/
+│   ├── contextManager.ts
+│   ├── dialogueManager.ts
+│   ├── problemParser.ts
+│   └── socraticPromptEngine.ts
+├── types/
+│   └── index.ts
+└── memory-bank/
 ```
 
-## Dependencies (Expected)
+---
 
-### Core
-- `openai` - OpenAI API client
-- `katex` or `react-katex` - Math rendering
-- `react-dropzone` or similar - Image upload
-- `zustand` or `react-context` - State management
+## Error Handling Strategy
 
-### Development
-- `typescript` - Type safety
-- `eslint` - Code quality
-- `prettier` - Code formatting
+### Frontend
+- User-friendly error messages
+- Retry logic for transient failures
+- Timeout handling
+- Loading states
 
-## Technical Decisions Needed
+### Backend
+- Try-catch blocks for all API calls
+- Specific error messages
+- Proper HTTP status codes
+- Logging for debugging
 
-1. **State Management**: Context API vs Zustand vs Redux
-2. **Image Storage**: Local processing vs cloud storage
-3. **Conversation Persistence**: In-memory vs database
-4. **Deployment Platform**: Vercel vs Netlify vs custom
-5. **Error Handling**: User-friendly error messages
+---
 
-## Architecture Considerations
+## Performance Optimizations
 
-- **Modular Design**: Separate concerns (parsing, dialogue, rendering)
-- **Error Resilience**: Graceful degradation if API fails
-- **Scalability**: Consider future multi-user support
-- **Security**: Protect API keys, validate inputs
+### Frontend
+- Code splitting
+- Lazy loading
+- Memoization where needed
+- Optimized re-renders
+
+### Backend
+- Efficient prompt construction
+- Context window optimization
+- Response caching (future)
+- Rate limiting (future)
+
+---
+
+## Deployment Considerations
+
+### Vercel
+- Serverless functions
+- Automatic scaling
+- Edge network
+- Environment variables in dashboard
+
+### Build Process
+- TypeScript compilation
+- Next.js optimization
+- Static asset generation
+- API route compilation
+
+---
+
+## Future Technical Enhancements
+
+### Scalability
+- Redis for session storage
+- Database for persistent history
+- Queue system for high load
+- CDN for static assets
+
+### Features
+- Streaming responses
+- WebSocket for real-time updates
+- Offline support
+- Progressive Web App (PWA)
+
+---
+
+## Development Workflow
+
+1. Local development with `.env.local`
+2. Test on multiple problem types
+3. Verify Socratic method compliance
+4. Check mobile responsiveness
+5. Deploy to Vercel
+6. Monitor API usage and costs
+
+---
+
+## Testing Strategy
+
+### Manual Testing
+- 5+ problem types
+- Various user scenarios
+- Error cases
+- Edge cases
+
+### Automated Testing (Future)
+- Unit tests for services
+- Integration tests for API routes
+- Component tests
+- E2E tests
 

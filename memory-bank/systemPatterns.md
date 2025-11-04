@@ -1,167 +1,358 @@
-# System Patterns & Architecture
+# System Patterns
+## AI Math Tutor - Socratic Learning Assistant
 
-## System Architecture Overview
+---
 
-```
-┌─────────────────────────────────────────────────────────┐
-│                    Frontend (React)                      │
-│  ┌──────────────┐  ┌──────────────┐  ┌──────────────┐ │
-│  │ Chat UI      │  │ Image Upload │  │ Math Render  │ │
-│  └──────────────┘  └──────────────┘  └──────────────┘ │
-└──────────────────────┬──────────────────────────────────┘
-                       │
-┌──────────────────────┴──────────────────────────────────┐
-│                 Backend API Layer                        │
-│  ┌──────────────┐  ┌──────────────┐  ┌──────────────┐ │
-│  │ Problem      │  │ Dialogue     │  │ Context      │ │
-│  │ Parser       │  │ Manager      │  │ Manager      │ │
-│  └──────────────┘  └──────────────┘  └──────────────┘ │
-└──────────────────────┬──────────────────────────────────┘
-                       │
-┌──────────────────────┴──────────────────────────────────┐
-│              External Services (OpenAI)                  │
-│  ┌──────────────┐  ┌──────────────┐                    │
-│  │ Vision API   │  │ GPT-4 API    │                    │
-│  │ (OCR)        │  │ (Dialogue)   │                    │
-│  └──────────────┘  └──────────────┘                    │
-└─────────────────────────────────────────────────────────┘
-```
+## Architecture Patterns
 
-## Key Components
-
-### 1. Problem Parser
-**Responsibility**: Extract problem statement from text or image
-- Text input: Direct pass-through with validation
-- Image input: OCR via Vision API → extract math problem
-- Output: Structured problem representation
-
-**Pattern**: Strategy pattern for different input types
-
-### 2. Dialogue Manager
-**Responsibility**: Orchestrate Socratic conversation
-- Maintains conversation state
-- Tracks student understanding level
-- Determines when to provide hints vs questions
-- Manages conversation flow
-
-**Pattern**: State machine or conversation tree
-
-### 3. Socratic Prompt Engine
-**Responsibility**: Generate appropriate questions and hints
-- Core system prompt: "You are a patient math tutor. NEVER give direct answers..."
-- Adapts based on:
-  - Student responses
-  - Number of turns stuck
-  - Problem complexity
-  - Student confidence level
-
-**Pattern**: Prompt engineering with few-shot examples
-
-### 4. Context Manager
-**Responsibility**: Maintain conversation history
-- Stores message history
-- Tracks problem context
-- Manages session state
-- Provides context to LLM
-
-**Pattern**: In-memory store or session-based storage
-
-### 5. Math Renderer
-**Responsibility**: Display equations beautifully
-- Parse LaTeX from LLM responses
-- Render using KaTeX
-- Handle inline and block equations
-- Support math notation
-
-**Pattern**: Wrapper component for KaTeX
-
-## Design Patterns in Use
-
-### 1. Strategy Pattern
-Different parsing strategies for text vs image input
-
-### 2. State Machine
-Conversation states:
-- Initial problem analysis
-- Questioning phase
-- Hint escalation
-- Solution validation
-- Completion
-
-### 3. Chain of Responsibility
-Question flow:
-- Broad question → Narrow question → Hint → Validation
-
-### 4. Observer Pattern
-UI updates based on conversation state changes
-
-## Component Relationships
+### 1. Layered Architecture
 
 ```
-ChatUI
-  ├── uses → ProblemParser (for input)
-  ├── uses → DialogueManager (for messages)
-  ├── uses → MathRenderer (for equations)
-  └── uses → ContextManager (for history)
-
-DialogueManager
-  ├── uses → SocraticPromptEngine (for generating questions)
-  ├── uses → ContextManager (for history)
-  └── calls → OpenAI API (for responses)
-
-ProblemParser
-  ├── handles → TextInput (direct)
-  └── calls → OpenAI Vision API (for images)
+┌─────────────────────────────────┐
+│   Presentation Layer (React)     │
+│   - Components, UI Logic         │
+└──────────────┬──────────────────┘
+               │
+┌──────────────┴──────────────────┐
+│   Application Layer (Services)   │
+│   - Business Logic              │
+│   - Orchestration               │
+└──────────────┬──────────────────┘
+               │
+┌──────────────┴──────────────────┐
+│   Service Layer (OpenAI)         │
+│   - External API Integration     │
+└─────────────────────────────────┘
 ```
 
-## Data Flow
+### 2. Service-Oriented Design
 
-1. **Input Phase**
-   ```
-   User Input → ProblemParser → Structured Problem → ContextManager
-   ```
+Each service has a single responsibility:
+- **ProblemParser**: Extract problems from text/images
+- **DialogueManager**: Orchestrate conversations
+- **ContextManager**: Manage session state
+- **SocraticPromptEngine**: Generate prompts
 
-2. **Conversation Phase**
-   ```
-   User Message → ContextManager → DialogueManager → 
-   SocraticPromptEngine → OpenAI API → Response → 
-   ContextManager → MathRenderer → ChatUI
-   ```
+### 3. Component Composition
 
-3. **State Updates**
-   ```
-   Any Interaction → ContextManager → State Update → 
-   UI Re-render → ChatUI
-   ```
+React components are composed hierarchically:
+- `ChatUI` contains `Message` and `MessageInput`
+- `ProblemInput` contains `ImageUpload`
+- `Message` contains `MathRenderer`
 
-## Key Technical Decisions
+---
 
-### Prompt Engineering Strategy
-- **System Prompt**: Fixed Socratic tutor persona
-- **Few-shot Examples**: Include example Q&A pairs
-- **Context Injection**: Problem statement + conversation history
-- **Temperature**: Lower (0.7) for consistency, higher hints when stuck
+## Data Flow Patterns
 
-### Error Handling Pattern
-- **API Failures**: Graceful degradation with user-friendly messages
-- **Parsing Errors**: Ask user to clarify or re-upload
-- **Invalid Input**: Validate before processing
+### Request Flow
+
+```
+User Action
+  ↓
+Component Handler
+  ↓
+API Route
+  ↓
+Service Layer
+  ↓
+External API
+  ↓
+Response Processing
+  ↓
+State Update
+  ↓
+UI Re-render
+```
 
 ### State Management Pattern
-- **Conversation State**: Array of messages with metadata
-- **Problem State**: Current problem context
-- **UI State**: Loading, error states
 
-## Scalability Considerations
+**Client State** (React):
+- UI state (loading, errors)
+- Messages array
+- Input values
 
-### Current (MVP)
-- Single-user sessions
-- In-memory state
-- Direct API calls
+**Server State** (In-Memory):
+- Session data
+- Conversation history
+- Context tracking
 
-### Future Enhancements
-- Multi-user support (database)
-- Session persistence
-- Rate limiting
-- Caching for common problems
+---
+
+## Prompt Engineering Patterns
+
+### System Prompt Structure
+
+```
+Base Instructions
+  ↓
+Problem Context
+  ↓
+Conversation History
+  ↓
+Adaptive Modifications (based on stuckCount)
+  ↓
+Final Prompt
+```
+
+### Adaptive Prompting
+
+**Level 1 (Normal)**: Standard Socratic questions
+- "What are we trying to find?"
+- "What information do we have?"
+
+**Level 2 (Stuck 1 turn)**: More specific questions
+- "Think about what operation we need to undo first"
+- "What's the relationship between these numbers?"
+
+**Level 3 (Stuck 2+ turns)**: Concrete hints
+- "Remember: to undo addition, we subtract"
+- "Try isolating the variable by doing the opposite operation"
+
+---
+
+## Error Handling Patterns
+
+### Retry Pattern
+
+```typescript
+for (let attempt = 0; attempt <= maxRetries; attempt++) {
+  try {
+    // API call
+    return result;
+  } catch (error) {
+    if (isRetryable(error) && attempt < maxRetries) {
+      await delay(attempt); // Exponential backoff
+      continue;
+    }
+    throw error;
+  }
+}
+```
+
+### Error Classification
+
+- **Retryable**: Timeouts, network errors, rate limits (429)
+- **Non-Retryable**: Validation errors, API key errors, 400/401
+- **User-Friendly Messages**: Format errors for display
+
+---
+
+## Validation Patterns
+
+### Input Validation
+
+1. **Length Checks**: Max 500 chars for text, 10MB for images
+2. **Type Checks**: Ensure correct data types
+3. **Sanitization**: Remove HTML/script tags
+4. **Format Validation**: Check file types, base64 format
+
+### Response Validation
+
+1. **Non-Empty**: Ensure response exists
+2. **Length Checks**: Minimum response length
+3. **Direct Answer Detection**: Warn if looks like direct answer
+4. **Content Checks**: Ensure it's a question/guidance
+
+---
+
+## Session Management Patterns
+
+### Session Lifecycle
+
+```
+Create Session
+  ↓
+Initialize with Problem
+  ↓
+Add Messages (User/Tutor)
+  ↓
+Track Context (stuckCount, history)
+  ↓
+Clear/Reset on Restart
+```
+
+### Context Tracking
+
+```typescript
+interface ConversationContext {
+  sessionId: string;
+  problem: ParsedProblem;
+  messages: Message[];
+  stuckCount: number; // Turns without progress
+  lastHintLevel: number;
+}
+```
+
+---
+
+## Component Patterns
+
+### Controlled Components
+
+All inputs are controlled:
+- `value` and `onChange` props
+- State managed in parent
+- Validation on submit
+
+### Compound Components
+
+Related components grouped:
+- `ChatUI` + `Message` + `MessageInput`
+- `ProblemInput` + `ImageUpload`
+
+### Presentational vs Container
+
+- **Presentational**: `Message`, `MessageInput`, `ImageUpload`
+- **Container**: `ChatUI`, `ProblemInput` (manage state)
+
+---
+
+## API Design Patterns
+
+### RESTful Endpoints
+
+- `POST /api/parse-problem` - Parse problem
+- `POST /api/chat` - Send message
+- `POST /api/session` - Create session
+
+### Request/Response Contracts
+
+All endpoints follow consistent structure:
+```typescript
+{
+  success: boolean;
+  data?: T;
+  error?: string;
+}
+```
+
+### Error Responses
+
+Consistent error format:
+```typescript
+{
+  success: false;
+  error: string; // User-friendly message
+}
+```
+
+---
+
+## Math Rendering Patterns
+
+### LaTeX Detection
+
+Regex patterns to detect math:
+- Inline: `$...$` or `\(...\)`
+- Block: `$$...$$` or `\[...\]`
+
+### Rendering Strategy
+
+1. Parse content for LaTeX
+2. Extract math expressions
+3. Render with KaTeX
+4. Render remaining text normally
+
+---
+
+## Performance Patterns
+
+### Debouncing
+
+- Input validation debounced
+- Search/filter operations debounced
+
+### Memoization
+
+- Expensive calculations memoized
+- Component re-renders optimized
+
+### Lazy Loading
+
+- Components loaded on demand
+- Images loaded lazily
+
+---
+
+## Security Patterns
+
+### API Key Protection
+
+- Never exposed to frontend
+- Only used in API routes
+- Stored in environment variables
+
+### Input Sanitization
+
+- All user input sanitized
+- HTML/script tags removed
+- Length limits enforced
+
+### Error Messages
+
+- No internal details exposed
+- User-friendly messages only
+- Logging for debugging
+
+---
+
+## Testing Patterns
+
+### Unit Test Structure
+
+```typescript
+describe('Service Name', () => {
+  it('should handle valid input', () => {
+    // Test
+  });
+  
+  it('should handle invalid input', () => {
+    // Test
+  });
+});
+```
+
+### Mock Patterns
+
+- Mock OpenAI API responses
+- Mock file uploads
+- Mock network errors
+
+---
+
+## Deployment Patterns
+
+### Environment-Specific Config
+
+- Development: `.env.local`
+- Production: Vercel environment variables
+- Different error messages per environment
+
+### Build Optimization
+
+- TypeScript compilation
+- Next.js optimization
+- Tree shaking
+- Code splitting
+
+---
+
+## Future Pattern Considerations
+
+### Database Integration
+
+- Repository pattern for data access
+- Migration strategy for in-memory → database
+
+### Caching Strategy
+
+- Redis for session storage
+- Cache common problems
+- Cache parsed responses
+
+### Queue System
+
+- Background job processing
+- Rate limiting queue
+- Retry queue for failed requests
 

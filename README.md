@@ -6,12 +6,8 @@ An AI-powered math tutor that guides students through problem-solving using the 
 
 This project includes comprehensive documentation:
 
-- **[PRD.md](./PRD.md)** - Product Requirements Document with detailed feature specifications
-- **[TASKS.md](./TASKS.md)** - Task breakdown and timeline (3-5 days core + optional stretch)
 - **[ARCHITECTURE.md](./ARCHITECTURE.md)** - System architecture and technical design
 - **[EXAMPLES.md](./EXAMPLES.md)** - Example walkthroughs demonstrating Socratic dialogue
-- **[PROMPT_ENGINEERING.md](./PROMPT_ENGINEERING.md)** - Prompt engineering approach and best practices
-- **[DEPLOYMENT.md](./DEPLOYMENT.md)** - Deployment guide for production
 - **[VERCEL_SETUP.md](./VERCEL_SETUP.md)** - Quick Vercel deployment guide (fix API key errors)
 - **[memory-bank/](./memory-bank/)** - Project memory bank with context and patterns
 

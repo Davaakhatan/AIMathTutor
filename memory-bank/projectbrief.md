@@ -1,43 +1,117 @@
-# Project Brief: AI Math Tutor - Socratic Learning Assistant
+# Project Brief
+## AI Math Tutor - Socratic Learning Assistant
 
-## Project Overview
-Build an AI-powered math tutor that guides students through problem-solving using Socratic questioning methodology. The system helps students discover solutions through guided dialogue rather than providing direct answers.
+**Date**: November 3, 2025  
+**Contact**: John Chen - john.chen@superbuilders.school  
+**Timeline**: 3-5 days core + optional stretch features
 
-## Core Objective
-Create an educational tool that:
-- Accepts math problems via text or image upload
-- Engages students in Socratic dialogue to guide learning
-- Maintains conversation context throughout the session
-- Adapts to student understanding level
-- Never provides direct answers, only guidance
+---
+
+## Objective
+
+Build an AI tutor that guides students through math problems using Socratic questioning (inspired by the OpenAI x Khan Academy demo: https://www.youtube.com/watch?v=IvXZCocyU_M). The system accepts problems via screenshot or text and helps students discover solutions through guided dialogue.
+
+---
 
 ## Success Criteria
-- ✅ Guides students through 5+ problem types without giving direct answers
-- ✅ Maintains conversation context across multiple turns
-- ✅ Adapts to student understanding level
-- ✅ Clean, intuitive web interface
-- ✅ Proper math equation rendering (LaTeX/KaTeX)
-- ✅ Reliable problem parsing from text and images
 
-## Timeline
-- **Core Features**: 3-5 days
-- **Stretch Features**: Days 6-7 (optional)
-- **Target Completion**: November 3, 2025
+- Guides students through 5+ problem types without giving direct answers
+- Maintains conversation context throughout the session
+- Adapts to student understanding level
+- Provides hints when student is stuck (>2 turns)
 
-## Key Constraints
-- Must use Socratic method (no direct answers)
-- Should work with printed text initially (handwritten can be stretch)
-- Must support multiple problem types: arithmetic, algebra, geometry, word problems, multi-step
+---
+
+## Core Features (Days 1-5)
+
+### Problem Input
+- Text entry with validation
+- Image upload with OCR/Vision LLM parsing
+- Support for printed and handwritten text
+
+### Socratic Dialogue
+- Multi-turn conversation
+- Never provides direct answers
+- Asks guiding questions
+- Validates student responses
+- Provides hints when stuck
+
+### Math Rendering
+- Display equations properly using LaTeX/KaTeX
+- Inline and block math support
+- Proper formatting
+
+### Web Interface
+- Clean chat UI
+- Image upload interface
+- Conversation history
+- Mobile responsive design
+
+---
+
+## Stretch Features (Days 6-7, Optional)
+
+### High Priority
+- Interactive Whiteboard: Shared canvas for visual explanations and diagrams
+- Step Visualization: Animated breakdown of solution steps
+- Voice Interface: Text-to-speech responses + speech-to-text input
+
+### Nice to Have
+- Animated Avatar: 2D/3D tutor character with expressions
+- Difficulty Modes: Adjust scaffolding by grade level
+- Problem Generation: Create similar practice problems
+
+---
+
+## Socratic Approach
+
+### System Prompt Principles
+"You are a patient math tutor. NEVER give direct answers. Guide through questions: 'What information do we have?' 'What method might help?' If stuck >2 turns, provide concrete hint. Use encouraging language."
+
+### Flow
+1. Parse problem → Inventory knowns
+2. Identify goal → Guide method selection
+3. Step through solution → Validate answer
+
+---
+
+## Example Interaction
+
+```
+Student: [uploads "2x + 5 = 13"]
+Tutor: "What are we trying to find?"
+Student: "x"
+Tutor: "Right! To get x alone, we need to undo the +5 and ×2. Which should we undo first?"
+Student: "the +5?"
+Tutor: "Exactly! How do we undo adding 5?"
+```
+
+---
+
+## Testing Requirements
+
+Test with:
+- Simple arithmetic
+- Algebra (linear equations, quadratics)
+- Geometry (area, perimeter, angles)
+- Word problems
+- Multi-step problems
+
+---
 
 ## Deliverables
-1. Deployed application (or local with clear setup)
-2. GitHub repository with clean code structure
-3. Documentation: README with setup, 5+ example walkthroughs, prompt engineering notes
-4. 5-minute demo video demonstrating core features
 
-## Reference
-Inspired by OpenAI x Khan Academy demo: https://www.youtube.com/watch?v=IvXZCocyU_M
+- Deployed App (or local with clear setup)
+- GitHub Repo with clean code structure
+- Documentation: README with setup, 5+ example problem walkthroughs, prompt engineering notes
+- 5-Min Demo Video: Text input, image upload, Socratic dialogue, stretch feature (if built)
 
-## Contact
-John Chen - john.chen@superbuilders.school
+---
+
+## Evaluation Criteria
+
+- **Pedagogical Quality (35%)**: Genuine guidance without giving answers
+- **Technical Implementation (30%)**: Strong execution, bug free experience, how close to production ready?
+- **User Experience (20%)**: Intuitive interface, responsive
+- **Innovation (15%)**: Creative stretch features
 
