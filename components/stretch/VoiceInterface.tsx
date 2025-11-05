@@ -31,30 +31,51 @@ export default function VoiceInterface({
     setIsSupported(hasSpeechRecognition && hasSpeechSynthesis);
 
     if (hasSpeechRecognition) {
-      const SpeechRecognition =
-        (window as any).SpeechRecognition ||
-        (window as any).webkitSpeechRecognition;
-      const recognition = new SpeechRecognition();
-      recognitionRef.current = recognition;
-      
-      recognition.continuous = false;
-      recognition.interimResults = false;
-      recognition.lang = "en-US";
+      try {
+        const SpeechRecognition =
+          (window as any).SpeechRecognition ||
+          (window as any).webkitSpeechRecognition;
+        const recognition = new SpeechRecognition();
+        recognitionRef.current = recognition;
+        
+        recognition.continuous = false;
+        recognition.interimResults = false;
+        recognition.lang = "en-US";
 
-      recognition.onresult = (event: SpeechRecognitionEvent) => {
-        const transcript = event.results[0][0].transcript;
-        onTranscript(transcript);
-        setIsListening(false);
-      };
+        recognition.onstart = () => {
+          console.log("Speech recognition started");
+          setIsListening(true);
+        };
 
-      recognition.onerror = (event: SpeechRecognitionErrorEvent) => {
-        console.error("Speech recognition error:", event.error);
-        setIsListening(false);
-      };
+        recognition.onresult = (event: SpeechRecognitionEvent) => {
+          const transcript = event.results[0][0].transcript;
+          console.log("Speech recognized:", transcript);
+          onTranscript(transcript);
+          setIsListening(false);
+        };
 
-      recognition.onend = () => {
-        setIsListening(false);
-      };
+        recognition.onerror = (event: SpeechRecognitionErrorEvent) => {
+          console.error("Speech recognition error:", event.error);
+          setIsListening(false);
+          
+          // Handle specific errors
+          if (event.error === "not-allowed") {
+            alert("Microphone permission denied. Please enable microphone access in your browser settings.");
+          } else if (event.error === "no-speech") {
+            console.log("No speech detected");
+          } else if (event.error === "network") {
+            alert("Network error. Please check your internet connection.");
+          }
+        };
+
+        recognition.onend = () => {
+          console.log("Speech recognition ended");
+          setIsListening(false);
+        };
+      } catch (error) {
+        console.error("Failed to initialize speech recognition:", error);
+        setIsSupported(false);
+      }
     }
 
     if (hasSpeechSynthesis) {
@@ -63,7 +84,11 @@ export default function VoiceInterface({
 
     return () => {
       if (recognitionRef.current) {
-        recognitionRef.current.stop();
+        try {
+          recognitionRef.current.stop();
+        } catch (e) {
+          // Ignore errors on cleanup
+        }
       }
       if (synthesisRef.current) {
         synthesisRef.current.cancel();
@@ -71,13 +96,40 @@ export default function VoiceInterface({
     };
   }, [onTranscript]);
 
-  const startListening = () => {
-    if (recognitionRef.current && !isListening) {
-      try {
-        recognitionRef.current.start();
-        setIsListening(true);
-      } catch (error) {
-        console.error("Failed to start speech recognition:", error);
+  const startListening = async () => {
+    if (!recognitionRef.current || isListening) return;
+    
+    // Request microphone permission first
+    try {
+      if (navigator.mediaDevices && navigator.mediaDevices.getUserMedia) {
+        await navigator.mediaDevices.getUserMedia({ audio: true });
+      }
+    } catch (permissionError) {
+      console.error("Microphone permission denied:", permissionError);
+      alert("Microphone access is required for voice input. Please enable it in your browser settings.");
+      return;
+    }
+
+    try {
+      recognitionRef.current.start();
+      setIsListening(true);
+    } catch (error: any) {
+      console.error("Failed to start speech recognition:", error);
+      
+      // Handle specific errors
+      if (error.message?.includes("already started")) {
+        // Recognition already running, stop it first
+        try {
+          recognitionRef.current.stop();
+          setTimeout(() => {
+            recognitionRef.current?.start();
+            setIsListening(true);
+          }, 100);
+        } catch (retryError) {
+          console.error("Failed to restart speech recognition:", retryError);
+        }
+      } else {
+        alert("Failed to start voice input. Please try again or check your microphone settings.");
       }
     }
   };
@@ -105,7 +157,28 @@ export default function VoiceInterface({
     (window as any).speakTutorResponse = speak;
   }, [speak]);
 
+  // Check if browser is Firefox (doesn't support SpeechRecognition)
+  const isFirefox = typeof window !== "undefined" && 
+    navigator.userAgent.toLowerCase().indexOf("firefox") > -1;
+
   if (!isSupported) {
+    // Only show warning in development, and only once
+    if (typeof window !== "undefined" && process.env.NODE_ENV === "development") {
+      const hasRecognition = "webkitSpeechRecognition" in window || "SpeechRecognition" in window;
+      const hasSynthesis = "speechSynthesis" in window;
+      
+      // Only log once per session
+      if (!(window as any).__voiceWarningShown) {
+        console.warn("Voice input not supported:", {
+          hasRecognition,
+          hasSynthesis,
+          browser: isFirefox ? "Firefox" : "Unknown",
+          note: isFirefox ? "Firefox doesn't support Web Speech API for speech recognition. Use Chrome/Edge for voice input." : "Speech recognition not available in this browser."
+        });
+        (window as any).__voiceWarningShown = true;
+      }
+    }
+    
     return null; // Don't show if not supported
   }
 
@@ -113,15 +186,24 @@ export default function VoiceInterface({
     <div className="flex items-center gap-2">
       {/* Voice Input Button */}
       <button
-        onClick={isListening ? stopListening : startListening}
-        disabled={!isEnabled}
+        onClick={(e) => {
+          e.preventDefault();
+          if (isListening) {
+            stopListening();
+          } else {
+            startListening().catch((err) => {
+              console.error("Error starting voice input:", err);
+            });
+          }
+        }}
+        disabled={!isEnabled || !isSupported}
         className={`p-2 rounded-lg transition-colors focus:outline-none focus:ring-2 focus:ring-gray-400 focus:ring-offset-2 ${
           isListening
-            ? "bg-red-100 text-red-600 hover:bg-red-200"
+            ? "bg-red-100 text-red-600 hover:bg-red-200 dark:bg-red-900/20 dark:text-red-400"
             : "bg-gray-100 dark:bg-gray-800 text-gray-600 dark:text-gray-400 hover:bg-gray-200 dark:hover:bg-gray-700"
         } disabled:opacity-50 disabled:cursor-not-allowed`}
         aria-label={isListening ? "Stop listening" : "Start voice input"}
-        title={isListening ? "Stop listening" : "Start voice input"}
+        title={isListening ? "Stop listening" : isSupported ? "Start voice input" : "Voice input not supported in this browser"}
       >
         {isListening ? (
           <svg
