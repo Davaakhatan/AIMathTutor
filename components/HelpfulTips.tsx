@@ -56,13 +56,15 @@ export default function HelpfulTips() {
   }
 
   return (
-    <div className="fixed bottom-4 right-4 z-40 bg-white border border-gray-200 rounded-lg shadow-xl w-80 max-w-[calc(100vw-2rem)]">
+    <div className="fixed bottom-4 right-4 z-50 bg-white border border-gray-200 rounded-lg shadow-xl w-80 max-w-[calc(100vw-2rem)]">
       <div className="flex items-center justify-between p-4 border-b border-gray-200">
         <h3 className="text-sm font-medium text-gray-900">Helpful Tips</h3>
         <button
           onClick={() => setIsOpen(false)}
-          className="text-gray-400 hover:text-gray-600 transition-colors"
+          className="text-gray-400 hover:text-gray-600 transition-colors p-1 hover:bg-gray-100 rounded focus:outline-none focus:ring-2 focus:ring-gray-400"
           aria-label="Close tips"
+          type="button"
+          title="Close (X)"
         >
           <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
             <path

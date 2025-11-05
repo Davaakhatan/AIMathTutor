@@ -159,14 +159,21 @@ export default function ProblemHistory({ onSelectProblem }: ProblemHistoryProps)
   return (
     <div 
       ref={panelRef}
-      className="fixed bottom-4 right-4 z-40 bg-white border border-gray-200 rounded-lg shadow-xl w-96 max-w-[calc(100vw-2rem)] max-h-[80vh] flex flex-col"
+      className="fixed bottom-4 right-4 z-50 bg-white border border-gray-200 rounded-lg shadow-xl w-96 max-w-[calc(100vw-2rem)] max-h-[80vh] flex flex-col"
     >
       <div className="flex items-center justify-between p-4 border-b border-gray-200">
         <h3 className="text-sm font-medium text-gray-900">Problem History</h3>
         <div className="flex items-center gap-2">
-          <span className="text-xs text-gray-500">
-            {viewMode === "bookmarked" ? `${bookmarks.length} bookmarked` : `${savedProblems.length} saved`}
-          </span>
+          {viewMode === "bookmarked" && bookmarks.length > 0 && (
+            <span className="text-xs text-gray-500">
+              {bookmarks.length} {bookmarks.length === 1 ? "bookmark" : "bookmarked"}
+            </span>
+          )}
+          {viewMode === "all" && savedProblems.length > 0 && (
+            <span className="text-xs text-gray-500">
+              {savedProblems.length} {savedProblems.length === 1 ? "problem" : "problems"}
+            </span>
+          )}
           {filteredProblems.length > 0 && (
             <button
               onClick={() => {
@@ -195,6 +202,7 @@ export default function ProblemHistory({ onSelectProblem }: ProblemHistoryProps)
             className="text-gray-400 hover:text-gray-600 transition-colors p-1 hover:bg-gray-100 rounded focus:outline-none focus:ring-2 focus:ring-gray-400"
             aria-label="Close history"
             type="button"
+            title="Close (X)"
           >
             <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path
@@ -298,11 +306,6 @@ export default function ProblemHistory({ onSelectProblem }: ProblemHistoryProps)
                     <p className="text-xs text-gray-900 font-medium line-clamp-2 flex-1">
                       {problem.text}
                     </p>
-                    {(problem as any).isBookmarked && (
-                      <svg className="w-4 h-4 text-yellow-500 flex-shrink-0" fill="currentColor" viewBox="0 0 24 24">
-                        <path d="M5 5a2 2 0 012-2h10a2 2 0 012 2v16l-7-3.5L5 21V5z" />
-                      </svg>
-                    )}
                   </div>
                   <div className="flex items-center gap-2">
                     {problem.type && (
