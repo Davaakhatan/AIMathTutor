@@ -9,7 +9,11 @@ interface StreakData {
   lastStudyDate: number;
 }
 
-export default function StudyStreak() {
+interface StudyStreakProps {
+  onStreakChange?: (streak: number) => void;
+}
+
+export default function StudyStreak({ onStreakChange }: StudyStreakProps = {}) {
   const [streakData, setStreakData] = useLocalStorage<StreakData>("aitutor-streak", {
     currentStreak: 0,
     longestStreak: 0,
@@ -26,41 +30,55 @@ export default function StudyStreak() {
   // Update streak when user starts a problem
   useEffect(() => {
     const updateStreak = () => {
-      const today = new Date();
-      today.setHours(0, 0, 0, 0);
-      const todayTimestamp = today.getTime();
+      setStreakData((currentStreakData) => {
+        const today = new Date();
+        today.setHours(0, 0, 0, 0);
+        const todayTimestamp = today.getTime();
 
-      const lastDate = new Date(streakData.lastStudyDate);
-      lastDate.setHours(0, 0, 0, 0);
-      const lastDateTimestamp = lastDate.getTime();
+        const lastDate = new Date(currentStreakData.lastStudyDate);
+        lastDate.setHours(0, 0, 0, 0);
+        const lastDateTimestamp = lastDate.getTime();
 
-      const daysDiff = Math.floor((todayTimestamp - lastDateTimestamp) / (1000 * 60 * 60 * 24));
+        const daysDiff = Math.floor((todayTimestamp - lastDateTimestamp) / (1000 * 60 * 60 * 24));
 
-      if (daysDiff === 0) {
-        // Already studied today, keep streak
-        return;
-      } else if (daysDiff === 1) {
-        // Continue streak (yesterday -> today)
-        setStreakData({
-          currentStreak: streakData.currentStreak + 1,
-          longestStreak: Math.max(streakData.longestStreak, streakData.currentStreak + 1),
-          lastStudyDate: todayTimestamp,
-        });
-      } else if (streakData.lastStudyDate === 0) {
-        // First time studying
-        setStreakData({
-          currentStreak: 1,
-          longestStreak: 1,
-          lastStudyDate: todayTimestamp,
-        });
-      } else {
-        // Streak broken (missed days), start new
-        setStreakData({
-          currentStreak: 1,
-          longestStreak: streakData.longestStreak,
-          lastStudyDate: todayTimestamp,
-        });
-      }
+        if (daysDiff === 0) {
+          // Already studied today, keep streak
+          return currentStreakData;
+        } else if (daysDiff === 1) {
+          // Continue streak (yesterday -> today)
+          const newStreak = currentStreakData.currentStreak + 1;
+          const updated = {
+            currentStreak: newStreak,
+            longestStreak: Math.max(currentStreakData.longestStreak, newStreak),
+            lastStudyDate: todayTimestamp,
+          };
+          // Call onStreakChange outside of setState
+          setTimeout(() => {
+            if (onStreakChange) onStreakChange(newStreak);
+          }, 0);
+          return updated;
+        } else if (currentStreakData.lastStudyDate === 0) {
+          // First time studying
+          setTimeout(() => {
+            if (onStreakChange) onStreakChange(1);
+          }, 0);
+          return {
+            currentStreak: 1,
+            longestStreak: 1,
+            lastStudyDate: todayTimestamp,
+          };
+        } else {
+          // Streak broken (missed days), start new
+          setTimeout(() => {
+            if (onStreakChange) onStreakChange(1);
+          }, 0);
+          return {
+            currentStreak: 1,
+            longestStreak: currentStreakData.longestStreak,
+            lastStudyDate: todayTimestamp,
+          };
+        }
+      });
     };
 
     // Listen for problem started event
@@ -70,7 +88,7 @@ export default function StudyStreak() {
 
     window.addEventListener("problemStarted", handleProblemStarted);
     
-    // Also check on mount
+    // Also check on mount (only once)
     try {
       const history = JSON.parse(localStorage.getItem("aitutor-problem-history") || "[]");
       const today = new Date();
@@ -89,8 +107,17 @@ export default function StudyStreak() {
       // Ignore
     }
 
+    // Initialize streak value on mount (only once)
+    if (streakData.currentStreak > 0 && onStreakChange) {
+      // Use setTimeout to avoid calling during render
+      setTimeout(() => {
+        if (onStreakChange) onStreakChange(streakData.currentStreak);
+      }, 0);
+    }
+
     return () => window.removeEventListener("problemStarted", handleProblemStarted);
-  }, [streakData, setStreakData]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []); // Only run once on mount - event listener handles updates
 
   // Don't render until after hydration to avoid hydration mismatch
   if (!isMounted) return null;

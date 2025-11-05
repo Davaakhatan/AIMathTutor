@@ -13,32 +13,68 @@ import AutoSave from "@/components/AutoSave";
 import ProblemStats from "@/components/ProblemStats";
 import SkipLink from "@/components/SkipLink";
 import OfflineIndicator from "@/components/OfflineIndicator";
-import HelpfulTips from "@/components/HelpfulTips";
-import ProblemHistory from "@/components/ProblemHistory";
-import FormulaReference from "@/components/FormulaReference";
-import PracticeMode from "@/components/PracticeMode";
-import LearningDashboard from "@/components/LearningDashboard";
+import ToolsMenu from "@/components/unified/ToolsMenu";
+import LearningHub from "@/components/unified/LearningHub";
 import ShareProblem from "@/components/ShareProblem";
 import BookmarkButton from "@/components/BookmarkButton";
-import Settings from "@/components/Settings";
+import SettingsMenu from "@/components/unified/SettingsMenu";
 import StudyStreak from "@/components/StudyStreak";
 import PrintView from "@/components/PrintView";
-import SearchProblems from "@/components/SearchProblems";
 import ProblemDifficultyIndicator from "@/components/ProblemDifficultyIndicator";
 import StudyReminder from "@/components/StudyReminder";
-import AchievementBadge from "@/components/AchievementBadge";
 import ProblemSuggestions from "@/components/ProblemSuggestions";
 import SessionResume from "@/components/SessionResume";
 import ProblemProgress from "@/components/ProblemProgress";
 import ProblemOfTheDay from "@/components/ProblemOfTheDay";
 import XPSystem from "@/components/XPSystem";
+import GamificationHub from "@/components/unified/GamificationHub";
+import StudyTimer from "@/components/StudyTimer";
+import DailyGoals from "@/components/DailyGoals";
+import OnboardingTutorial from "@/components/OnboardingTutorial";
+import NotificationCenter from "@/components/NotificationCenter";
+import ProgressHub from "@/components/unified/ProgressHub";
+import WelcomeScreen from "@/components/WelcomeScreen";
 import { ParsedProblem, Message } from "@/types";
 import { normalizeProblemText } from "@/lib/textUtils";
 
 export default function Home() {
+  const [isMounted, setIsMounted] = useState(false);
   const [currentProblem, setCurrentProblem] = useState<ParsedProblem | null>(
     null
   );
+  
+  // Set mounted state after component mounts (client-side only)
+  useEffect(() => {
+    setIsMounted(true);
+    
+    // Check if welcome was already seen on mount
+    const checkWelcome = () => {
+      if (typeof window !== "undefined") {
+        const hasSeenWelcome = window.localStorage.getItem("aitutor-welcome-seen") === "true" || 
+                               window.localStorage.getItem("aitutor-welcome-seen") === '"true"';
+        return hasSeenWelcome;
+      }
+      return false;
+    };
+    
+    // Listen for welcome dismissal
+    const handleWelcomeDismissed = () => {
+      // Welcome dismissed - ensure main content is visible
+      const mainContent = document.getElementById("main-content");
+      if (mainContent) {
+        mainContent.style.visibility = "visible";
+      }
+    };
+    
+    window.addEventListener("welcomeDismissed", handleWelcomeDismissed);
+    
+    // Check on mount
+    if (checkWelcome()) {
+      handleWelcomeDismissed();
+    }
+    
+    return () => window.removeEventListener("welcomeDismissed", handleWelcomeDismissed);
+  }, []);
   const [sessionId, setSessionId] = useState<string | null>(null);
   const [initialMessages, setInitialMessages] = useState<Message[]>([]);
   const [isInitializing, setIsInitializing] = useState(false);
@@ -46,6 +82,11 @@ export default function Home() {
   const [showWhiteboard, setShowWhiteboard] = useState(false);
   const [allMessages, setAllMessages] = useState<Message[]>([]);
   const { toasts, showToast, removeToast } = useToast();
+  const [xpData, setXPData] = useState({ totalXP: 0, level: 1, problemsSolved: 0 });
+  const [streak, setStreak] = useState(0);
+  const [isStudyActive, setIsStudyActive] = useState(false);
+  const [problemsSolvedToday, setProblemsSolvedToday] = useState(0);
+  const [timeSpentToday, setTimeSpentToday] = useState(0);
   const [settings, setSettings] = useState(() => {
     if (typeof window !== "undefined") {
       try {
@@ -122,7 +163,10 @@ export default function Home() {
       window.dispatchEvent(new CustomEvent("problemStarted"));
       
       // Update last study date for StudyReminder
-      localStorage.setItem("aitutor-last-study", new Date().toDateString());
+      localStorage.setItem("aitutor-last-study", Date.now().toString());
+      
+      // Activate study timer
+      setIsStudyActive(true);
     } catch (error) {
       // Ignore errors
     }
@@ -235,19 +279,84 @@ export default function Home() {
     }
   };
 
-  const handleChangeProblem = () => {
-    setCurrentProblem(null);
-    setSessionId(null);
-    setInitialMessages([]);
-    setAllMessages([]);
-  };
+      const handleChangeProblem = () => {
+        setCurrentProblem(null);
+        setSessionId(null);
+        setInitialMessages([]);
+        setAllMessages([]);
+        setIsStudyActive(false); // Stop timer when changing problem
+      };
+
+      // Listen for problem solved events
+      useEffect(() => {
+        const handleProblemSolved = () => {
+          setProblemsSolvedToday((prev) => prev + 1);
+          window.dispatchEvent(new CustomEvent("problemSolved"));
+        };
+
+        // Check if problem is solved by looking at messages
+        const tutorMessages = allMessages.filter((m) => m.role === "tutor");
+        const isSolved = tutorMessages.some((msg) => {
+          const content = msg.content.toLowerCase();
+          const completionPhrases = [
+            "you've solved it",
+            "you solved it",
+            "solution is correct",
+            "answer is correct",
+            "congratulations",
+            "well done",
+            "excellent",
+            "perfect",
+            "correct!",
+            "that's right",
+            "that is correct",
+            "you got it",
+            "you got it right",
+            "great job",
+          ];
+          return completionPhrases.some((phrase) => content.includes(phrase));
+        });
+
+        if (isSolved && currentProblem) {
+          handleProblemSolved();
+        }
+      }, [allMessages, currentProblem]);
+
+      // Calculate time spent today from study sessions
+      useEffect(() => {
+        try {
+          const sessions = JSON.parse(localStorage.getItem("aitutor-study-sessions") || "[]");
+          const today = new Date().toISOString().split("T")[0];
+          const todaySessions = sessions.filter((s: any) => {
+            const sessionDate = new Date(s.startTime);
+            return sessionDate.toISOString().split("T")[0] === today;
+          });
+          const todayTime = todaySessions.reduce((sum: number, s: any) => sum + (s.duration || 0), 0);
+          setTimeSpentToday(Math.floor(todayTime / 60)); // Convert to minutes
+        } catch {
+          // Ignore
+        }
+      }, [isStudyActive]);
 
   return (
     <>
       <SkipLink />
       <OfflineIndicator />
+      <WelcomeScreen 
+        key="welcome-screen" 
+        onGetStarted={() => {
+          // Welcome screen dismissed, ready to use app
+          console.log("Welcome screen onGetStarted callback fired");
+        }} 
+      />
+      {/* Commented out OnboardingTutorial - keeping only WelcomeScreen for now */}
+      {/* <OnboardingTutorial /> */}
       <SessionResume onResume={handleResumeSession} />
-      <main id="main-content" className="flex min-h-screen flex-col items-center p-3 sm:p-4 md:p-6 lg:p-12 bg-[#fafafa] dark:bg-[#0a0a0a] transition-colors">
+      <main 
+        id="main-content" 
+        className="flex min-h-screen flex-col items-center p-3 sm:p-4 md:p-6 lg:p-12 bg-[#fafafa] dark:bg-[#0a0a0a] transition-colors"
+        style={{ visibility: isMounted ? 'visible' : 'hidden' }}
+      >
         <div className="w-full max-w-5xl overflow-visible">
         <div className="text-center mb-6 sm:mb-8 md:mb-12">
           <h1 className="text-2xl sm:text-3xl md:text-4xl font-light mb-2 sm:mb-3 text-gray-900 dark:text-gray-100 tracking-tight transition-colors">
@@ -262,7 +371,7 @@ export default function Home() {
         </div>
 
             {!currentProblem ? (
-              <div className="space-y-4">
+              <div className="space-y-4" data-tutorial="problem-input">
                 <ProblemOfTheDay 
                   onProblemSelected={handleProblemParsed}
                   apiKey={settings.apiKey}
@@ -344,16 +453,17 @@ export default function Home() {
                 )}
 
                 {/* Chat Interface */}
-                      <ChatUI
-                        sessionId={sessionId}
-                        initialMessages={initialMessages}
-                        problem={currentProblem}
-                        enableStretchFeatures={true}
-                        difficultyMode={difficultyMode}
-                        voiceEnabled={settings.voiceEnabled}
-                        onMessagesChange={setAllMessages}
-                        apiKey={settings.apiKey} // Pass client-provided API key if available
-                      onRestart={() => {
+                <div data-tutorial="chat">
+                  <ChatUI
+                    sessionId={sessionId}
+                    initialMessages={initialMessages}
+                    problem={currentProblem}
+                    enableStretchFeatures={true}
+                    difficultyMode={difficultyMode}
+                    voiceEnabled={settings.voiceEnabled}
+                    onMessagesChange={setAllMessages}
+                    apiKey={settings.apiKey} // Pass client-provided API key if available
+                    onRestart={() => {
                     setSessionId(null);
                     setInitialMessages([]);
                     setAllMessages([]);
@@ -368,9 +478,10 @@ export default function Home() {
                     // Re-initialize with same problem
                     if (currentProblem) {
                       handleProblemParsed(currentProblem);
-                    }
-                  }}
-                />
+                      }
+                    }}
+                  />
+                </div>
 
                 {/* Auto-save conversation */}
                 {sessionId && (
@@ -437,48 +548,100 @@ export default function Home() {
             />
           ))}
 
-          {/* Helpful Tips */}
-          <HelpfulTips />
 
-          {/* Problem History (includes bookmarks) */}
-          <ProblemHistory onSelectProblem={handleProblemParsed} />
+          {/* Unified Learning Hub (Dashboard + History + Practice) */}
+          <LearningHub 
+            onSelectProblem={handleProblemParsed} 
+            apiKey={settings.apiKey}
+          />
 
-          {/* Formula Reference */}
-          <FormulaReference />
-
-          {/* Practice Mode */}
-          <PracticeMode onStartPractice={handleProblemParsed} apiKey={settings.apiKey} />
-
-          {/* Learning Dashboard */}
-          <LearningDashboard />
-
-          {/* Settings */}
-          <Settings />
-
-          {/* Study Streak */}
-          <StudyStreak />
-
-          {/* XP System */}
-          <XPSystem 
-            messages={allMessages} 
-            problem={currentProblem}
-            onLevelUp={(newLevel) => {
-              showToast(`🎉 Level Up! You reached Level ${newLevel}!`, "success");
-              // Sound is already played in XPSystem component
+          {/* Unified Settings Menu (Settings + Notifications + XP) */}
+          <SettingsMenu 
+            onXPDataChange={(data) => {
+              setXPData((prev) => {
+                if (
+                  prev.totalXP !== data.totalXP ||
+                  prev.level !== data.level ||
+                  prev.problemsSolved !== data.problemsSolved
+                ) {
+                  return data;
+                }
+                return prev;
+              });
             }}
           />
 
-          {/* Search Problems */}
-          <SearchProblems onSelectProblem={handleProblemParsed} />
+          {/* Unified Tools Menu (Search + Tips + Formulas) */}
+          <ToolsMenu onSelectProblem={handleProblemParsed} />
 
-          {/* Study Reminders */}
-          <StudyReminder />
+          {/* Unified Progress Hub (Stats + Goals + Timer + Streak) */}
+          <ProgressHub
+            isStudyActive={isStudyActive}
+            problemsSolvedToday={problemsSolvedToday}
+            timeSpentToday={timeSpentToday}
+            onStreakChange={setStreak}
+          />
 
-          {/* Achievements */}
-          <AchievementBadge />
+          {/* XP System (hidden - tracking only, UI is in SettingsMenu) */}
+          <div className="hidden">
+            <XPSystem 
+              messages={allMessages} 
+              problem={currentProblem}
+              onLevelUp={(newLevel) => {
+                showToast(`🎉 Level Up! You reached Level ${newLevel}!`, "success");
+                // Sound is already played in XPSystem component
+              }}
+              onXPDataChange={(data) => {
+                // Only update if values actually changed to prevent infinite loops
+                setXPData((prev) => {
+                  if (
+                    prev.totalXP !== data.totalXP ||
+                    prev.level !== data.level ||
+                    prev.problemsSolved !== data.problemsSolved
+                  ) {
+                    return data;
+                  }
+                  return prev;
+                });
+              }}
+            />
+          </div>
 
-          {/* Problem Suggestions */}
-          <ProblemSuggestions onSelectProblem={handleProblemParsed} />
+          {/* Unified Gamification Hub (Achievements + Leaderboard) */}
+          <GamificationHub
+            currentXP={xpData.totalXP}
+            currentLevel={xpData.level}
+            currentProblemsSolved={xpData.problemsSolved}
+            currentStreak={streak}
+          />
+
+          {/* Study Reminders (hidden - UI is in SettingsMenu) */}
+          <div className="hidden">
+            <StudyReminder />
+          </div>
+
+          {/* Problem Suggestions (hidden - UI is in LearningHub) */}
+          <div className="hidden">
+            <ProblemSuggestions onSelectProblem={handleProblemParsed} />
+          </div>
+
+          {/* StudyTimer (hidden - UI is in ProgressHub) */}
+          <div className="hidden">
+            <StudyTimer isActive={isStudyActive} />
+          </div>
+
+          {/* DailyGoals (hidden - UI is in ProgressHub) */}
+          <div className="hidden">
+            <DailyGoals 
+              problemsSolvedToday={problemsSolvedToday} 
+              timeSpentToday={timeSpentToday} 
+            />
+          </div>
+
+
+
+          {/* Notification Center (background logic only - UI is in SettingsMenu) */}
+          <NotificationCenter hideButton={true} />
         </main>
       </>
     );

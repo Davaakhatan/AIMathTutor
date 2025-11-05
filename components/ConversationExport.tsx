@@ -68,7 +68,7 @@ export default function ConversationExport({
     <button
       onClick={exportConversation}
       disabled={isExporting}
-      className="text-xs text-gray-500 hover:text-gray-700 transition-colors font-light px-3 py-1.5 border border-gray-200 rounded-lg hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-gray-400 flex items-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
+      className="text-xs text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-300 transition-colors font-light px-3 py-1.5 border border-gray-200 dark:border-gray-700 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-800 focus:outline-none focus:ring-2 focus:ring-gray-400 dark:focus:ring-gray-500 flex items-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
       aria-label="Export conversation"
       title="Export conversation as text file"
     >

@@ -287,10 +287,10 @@ const ChatUI = memo(function ChatUI({
           </div>
         )}
 
-        {/* Progressive Hints */}
-        {enableStretchFeatures && problem && messages.length > 0 && !isLoading && (
-          <div className="px-4 py-2 border-t border-gray-100 dark:border-gray-800 transition-colors">
-            <ProgressiveHints
+            {/* Progressive Hints */}
+            {enableStretchFeatures && problem && messages.length > 0 && !isLoading && (
+              <div className="px-4 py-2 border-t border-gray-100 dark:border-gray-800 transition-colors" data-tutorial="hints">
+                <ProgressiveHints
               problem={problem}
               sessionMessages={messages}
               apiKey={apiKey}

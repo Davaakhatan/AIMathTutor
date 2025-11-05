@@ -193,12 +193,12 @@ export default function ProblemGenerator({
           className="px-4 py-2 bg-gray-900 dark:bg-gray-700 text-white rounded-lg hover:bg-gray-800 dark:hover:bg-gray-600 disabled:bg-gray-300 dark:disabled:bg-gray-800 disabled:text-gray-500 dark:disabled:text-gray-400 disabled:cursor-not-allowed transition-colors font-medium text-sm whitespace-nowrap flex items-center gap-2"
           aria-label="Generate problem"
         >
-          {isGenerating ? (
-            <>
-              <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
-              <span>Generating...</span>
-            </>
-          ) : (
+              {isGenerating ? (
+                <>
+                  <div className="w-4 h-4 border-2 border-white dark:border-gray-200 border-t-transparent rounded-full animate-spin" />
+                  <span>Generating problem...</span>
+                </>
+              ) : (
             <>
               <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path

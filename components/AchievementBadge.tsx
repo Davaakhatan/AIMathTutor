@@ -89,7 +89,7 @@ export default function AchievementBadge() {
       {/* Achievement Button */}
       <button
         onClick={() => setIsOpen(true)}
-        className="fixed right-4 z-40 bg-purple-600 text-white rounded-full p-3 shadow-lg hover:bg-purple-700 transition-colors focus:outline-none focus:ring-2 focus:ring-purple-400 focus:ring-offset-2"
+        className="fixed right-4 z-40 bg-purple-600 dark:bg-purple-700 text-white rounded-full p-3 shadow-lg hover:bg-purple-700 dark:hover:bg-purple-600 transition-colors focus:outline-none focus:ring-2 focus:ring-purple-400 dark:focus:ring-purple-500 focus:ring-offset-2 active:scale-95 touch-device:min-h-[48px] touch-device:min-w-[48px]"
         style={{ bottom: "25rem" }}
         aria-label="View achievements"
         title="Achievements"

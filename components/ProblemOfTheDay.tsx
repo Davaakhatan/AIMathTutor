@@ -303,7 +303,14 @@ export default function ProblemOfTheDay({
 
       <div className="flex items-center justify-between">
         <p className="text-xs text-gray-600 dark:text-gray-400 transition-colors">
-          {isGenerating ? "Generating today's challenge..." : "A new challenge every day!"}
+            {isGenerating ? (
+              <span className="flex items-center gap-2">
+                <div className="w-3 h-3 border-2 border-blue-600 dark:border-blue-400 border-t-transparent rounded-full animate-spin" />
+                Generating today&apos;s challenge...
+              </span>
+            ) : (
+              "A new challenge every day!"
+            )}
         </p>
         <button
           onClick={handleStartProblem}

@@ -1,0 +1,147 @@
+"use client";
+
+import { useState, useEffect } from "react";
+import { useLocalStorage } from "@/hooks/useLocalStorage";
+
+interface Notification {
+  id: string;
+  type: "achievement" | "milestone" | "reminder" | "info";
+  title: string;
+  message: string;
+  timestamp: number;
+  read: boolean;
+}
+
+/**
+ * Notifications Content - Just the notifications list (no panel wrapper)
+ */
+export default function NotificationsContent() {
+  const [notifications, setNotifications] = useLocalStorage<Notification[]>(
+    "aitutor-notifications",
+    []
+  );
+
+  // Listen for achievement events
+  useEffect(() => {
+    const handleAchievement = (e: Event) => {
+      const customEvent = e as CustomEvent;
+      const newNotification: Notification = {
+        id: Date.now().toString(),
+        type: customEvent.detail.type || "achievement",
+        title: customEvent.detail.title || "Achievement Unlocked!",
+        message: customEvent.detail.message || "Great job!",
+        timestamp: Date.now(),
+        read: false,
+      };
+      setNotifications((prev) => [newNotification, ...prev].slice(0, 50));
+    };
+
+    window.addEventListener("achievementUnlocked", handleAchievement);
+    return () => window.removeEventListener("achievementUnlocked", handleAchievement);
+  }, [setNotifications]);
+
+  const markAsRead = (id: string) => {
+    setNotifications((prev) =>
+      prev.map((n) => (n.id === id ? { ...n, read: true } : n))
+    );
+  };
+
+  const markAllAsRead = () => {
+    setNotifications((prev) => prev.map((n) => ({ ...n, read: true })));
+  };
+
+  const clearAll = () => {
+    if (confirm("Clear all notifications?")) {
+      setNotifications([]);
+    }
+  };
+
+  const recentNotifications = notifications.slice(0, 10);
+
+  return (
+    <div className="flex flex-col h-full">
+      {/* Header Actions */}
+      <div className="flex items-center justify-between p-4 border-b border-gray-200 dark:border-gray-700">
+        <div className="flex items-center gap-2">
+          <h3 className="text-sm font-medium text-gray-900 dark:text-gray-100">Notifications</h3>
+          {notifications.filter((n) => !n.read).length > 0 && (
+            <span className="bg-red-500 text-white text-xs font-bold rounded-full px-2 py-0.5">
+              {notifications.filter((n) => !n.read).length}
+            </span>
+          )}
+        </div>
+        <div className="flex items-center gap-2">
+          {notifications.filter((n) => !n.read).length > 0 && (
+            <button
+              onClick={markAllAsRead}
+              className="text-xs text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-gray-100 transition-colors"
+              title="Mark all as read"
+            >
+              Mark all read
+            </button>
+          )}
+        </div>
+      </div>
+
+      {/* Notifications List */}
+      <div className="flex-1 overflow-y-auto p-2">
+        {recentNotifications.length === 0 ? (
+          <div className="text-center py-8 text-gray-400 dark:text-gray-500">
+            <p className="text-sm">No notifications yet</p>
+            <p className="text-xs mt-1">Achievements and milestones will appear here</p>
+          </div>
+        ) : (
+          <div className="space-y-2">
+            {recentNotifications.map((notification) => (
+              <div
+                key={notification.id}
+                onClick={() => markAsRead(notification.id)}
+                className={`p-3 rounded-lg border cursor-pointer transition-all ${
+                  notification.read
+                    ? "bg-gray-50 dark:bg-gray-800 border-gray-200 dark:border-gray-700"
+                    : "bg-blue-50 dark:bg-blue-900/20 border-blue-200 dark:border-blue-800"
+                }`}
+              >
+                <div className="flex items-start gap-2">
+                  <div className="flex-shrink-0 mt-0.5">
+                    {notification.type === "achievement" && <span className="text-xl">🏆</span>}
+                    {notification.type === "milestone" && <span className="text-xl">🎯</span>}
+                    {notification.type === "reminder" && <span className="text-xl">⏰</span>}
+                    {notification.type === "info" && <span className="text-xl">ℹ️</span>}
+                  </div>
+                  <div className="flex-1 min-w-0">
+                    <p className="text-sm font-medium text-gray-900 dark:text-gray-100">
+                      {notification.title}
+                    </p>
+                    <p className="text-xs text-gray-600 dark:text-gray-400 mt-0.5">
+                      {notification.message}
+                    </p>
+                    <p className="text-xs text-gray-400 dark:text-gray-500 mt-1">
+                      {new Date(notification.timestamp).toLocaleDateString()}
+                    </p>
+                  </div>
+                  {!notification.read && (
+                    <div className="w-2 h-2 bg-blue-500 rounded-full flex-shrink-0 mt-1" />
+                  )}
+                </div>
+              </div>
+            ))}
+          </div>
+        )}
+      </div>
+
+      {/* Footer Actions */}
+      {recentNotifications.length > 0 && (
+        <div className="p-2 border-t border-gray-200 dark:border-gray-700">
+          <button
+            onClick={clearAll}
+            className="w-full px-3 py-2 text-xs text-red-600 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-900/20 rounded-lg transition-colors"
+          >
+            Clear All
+          </button>
+        </div>
+      )}
+    </div>
+  );
+}
+

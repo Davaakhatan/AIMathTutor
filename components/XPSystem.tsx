@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { useLocalStorage } from "@/hooks/useLocalStorage";
 import { ParsedProblem, Message, ProblemType } from "@/types";
 
@@ -24,6 +24,7 @@ interface XPSystemProps {
   messages: Message[];
   problem: ParsedProblem | null;
   onLevelUp?: (newLevel: number) => void;
+  onXPDataChange?: (data: { totalXP: number; level: number; problemsSolved: number }) => void;
 }
 
 /**
@@ -38,7 +39,8 @@ interface XPSystemProps {
 export default function XPSystem({ 
   messages, 
   problem,
-  onLevelUp 
+  onLevelUp,
+  onXPDataChange
 }: XPSystemProps) {
   const [xpData, setXPData] = useLocalStorage<XPData>("aitutor-xp", {
     totalXP: 0,
@@ -54,6 +56,7 @@ export default function XPSystem({
   const [solvedProblems, setSolvedProblems] = useState<Set<string>>(new Set());
   const [previousLevel, setPreviousLevel] = useState(xpData.level);
   const [isMounted, setIsMounted] = useState(false);
+  const [problemsSolvedCount, setProblemsSolvedCount] = useState(0);
 
   // Calculate XP needed for next level (exponential curve)
   const calculateXPForLevel = (level: number): number => {
@@ -232,6 +235,16 @@ export default function XPSystem({
             playLevelUp();
           });
         }
+        // Trigger level up notification
+        window.dispatchEvent(
+          new CustomEvent("achievementUnlocked", {
+            detail: {
+              type: "milestone",
+              title: `Level Up! 🎉`,
+              message: `You reached Level ${newLevel}! Keep up the great work!`,
+            },
+          })
+        );
       }, 2000); // Show after XP notification
     }
 
@@ -314,6 +327,42 @@ export default function XPSystem({
   const progressPercentage = xpData.xpToNextLevel > 0
     ? ((calculateXPForLevel(xpData.level) - xpData.xpToNextLevel) / calculateXPForLevel(xpData.level)) * 100
     : 100;
+
+  // Update problems solved count when XP history changes
+  useEffect(() => {
+    if (isMounted) {
+      const count = xpData.xpHistory.filter(h => h.reason.includes("Problem solved")).length;
+      setProblemsSolvedCount(count);
+    }
+  }, [xpData.xpHistory.length, isMounted]); // Only depend on length, not the array itself
+
+  // Notify parent of XP data changes (use useRef to track previous values and avoid unnecessary calls)
+  const prevXPRef = useRef({ totalXP: 0, level: 1, problemsSolved: 0 });
+  
+  useEffect(() => {
+    if (!onXPDataChange || !isMounted) return;
+
+    const current = {
+      totalXP: xpData.totalXP,
+      level: xpData.level,
+      problemsSolved: problemsSolvedCount,
+    };
+
+    // Only call if values actually changed
+    if (
+      prevXPRef.current.totalXP !== current.totalXP ||
+      prevXPRef.current.level !== current.level ||
+      prevXPRef.current.problemsSolved !== current.problemsSolved
+    ) {
+      prevXPRef.current = current;
+      // Use setTimeout to avoid calling during render
+      setTimeout(() => {
+        if (onXPDataChange) {
+          onXPDataChange(current);
+        }
+      }, 0);
+    }
+  }, [xpData.totalXP, xpData.level, problemsSolvedCount, isMounted, onXPDataChange]);
 
   // Don't render until after hydration to prevent hydration mismatch
   if (!isMounted) {

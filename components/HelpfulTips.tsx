@@ -82,10 +82,10 @@ export default function HelpfulTips() {
     return (
       <button
         onClick={() => setIsOpen(true)}
-        className="fixed right-4 z-40 bg-gray-900 text-white rounded-full p-3 shadow-lg hover:bg-gray-800 transition-colors focus:outline-none focus:ring-2 focus:ring-gray-400 focus:ring-offset-2"
+        className="fixed right-4 z-40 bg-gray-900 dark:bg-gray-700 text-white rounded-full p-3 shadow-lg hover:bg-gray-800 dark:hover:bg-gray-600 transition-colors focus:outline-none focus:ring-2 focus:ring-gray-400 dark:focus:ring-gray-500 focus:ring-offset-2 active:scale-95 touch-device:min-h-[48px] touch-device:min-w-[48px]"
         style={{ bottom: "1rem" }}
         aria-label="Show helpful tips"
-        title="Helpful Tips"
+        title="Helpful Tips (Press ?)"
       >
         <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
           <path

@@ -18,10 +18,10 @@ export default function LoadingSkeleton({
             className="flex gap-3 animate-pulse"
             style={{ animationDelay: `${i * 100}ms` }}
           >
-            <div className="w-8 h-8 rounded-full bg-gray-200 flex-shrink-0" />
+            <div className="w-8 h-8 rounded-full bg-gray-200 dark:bg-gray-700 flex-shrink-0 transition-colors" />
             <div className="flex-1 space-y-2">
-              <div className="h-4 bg-gray-200 rounded w-3/4" />
-              <div className="h-4 bg-gray-200 rounded w-1/2" />
+              <div className="h-4 bg-gray-200 dark:bg-gray-700 rounded w-3/4 transition-colors" />
+              <div className="h-4 bg-gray-200 dark:bg-gray-700 rounded w-1/2 transition-colors" />
             </div>
           </div>
         ))}
@@ -33,11 +33,11 @@ export default function LoadingSkeleton({
     return (
       <div className="space-y-2">
         {Array.from({ length: count }).map((_, i) => (
-          <div
-            key={i}
-            className="h-10 bg-gray-200 rounded animate-pulse"
-            style={{ animationDelay: `${i * 50}ms` }}
-          />
+            <div
+              key={i}
+              className="h-10 bg-gray-200 dark:bg-gray-700 rounded animate-pulse transition-colors"
+              style={{ animationDelay: `${i * 50}ms` }}
+            />
         ))}
       </div>
     );
@@ -45,7 +45,7 @@ export default function LoadingSkeleton({
 
   if (type === "button") {
     return (
-      <div className="h-10 w-24 bg-gray-200 rounded animate-pulse" />
+      <div className="h-10 w-24 bg-gray-200 dark:bg-gray-700 rounded animate-pulse transition-colors" />
     );
   }
 
@@ -54,7 +54,7 @@ export default function LoadingSkeleton({
       {Array.from({ length: count }).map((_, i) => (
         <div
           key={i}
-          className="h-4 bg-gray-200 rounded animate-pulse mb-2"
+          className="h-4 bg-gray-200 dark:bg-gray-700 rounded animate-pulse mb-2 transition-colors"
           style={{
             animationDelay: `${i * 100}ms`,
             width: i === count - 1 ? "60%" : "100%",

@@ -45,10 +45,10 @@ export default function BookmarkButton({ problem }: BookmarkButtonProps) {
   return (
     <button
       onClick={handleToggle}
-      className={`p-2 rounded-lg transition-colors ${
+      className={`p-2 rounded-lg transition-all active:scale-95 touch-device:min-h-[44px] touch-device:min-w-[44px] ${
         isBookmarked
-          ? "text-yellow-500 hover:text-yellow-600 hover:bg-yellow-50"
-          : "text-gray-400 hover:text-gray-600 hover:bg-gray-100"
+          ? "text-yellow-500 dark:text-yellow-400 hover:text-yellow-600 dark:hover:text-yellow-300 hover:bg-yellow-50 dark:hover:bg-yellow-900/20"
+          : "text-gray-400 dark:text-gray-500 hover:text-gray-600 dark:hover:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-800"
       }`}
       aria-label={isBookmarked ? "Remove bookmark" : "Bookmark problem"}
       title={isBookmarked ? "Bookmarked" : "Bookmark this problem"}
