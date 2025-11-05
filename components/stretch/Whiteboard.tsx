@@ -20,6 +20,10 @@ export default function Whiteboard({
   const [color, setColor] = useState("#000000");
   const [lineWidth, setLineWidth] = useState(2);
   const [hasContent, setHasContent] = useState(false);
+  const [drawingMode, setDrawingMode] = useState<"freehand" | "rectangle" | "circle" | "triangle" | "line" | "text">("freehand");
+  const [startPos, setStartPos] = useState<{ x: number; y: number } | null>(null);
+  const [textInput, setTextInput] = useState<{ x: number; y: number; text: string } | null>(null);
+  const [savedCanvasState, setSavedCanvasState] = useState<ImageData | null>(null);
 
   const colors = [
     "#000000", // Black
@@ -58,6 +62,67 @@ export default function Whiteboard({
     };
   }, [color, lineWidth]);
 
+  const getMousePos = useCallback((e: React.MouseEvent<HTMLCanvasElement> | React.TouchEvent<HTMLCanvasElement>) => {
+    const canvas = canvasRef.current;
+    if (!canvas) return { x: 0, y: 0 };
+    
+    const rect = canvas.getBoundingClientRect();
+    return {
+      x: "touches" in e ? e.touches[0].clientX - rect.left : e.clientX - rect.left,
+      y: "touches" in e ? e.touches[0].clientY - rect.top : e.clientY - rect.top,
+    };
+  }, []);
+
+  const drawShape = useCallback((start: { x: number; y: number }, end: { x: number; y: number }, mode: string, isPreview: boolean = true) => {
+    const canvas = canvasRef.current;
+    if (!canvas) return;
+    
+    const ctx = canvas.getContext("2d");
+    if (!ctx) return;
+
+    // If preview, restore saved state and draw preview
+    if (isPreview && savedCanvasState) {
+      ctx.clearRect(0, 0, canvas.width, canvas.height);
+      ctx.putImageData(savedCanvasState, 0, 0);
+    }
+    
+    ctx.strokeStyle = color;
+    ctx.fillStyle = color;
+    ctx.lineWidth = lineWidth;
+    ctx.beginPath();
+
+    switch (mode) {
+      case "rectangle":
+        ctx.rect(
+          Math.min(start.x, end.x),
+          Math.min(start.y, end.y),
+          Math.abs(end.x - start.x),
+          Math.abs(end.y - start.y)
+        );
+        ctx.stroke();
+        break;
+      case "circle":
+        const radius = Math.sqrt(
+          Math.pow(end.x - start.x, 2) + Math.pow(end.y - start.y, 2)
+        );
+        ctx.arc(start.x, start.y, radius, 0, 2 * Math.PI);
+        ctx.stroke();
+        break;
+      case "triangle":
+        ctx.moveTo(start.x, start.y);
+        ctx.lineTo(end.x, end.y);
+        ctx.lineTo(start.x + (end.x - start.x) * 2, start.y);
+        ctx.closePath();
+        ctx.stroke();
+        break;
+      case "line":
+        ctx.moveTo(start.x, start.y);
+        ctx.lineTo(end.x, end.y);
+        ctx.stroke();
+        break;
+    }
+  }, [color, lineWidth, savedCanvasState]);
+
   const startDrawing = useCallback(
     (e: React.MouseEvent<HTMLCanvasElement> | React.TouchEvent<HTMLCanvasElement>) => {
       if (!isEnabled) return;
@@ -65,57 +130,90 @@ export default function Whiteboard({
       const canvas = canvasRef.current;
       if (!canvas) return;
 
+      const pos = getMousePos(e);
+      
+      if (drawingMode === "text") {
+        setTextInput({ x: pos.x, y: pos.y, text: "" });
+        return;
+      }
+
       setIsDrawing(true);
-      const ctx = canvas.getContext("2d");
-      if (!ctx) return;
-
-      const rect = canvas.getBoundingClientRect();
-      const x =
-        "touches" in e
-          ? e.touches[0].clientX - rect.left
-          : e.clientX - rect.left;
-      const y =
-        "touches" in e
-          ? e.touches[0].clientY - rect.top
-          : e.clientY - rect.top;
-
-      ctx.beginPath();
-      ctx.moveTo(x, y);
-      setHasContent(true);
-      onDrawingChange?.(true);
+      setStartPos(pos);
+      
+      if (drawingMode === "freehand") {
+        const ctx = canvas.getContext("2d");
+        if (!ctx) return;
+        ctx.beginPath();
+        ctx.moveTo(pos.x, pos.y);
+        setHasContent(true);
+        onDrawingChange?.(true);
+      } else {
+        // Save canvas state before drawing shape preview
+        const ctx = canvas.getContext("2d");
+        if (!ctx) return;
+        const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
+        setSavedCanvasState(imageData);
+      }
     },
-    [isEnabled, onDrawingChange]
+    [isEnabled, onDrawingChange, drawingMode, getMousePos]
   );
 
   const draw = useCallback(
     (e: React.MouseEvent<HTMLCanvasElement> | React.TouchEvent<HTMLCanvasElement>) => {
-      if (!isDrawing || !isEnabled) return;
+      if (!isDrawing || !isEnabled || !startPos) return;
 
       const canvas = canvasRef.current;
       if (!canvas) return;
 
-      const ctx = canvas.getContext("2d");
-      if (!ctx) return;
+      const pos = getMousePos(e);
 
-      const rect = canvas.getBoundingClientRect();
-      const x =
-        "touches" in e
-          ? e.touches[0].clientX - rect.left
-          : e.clientX - rect.left;
-      const y =
-        "touches" in e
-          ? e.touches[0].clientY - rect.top
-          : e.clientY - rect.top;
-
-      ctx.lineTo(x, y);
-      ctx.stroke();
+      if (drawingMode === "freehand") {
+        const ctx = canvas.getContext("2d");
+        if (!ctx) return;
+        ctx.lineTo(pos.x, pos.y);
+        ctx.stroke();
+      } else {
+        // Draw shape preview (will restore saved state)
+        drawShape(startPos, pos, drawingMode, true);
+      }
     },
-    [isDrawing, isEnabled]
+    [isDrawing, isEnabled, startPos, drawingMode, getMousePos, drawShape]
   );
 
-  const stopDrawing = useCallback(() => {
+  const stopDrawing = useCallback((e?: React.MouseEvent<HTMLCanvasElement> | React.TouchEvent<HTMLCanvasElement>) => {
+    if (!isDrawing || !startPos) {
+      setIsDrawing(false);
+      setStartPos(null);
+      setSavedCanvasState(null);
+      return;
+    }
+
+    const canvas = canvasRef.current;
+    if (!canvas) return;
+
+    const ctx = canvas.getContext("2d");
+    if (!ctx) return;
+
+    // For shapes, finalize the drawing
+    if (drawingMode !== "freehand" && savedCanvasState) {
+      // Get final position
+      let endPos = startPos;
+      if (e) {
+        endPos = getMousePos(e);
+      }
+      
+      // Restore saved state and draw final shape
+      ctx.clearRect(0, 0, canvas.width, canvas.height);
+      ctx.putImageData(savedCanvasState, 0, 0);
+      drawShape(startPos, endPos, drawingMode, false);
+      setHasContent(true);
+      onDrawingChange?.(true);
+    }
+
     setIsDrawing(false);
-  }, []);
+    setStartPos(null);
+    setSavedCanvasState(null);
+  }, [isDrawing, startPos, drawingMode, savedCanvasState, onDrawingChange, getMousePos, drawShape]);
 
   const clearCanvas = useCallback(() => {
     const canvas = canvasRef.current;
@@ -219,6 +317,115 @@ export default function Whiteboard({
         </div>
       </div>
 
+      {/* Drawing Mode Selector */}
+      {!compact && (
+        <div className="flex items-center gap-2 mb-2">
+          <span className="text-xs text-gray-600 dark:text-gray-400 transition-colors">Tool:</span>
+          <div className="flex gap-1 flex-wrap">
+            <button
+              onClick={() => setDrawingMode("freehand")}
+              className={`px-2 py-1 text-xs rounded transition-colors ${
+                drawingMode === "freehand"
+                  ? "bg-blue-100 dark:bg-blue-900/20 text-blue-700 dark:text-blue-300"
+                  : "bg-gray-100 dark:bg-gray-800 text-gray-600 dark:text-gray-400 hover:bg-gray-200 dark:hover:bg-gray-700"
+              }`}
+              title="Freehand drawing"
+            >
+              ✏️ Draw
+            </button>
+            <button
+              onClick={() => setDrawingMode("line")}
+              className={`px-2 py-1 text-xs rounded transition-colors ${
+                drawingMode === "line"
+                  ? "bg-blue-100 dark:bg-blue-900/20 text-blue-700 dark:text-blue-300"
+                  : "bg-gray-100 dark:bg-gray-800 text-gray-600 dark:text-gray-400 hover:bg-gray-200 dark:hover:bg-gray-700"
+              }`}
+              title="Line"
+            >
+              ─ Line
+            </button>
+            <button
+              onClick={() => setDrawingMode("rectangle")}
+              className={`px-2 py-1 text-xs rounded transition-colors ${
+                drawingMode === "rectangle"
+                  ? "bg-blue-100 dark:bg-blue-900/20 text-blue-700 dark:text-blue-300"
+                  : "bg-gray-100 dark:bg-gray-800 text-gray-600 dark:text-gray-400 hover:bg-gray-200 dark:hover:bg-gray-700"
+              }`}
+              title="Rectangle"
+            >
+              ▭ Rect
+            </button>
+            <button
+              onClick={() => setDrawingMode("circle")}
+              className={`px-2 py-1 text-xs rounded transition-colors ${
+                drawingMode === "circle"
+                  ? "bg-blue-100 dark:bg-blue-900/20 text-blue-700 dark:text-blue-300"
+                  : "bg-gray-100 dark:bg-gray-800 text-gray-600 dark:text-gray-400 hover:bg-gray-200 dark:hover:bg-gray-700"
+              }`}
+              title="Circle"
+            >
+              ○ Circle
+            </button>
+            <button
+              onClick={() => setDrawingMode("triangle")}
+              className={`px-2 py-1 text-xs rounded transition-colors ${
+                drawingMode === "triangle"
+                  ? "bg-blue-100 dark:bg-blue-900/20 text-blue-700 dark:text-blue-300"
+                  : "bg-gray-100 dark:bg-gray-800 text-gray-600 dark:text-gray-400 hover:bg-gray-200 dark:hover:bg-gray-700"
+              }`}
+              title="Triangle"
+            >
+              △ Tri
+            </button>
+            <button
+              onClick={() => setDrawingMode("text")}
+              className={`px-2 py-1 text-xs rounded transition-colors ${
+                drawingMode === "text"
+                  ? "bg-blue-100 dark:bg-blue-900/20 text-blue-700 dark:text-blue-300"
+                  : "bg-gray-100 dark:bg-gray-800 text-gray-600 dark:text-gray-400 hover:bg-gray-200 dark:hover:bg-gray-700"
+              }`}
+              title="Text label"
+            >
+              Aa Text
+            </button>
+          </div>
+        </div>
+      )}
+
+      {/* Math Symbols (Quick Insert) */}
+      {!compact && drawingMode === "freehand" && (
+        <div className="flex items-center gap-2 mb-2">
+          <span className="text-xs text-gray-600 dark:text-gray-400 transition-colors">Math:</span>
+          <div className="flex gap-1">
+            {["π", "√", "∑", "∫", "∞", "±", "×", "÷", "²", "³", "°", "∠"].map((symbol) => (
+              <button
+                key={symbol}
+                onClick={() => {
+                  // Insert symbol as text
+                  const canvas = canvasRef.current;
+                  if (!canvas) return;
+                  const ctx = canvas.getContext("2d");
+                  if (!ctx) return;
+                  
+                  const x = canvas.width / 2;
+                  const y = canvas.height / 2;
+                  
+                  ctx.fillStyle = color;
+                  ctx.font = `${lineWidth * 8}px Arial`;
+                  ctx.fillText(symbol, x, y);
+                  setHasContent(true);
+                  onDrawingChange?.(true);
+                }}
+                className="px-2 py-1 text-xs bg-gray-100 dark:bg-gray-800 text-gray-700 dark:text-gray-300 rounded hover:bg-gray-200 dark:hover:bg-gray-700 transition-colors"
+                title={`Insert ${symbol}`}
+              >
+                {symbol}
+              </button>
+            ))}
+          </div>
+        </div>
+      )}
+
       {/* Color Picker */}
       {!compact && (
         <div className="flex items-center gap-2 mb-3">
@@ -284,19 +491,59 @@ export default function Whiteboard({
       )}
 
       {/* Canvas */}
-      <div className="border border-gray-200 dark:border-gray-700 rounded-lg overflow-hidden bg-white dark:bg-gray-800 transition-colors">
+      <div className="border border-gray-200 dark:border-gray-700 rounded-lg overflow-hidden bg-white dark:bg-gray-800 transition-colors relative">
         <canvas
           ref={canvasRef}
           onMouseDown={startDrawing}
           onMouseMove={draw}
-          onMouseUp={stopDrawing}
-          onMouseLeave={stopDrawing}
+          onMouseUp={(e) => stopDrawing(e)}
+          onMouseLeave={(e) => stopDrawing(e)}
           onTouchStart={startDrawing}
           onTouchMove={draw}
-          onTouchEnd={stopDrawing}
-          className={`w-full ${compact ? 'h-32' : 'h-64'} cursor-crosshair touch-none`}
+          onTouchEnd={(e) => stopDrawing(e)}
+          className={`w-full ${compact ? 'h-32' : 'h-64'} ${
+            drawingMode === "text" ? "cursor-text" : "cursor-crosshair"
+          } touch-none`}
           aria-label="Whiteboard canvas"
         />
+        {/* Text Input Overlay */}
+        {textInput && (
+          <input
+            type="text"
+            value={textInput.text}
+            onChange={(e) => {
+              setTextInput({ ...textInput, text: e.target.value });
+            }}
+            onBlur={() => {
+              if (textInput.text) {
+                const canvas = canvasRef.current;
+                if (!canvas) return;
+                const ctx = canvas.getContext("2d");
+                if (!ctx) return;
+                
+                ctx.fillStyle = color;
+                ctx.font = `${lineWidth * 8}px Arial`;
+                ctx.fillText(textInput.text, textInput.x, textInput.y);
+                setHasContent(true);
+                onDrawingChange?.(true);
+              }
+              setTextInput(null);
+            }}
+            onKeyDown={(e) => {
+              if (e.key === "Enter") {
+                e.currentTarget.blur();
+              } else if (e.key === "Escape") {
+                setTextInput(null);
+              }
+            }}
+            autoFocus
+            className="absolute border-2 border-blue-500 px-2 py-1 text-sm bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100 rounded"
+            style={{
+              left: `${textInput.x}px`,
+              top: `${textInput.y}px`,
+            }}
+          />
+        )}
       </div>
 
       {!compact && (
