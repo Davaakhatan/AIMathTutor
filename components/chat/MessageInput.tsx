@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, KeyboardEvent, useCallback } from "react";
+import { useState, useRef, KeyboardEvent, useCallback, useImperativeHandle, forwardRef } from "react";
 import { sanitizeInput } from "@/lib/utils";
 
 interface MessageInputProps {
@@ -8,11 +8,27 @@ interface MessageInputProps {
   disabled?: boolean;
 }
 
-export default function MessageInput({
+export interface MessageInputRef {
+  setValue: (value: string) => void;
+  focus: () => void;
+}
+
+const MessageInput = forwardRef<MessageInputRef, MessageInputProps>(({
   onSendMessage,
   disabled = false,
-}: MessageInputProps) {
+}, ref) => {
   const [message, setMessage] = useState("");
+  const textareaRef = useRef<HTMLTextAreaElement>(null);
+
+  // Expose methods to parent component
+  useImperativeHandle(ref, () => ({
+    setValue: (value: string) => {
+      setMessage(value);
+    },
+    focus: () => {
+      textareaRef.current?.focus();
+    },
+  }));
 
       const handleSubmit = useCallback((e: React.FormEvent) => {
         e.preventDefault();
@@ -47,6 +63,7 @@ export default function MessageInput({
     >
       <div className="flex gap-2 sm:gap-3">
             <textarea
+              ref={textareaRef}
               value={message}
               onChange={(e) => {
                 const value = e.target.value;
@@ -90,5 +107,9 @@ export default function MessageInput({
       </div>
     </form>
   );
-}
+});
+
+MessageInput.displayName = "MessageInput";
+
+export default MessageInput;
 

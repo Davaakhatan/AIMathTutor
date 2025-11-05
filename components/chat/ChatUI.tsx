@@ -3,7 +3,7 @@
 import { useState, useRef, useEffect, useCallback, memo } from "react";
 import { Message, ParsedProblem } from "@/types";
 import MessageComponent from "./Message";
-import MessageInput from "./MessageInput";
+import MessageInput, { MessageInputRef } from "./MessageInput";
 import StepVisualization from "../stretch/StepVisualization";
 import VoiceInterface, { speakText } from "../stretch/VoiceInterface";
 import ProgressiveHints from "../ProgressiveHints";
@@ -48,6 +48,7 @@ const ChatUI = memo(function ChatUI({
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const scrollTimeoutRef = useRef<NodeJS.Timeout | null>(null);
   const chatContainerRef = useRef<HTMLDivElement>(null);
+  const messageInputRef = useRef<MessageInputRef>(null);
 
   // Sync initialMessages when they change
   useEffect(() => {
@@ -229,7 +230,13 @@ const ChatUI = memo(function ChatUI({
             {enableStretchFeatures && (
               <>
                 <VoiceInterface
-                  onTranscript={(text) => handleSendMessage(text)}
+                  onTranscript={(text) => {
+                    // Put transcribed text into message input for review before sending
+                    if (messageInputRef.current) {
+                      messageInputRef.current.setValue(text);
+                      messageInputRef.current.focus();
+                    }
+                  }}
                   onSpeak={() => {}}
                   isEnabled={voiceEnabled}
                 />
@@ -377,6 +384,7 @@ const ChatUI = memo(function ChatUI({
 
       {/* Input Area */}
       <MessageInput
+        ref={messageInputRef}
         onSendMessage={(message) => handleSendMessage(message)}
         disabled={isLoading}
       />
