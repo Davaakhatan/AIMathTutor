@@ -49,13 +49,13 @@ export default function SearchProblems({ onSelectProblem }: SearchProblemsProps)
   }, [isOpen]);
 
   if (!isOpen) {
-    return (
-      <button
-        onClick={() => setIsOpen(true)}
-        className="fixed top-4 left-28 z-50 bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-700 rounded-lg shadow-lg px-3 py-2 flex items-center gap-2 hover:bg-gray-50 dark:hover:bg-gray-800 transition-colors text-sm text-gray-600 dark:text-gray-300"
-        aria-label="Search problems"
-        title="Search Problems (Ctrl+K)"
-      >
+        return (
+          <button
+            onClick={() => setIsOpen(true)}
+            className="fixed top-4 left-4 sm:left-28 z-50 bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-700 rounded-lg shadow-lg px-3 py-2 flex items-center gap-2 hover:bg-gray-50 dark:hover:bg-gray-800 active:scale-95 transition-all text-sm text-gray-600 dark:text-gray-300 min-h-[44px] touch-device:min-h-[48px]"
+            aria-label="Search problems"
+            title="Search Problems (Ctrl+K)"
+          >
         <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
           <path
             strokeLinecap="round"

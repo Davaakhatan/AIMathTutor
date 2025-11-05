@@ -97,13 +97,13 @@ export default function StudyStreak() {
 
   if (streakData.currentStreak === 0) return null;
 
-  return (
-    <div className="fixed top-4 left-4 z-40">
-      <button
-        onClick={() => setShowDetails(!showDetails)}
-        className="bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-700 rounded-lg shadow-lg px-3 py-2 flex items-center gap-2 hover:bg-gray-50 dark:hover:bg-gray-800 transition-colors"
-        aria-label="Study streak"
-      >
+      return (
+        <div className="fixed top-4 left-4 z-40 hidden sm:block">
+          <button
+            onClick={() => setShowDetails(!showDetails)}
+            className="bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-700 rounded-lg shadow-lg px-3 py-2 flex items-center gap-2 hover:bg-gray-50 dark:hover:bg-gray-800 active:scale-95 transition-all min-h-[44px] touch-device:min-h-[48px]"
+            aria-label="Study streak"
+          >
         <svg className="w-5 h-5 text-orange-500" fill="currentColor" viewBox="0 0 24 24">
           <path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z" />
         </svg>

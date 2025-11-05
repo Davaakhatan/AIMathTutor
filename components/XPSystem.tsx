@@ -51,6 +51,7 @@ export default function XPSystem({
   const [showXPNotification, setShowXPNotification] = useState(false);
   const [lastXPNotification, setLastXPNotification] = useState<{ xp: number; reason: string } | null>(null);
   const [previousProblemId, setPreviousProblemId] = useState<string | null>(null);
+  const [solvedProblems, setSolvedProblems] = useState<Set<string>>(new Set());
   const [previousLevel, setPreviousLevel] = useState(xpData.level);
   const [isMounted, setIsMounted] = useState(false);
 
@@ -87,17 +88,33 @@ export default function XPSystem({
     return Math.max(0, xpForNextLevel - xpInCurrentLevel);
   };
 
+  // Reset solved problems when problem changes
+  useEffect(() => {
+    if (problem) {
+      const problemId = `${problem.text}-${problem.type}`;
+      // Only reset if this is a completely new problem
+      if (previousProblemId && problemId !== previousProblemId) {
+        setSolvedProblems(new Set());
+        setPreviousProblemId(null);
+      }
+    }
+  }, [problem?.text, problem?.type]);
+
   // Award XP when problem is solved
   useEffect(() => {
     if (!problem || !messages.length) return;
 
     const problemId = `${problem.text}-${problem.type}`;
     
-    // Only process once per problem
-    if (problemId === previousProblemId) return;
+    // Only process once per problem (check both previousProblemId and solvedProblems set)
+    if (problemId === previousProblemId || solvedProblems.has(problemId)) return;
 
     // Check if problem is solved (look for completion indicators)
+    // Use the same logic as ProblemProgress for consistency
     const tutorMessages = messages.filter(m => m.role === "tutor");
+    const userMessages = messages.filter(m => m.role === "user");
+    
+    // Check multiple indicators
     const isSolved = tutorMessages.some(msg => {
       const content = msg.content.toLowerCase();
       const completionPhrases = [
@@ -105,18 +122,28 @@ export default function XPSystem({
         "you solved it",
         "solution is correct",
         "answer is correct",
-        "congratulations!",
-        "well done! you solved",
-        "excellent! you solved",
-        "perfect! you solved",
+        "congratulations",
+        "well done",
+        "excellent",
+        "perfect",
+        "correct!",
+        "that's right",
+        "that is correct",
+        "you got it",
+        "you got it right",
+        "great job",
       ];
       return completionPhrases.some(phrase => content.includes(phrase));
-    });
+    }) || (
+      // Also check if there's a clear answer pattern in the conversation
+      tutorMessages.length >= 3 && 
+      userMessages.length >= 2 &&
+      messages.length >= 6 // At least 6 messages total suggests completion
+    );
 
     if (!isSolved) return;
 
     // Calculate XP award
-    const userMessages = messages.filter(m => m.role === "user");
     const tutorMessagesCount = tutorMessages.length;
     const exchanges = Math.min(userMessages.length, tutorMessagesCount);
 
@@ -183,6 +210,7 @@ export default function XPSystem({
     });
     setShowXPNotification(true);
     setPreviousProblemId(problemId);
+    setSolvedProblems(prev => new Set(prev).add(problemId));
 
     // Play success sound
     if (typeof window !== "undefined") {
@@ -213,7 +241,7 @@ export default function XPSystem({
     setTimeout(() => {
       setShowXPNotification(false);
     }, 3000);
-  }, [messages, problem, xpData, previousProblemId, previousLevel, onLevelUp, setXPData]);
+  }, [messages, problem, previousProblemId, previousLevel, onLevelUp, solvedProblems]);
 
   // Level up celebration
   useEffect(() => {
@@ -222,57 +250,61 @@ export default function XPSystem({
     }
   }, [xpData.level, previousLevel]);
 
-  // Award bonus XP for daily practice
+  // Award bonus XP for daily practice when a problem is started
   useEffect(() => {
-    const today = new Date().toISOString().split("T")[0];
-    const todayHistory = xpData.xpHistory.find(h => h.date === today);
-    
-    // Check if user has studied today (from StudyStreak or problem history)
-    try {
-      const lastStudy = localStorage.getItem("aitutor-last-study");
-      if (lastStudy) {
-        const lastStudyDate = new Date(parseInt(lastStudy)).toISOString().split("T")[0];
-        if (lastStudyDate === today && !todayHistory) {
-          // First problem of the day - give daily bonus
+    const handleProblemStarted = () => {
+      // Use functional update to avoid stale closure issues
+      setXPData((currentXPData) => {
+        const today = new Date().toISOString().split("T")[0];
+        const todayHistory = currentXPData.xpHistory.find(h => h.date === today);
+        
+        // Only award if no XP earned today yet (or very minimal)
+        if (!todayHistory || todayHistory.xp < 5) {
           const dailyBonus = 10;
-          const newTotalXP = xpData.totalXP + dailyBonus;
+          const newTotalXP = currentXPData.totalXP + dailyBonus;
           const newLevel = calculateLevel(newTotalXP);
           const newXPToNext = calculateXPToNext(newTotalXP, newLevel);
 
-          setXPData({
-            ...xpData,
+          const updatedData = {
+            ...currentXPData,
             totalXP: newTotalXP,
             level: newLevel,
             xpToNextLevel: newXPToNext,
-            xpHistory: [
-              ...xpData.xpHistory,
-              { date: today, xp: dailyBonus, reason: "Daily practice bonus" },
-            ],
+            xpHistory: todayHistory
+              ? currentXPData.xpHistory.map(h => h.date === today ? { ...h, xp: h.xp + dailyBonus } : h)
+              : [...currentXPData.xpHistory, { date: today, xp: dailyBonus, reason: "Daily practice bonus" }],
             recentGains: [
               { timestamp: Date.now(), xp: dailyBonus, reason: "Daily practice bonus" },
-              ...xpData.recentGains.slice(0, 9),
+              ...currentXPData.recentGains.slice(0, 9),
             ],
-          });
+          };
 
-          setLastXPNotification({
-            xp: dailyBonus,
-            reason: "Daily practice bonus!",
-          });
-          setShowXPNotification(true);
-          setTimeout(() => setShowXPNotification(false), 3000);
-          
-          // Play XP gain sound
-          if (typeof window !== "undefined") {
-            import("@/lib/soundEffects").then(({ playXPGain }) => {
-              playXPGain();
+          // Show notification outside of setState
+          setTimeout(() => {
+            setLastXPNotification({
+              xp: dailyBonus,
+              reason: "Daily practice bonus!",
             });
-          }
+            setShowXPNotification(true);
+            setTimeout(() => setShowXPNotification(false), 3000);
+            
+            // Play XP gain sound
+            if (typeof window !== "undefined") {
+              import("@/lib/soundEffects").then(({ playXPGain }) => {
+                playXPGain();
+              });
+            }
+          }, 0);
+
+          return updatedData;
         }
-      }
-    } catch {
-      // Ignore errors
-    }
-  }, []); // Only run once on mount
+        return currentXPData; // No change if already awarded today
+      });
+    };
+
+    window.addEventListener("problemStarted", handleProblemStarted);
+    return () => window.removeEventListener("problemStarted", handleProblemStarted);
+  }, []); // Empty deps - only set up listener once
 
   // Only render after client-side hydration to avoid hydration mismatch
   useEffect(() => {
@@ -291,7 +323,7 @@ export default function XPSystem({
   return (
     <>
       {/* XP Display Badge - Positioned to not overlap with Settings */}
-      <div className="fixed top-4 right-28 z-40">
+      <div className="fixed top-4 right-28 z-40 hidden sm:block">
         <div className="bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-700 rounded-lg shadow-lg px-3 py-2 flex items-center gap-2 transition-colors">
           <div className="flex items-center gap-2">
             <div className="w-8 h-8 bg-gradient-to-br from-yellow-400 to-orange-500 rounded-full flex items-center justify-center">

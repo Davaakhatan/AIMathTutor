@@ -53,6 +53,17 @@ export default function ProblemOfTheDay({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [isMounted]); // Only run after mount - dailyProblem check is intentional
 
+  // Reset card visibility when problem changes (new day)
+  useEffect(() => {
+    if (dailyProblem) {
+      const today = getTodayDate();
+      if (dailyProblem.date === today && !showCard) {
+        // Show card again if it's today's problem and was hidden
+        setShowCard(true);
+      }
+    }
+  }, [dailyProblem?.date]);
+
   const generateDailyProblem = async () => {
     setIsGenerating(true);
     const today = getTodayDate();
@@ -207,7 +218,7 @@ export default function ProblemOfTheDay({
   };
 
   const handleStartProblem = () => {
-    if (dailyProblem) {
+    if (dailyProblem && !isGenerating) {
       onProblemSelected(dailyProblem.problem);
       setShowCard(false);
     }
@@ -237,18 +248,18 @@ export default function ProblemOfTheDay({
   };
 
   return (
-    <div className="bg-gradient-to-br from-blue-50 to-indigo-50 dark:from-blue-900/20 dark:to-indigo-900/20 border-2 border-blue-200 dark:border-blue-700 rounded-lg p-6 mb-6 shadow-lg transition-colors">
+    <div className="bg-gradient-to-br from-blue-50 to-indigo-50 dark:from-blue-900/20 dark:to-indigo-900/20 border-2 border-blue-200 dark:border-blue-700 rounded-lg p-4 sm:p-6 mb-4 sm:mb-6 shadow-lg transition-colors">
       <div className="flex items-start justify-between gap-4 mb-4">
         <div className="flex-1">
           <div className="flex items-center gap-3 mb-2">
-            <div className="w-10 h-10 bg-blue-500 dark:bg-blue-600 rounded-full flex items-center justify-center">
+            <div className="w-10 h-10 bg-blue-500 dark:bg-blue-600 rounded-full flex items-center justify-center flex-shrink-0">
               <span className="text-white text-lg font-bold">📅</span>
             </div>
-            <div>
-              <h3 className="text-lg font-semibold text-gray-900 dark:text-gray-100 transition-colors">
+            <div className="min-w-0 flex-1">
+              <h3 className="text-base sm:text-lg font-semibold text-gray-900 dark:text-gray-100 transition-colors">
                 Problem of the Day
               </h3>
-              <p className="text-xs text-gray-500 dark:text-gray-400 transition-colors">
+              <p className="text-xs text-gray-500 dark:text-gray-400 transition-colors line-clamp-1">
                 {new Date().toLocaleDateString("en-US", { 
                   weekday: "long", 
                   year: "numeric", 
@@ -268,7 +279,7 @@ export default function ProblemOfTheDay({
             </span>
           </div>
 
-          <p className="text-gray-900 dark:text-gray-100 font-medium mb-3 transition-colors">
+          <p className="text-sm sm:text-base text-gray-900 dark:text-gray-100 font-medium mb-3 transition-colors break-words">
             {dailyProblem.problem.text}
           </p>
         </div>
@@ -297,7 +308,7 @@ export default function ProblemOfTheDay({
         <button
           onClick={handleStartProblem}
           disabled={isGenerating}
-          className="px-4 py-2 bg-blue-600 dark:bg-blue-700 text-white rounded-lg hover:bg-blue-700 dark:hover:bg-blue-600 disabled:bg-blue-300 dark:disabled:bg-blue-800 disabled:cursor-not-allowed transition-colors font-medium text-sm flex items-center gap-2"
+          className="px-4 py-2.5 sm:py-2 bg-blue-600 dark:bg-blue-700 text-white rounded-lg hover:bg-blue-700 dark:hover:bg-blue-600 active:scale-95 disabled:bg-blue-300 dark:disabled:bg-blue-800 disabled:cursor-not-allowed transition-all font-medium text-sm flex items-center gap-2 min-h-[44px] touch-device:min-h-[48px]"
           aria-label="Start Problem of the Day"
         >
           {isGenerating ? (

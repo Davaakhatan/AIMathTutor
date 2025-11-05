@@ -188,7 +188,7 @@ const ChatUI = memo(function ChatUI({
       return (
         <div 
           ref={chatContainerRef}
-          className="flex flex-col h-full max-h-[500px] sm:max-h-[600px] bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-700 rounded-lg overflow-hidden transition-colors"
+          className="flex flex-col h-full max-h-[400px] sm:max-h-[500px] md:max-h-[600px] bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-700 rounded-lg overflow-hidden transition-colors"
           role="log"
           aria-label="Conversation with math tutor"
           aria-live="polite"

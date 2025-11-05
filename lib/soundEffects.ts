@@ -31,10 +31,24 @@ class SoundManager {
     if (!this.audioContext) {
       try {
         this.audioContext = new (window.AudioContext || (window as any).webkitAudioContext)();
+        // Resume audio context if it's suspended (required for user interaction)
+        if (this.audioContext.state === 'suspended') {
+          this.audioContext.resume().catch(() => {
+            // Silently fail if resume is not allowed
+          });
+        }
       } catch {
         return null;
       }
     }
+    
+    // Resume if suspended (e.g., after page load)
+    if (this.audioContext.state === 'suspended') {
+      this.audioContext.resume().catch(() => {
+        // Silently fail
+      });
+    }
+    
     return this.audioContext;
   }
 

@@ -50,10 +50,12 @@ export default function Settings() {
         }
       }, [settings.fontSize]);
 
-      // Apply sound settings on mount
+      // Apply sound settings on mount and when settings change
       useEffect(() => {
-        setSoundEnabled(settings.soundEffects ?? true);
-        setSoundVolume(settings.soundVolume ?? 0.5);
+        if (typeof window !== "undefined") {
+          setSoundEnabled(settings.soundEffects ?? true);
+          setSoundVolume(settings.soundVolume ?? 0.5);
+        }
       }, [settings.soundEffects, settings.soundVolume]);
 
   // Apply dark mode to document
@@ -85,13 +87,13 @@ export default function Settings() {
   }, [settings.voiceEnabled]);
 
   if (!isOpen) {
-    return (
-      <button
-        onClick={() => setIsOpen(true)}
-        className="fixed top-4 right-4 z-50 bg-gray-900 text-white rounded-full p-3 shadow-lg hover:bg-gray-800 transition-colors focus:outline-none focus:ring-2 focus:ring-gray-400 focus:ring-offset-2"
-        aria-label="Open settings"
-        title="Settings"
-      >
+        return (
+          <button
+            onClick={() => setIsOpen(true)}
+            className="fixed top-4 right-4 z-50 bg-gray-900 dark:bg-gray-700 text-white rounded-full p-3 sm:p-3 shadow-lg hover:bg-gray-800 dark:hover:bg-gray-600 active:scale-95 transition-all focus:outline-none focus:ring-2 focus:ring-gray-400 dark:focus:ring-gray-500 focus:ring-offset-2 touch-device:min-h-[48px] touch-device:min-w-[48px]"
+            aria-label="Open settings"
+            title="Settings"
+          >
         <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
           <path
             strokeLinecap="round"

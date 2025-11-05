@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import "./globals.css";
 import ErrorBoundary from "@/components/ErrorBoundary";
+import MobileOptimizer from "@/components/MobileOptimizer";
 
 export const metadata: Metadata = {
   title: "AI Math Tutor - Socratic Learning Assistant",
@@ -22,6 +23,7 @@ export default function RootLayout({
   return (
     <html lang="en">
       <body>
+        <MobileOptimizer />
         <ErrorBoundary>
           {children}
         </ErrorBoundary>

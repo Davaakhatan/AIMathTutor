@@ -247,16 +247,16 @@ export default function Home() {
       <SkipLink />
       <OfflineIndicator />
       <SessionResume onResume={handleResumeSession} />
-      <main id="main-content" className="flex min-h-screen flex-col items-center p-4 sm:p-6 md:p-12 bg-[#fafafa] dark:bg-[#0a0a0a] transition-colors">
+      <main id="main-content" className="flex min-h-screen flex-col items-center p-3 sm:p-4 md:p-6 lg:p-12 bg-[#fafafa] dark:bg-[#0a0a0a] transition-colors">
         <div className="w-full max-w-5xl overflow-visible">
-        <div className="text-center mb-8 sm:mb-12">
+        <div className="text-center mb-6 sm:mb-8 md:mb-12">
           <h1 className="text-2xl sm:text-3xl md:text-4xl font-light mb-2 sm:mb-3 text-gray-900 dark:text-gray-100 tracking-tight transition-colors">
             AI Math Tutor
           </h1>
           <p className="text-gray-500 dark:text-gray-400 text-sm sm:text-base font-light transition-colors">
             Discover solutions through guided questions
           </p>
-          <p className="text-gray-400 dark:text-gray-500 text-xs mt-2 font-light transition-colors">
+          <p className="text-gray-400 dark:text-gray-500 text-xs mt-2 font-light transition-colors hidden sm:block">
             Press <kbd className="px-1.5 py-0.5 bg-gray-100 dark:bg-gray-800 dark:text-gray-300 rounded text-xs transition-colors">Enter</kbd> to send messages
           </p>
         </div>
