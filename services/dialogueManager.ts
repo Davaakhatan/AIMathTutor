@@ -197,7 +197,13 @@ export class DialogueManager {
             {
               role: "system",
               content: socraticPromptEngine.generateSystemPrompt(difficultyMode) + 
-                (whiteboardImage ? "\n\nNote: The student has shared a whiteboard drawing. Look at it carefully and reference it in your response. Use it to guide your questions and provide visual feedback." : ""),
+                (whiteboardImage ? "\n\nIMPORTANT: The student has shared a whiteboard drawing. Analyze it carefully and:\n" +
+                "1. Reference specific parts of their drawing (e.g., 'I see you drew a triangle with...')\n" +
+                "2. Provide visual feedback on their work (e.g., 'The angle looks good, but...')\n" +
+                "3. Suggest visual improvements if needed (e.g., 'Try drawing a perpendicular line here')\n" +
+                "4. Acknowledge what they got right visually\n" +
+                "5. Guide them with visual suggestions (e.g., 'Let's add labels to make it clearer')\n" +
+                "Use the drawing to enhance your guidance and make it more interactive and visual." : ""),
             },
             {
               role: "user",
