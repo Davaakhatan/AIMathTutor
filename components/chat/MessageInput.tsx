@@ -14,18 +14,24 @@ export default function MessageInput({
 }: MessageInputProps) {
   const [message, setMessage] = useState("");
 
-  const handleSubmit = useCallback((e: React.FormEvent) => {
-    e.preventDefault();
-    const trimmed = message.trim();
-    if (trimmed && !disabled) {
-      // Sanitize input before sending
-      const sanitized = sanitizeInput(trimmed, 1000);
-      if (sanitized) {
-        onSendMessage(sanitized);
-        setMessage("");
-      }
-    }
-  }, [message, disabled, onSendMessage]);
+      const handleSubmit = useCallback((e: React.FormEvent) => {
+        e.preventDefault();
+        const trimmed = message.trim();
+        if (trimmed && !disabled) {
+          // Sanitize input before sending
+          const sanitized = sanitizeInput(trimmed, 1000);
+          if (sanitized) {
+            // Play click sound
+            if (typeof window !== "undefined") {
+              import("@/lib/soundEffects").then(({ playClick }) => {
+                playClick();
+              });
+            }
+            onSendMessage(sanitized);
+            setMessage("");
+          }
+        }
+      }, [message, disabled, onSendMessage]);
 
   const handleKeyDown = (e: KeyboardEvent<HTMLTextAreaElement>) => {
     if (e.key === "Enter" && !e.shiftKey) {

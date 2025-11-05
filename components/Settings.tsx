@@ -2,6 +2,7 @@
 
 import { useState, useEffect, useRef } from "react";
 import { useLocalStorage } from "@/hooks/useLocalStorage";
+import { setSoundEnabled, setSoundVolume } from "@/lib/soundEffects";
 
 interface Settings {
   autoSave: boolean;
@@ -9,6 +10,8 @@ interface Settings {
   showStats: boolean;
   fontSize: "small" | "medium" | "large";
   darkMode: boolean;
+  soundEffects?: boolean; // Sound effects enabled/disabled
+  soundVolume?: number; // Volume 0-1
   apiKey?: string; // Optional: For display/validation only (server-side still uses env var)
 }
 
@@ -20,6 +23,8 @@ export default function Settings() {
     showStats: true,
     fontSize: "medium",
     darkMode: false,
+    soundEffects: true, // Default to enabled
+    soundVolume: 0.5, // Default volume (50%)
   });
   const panelRef = useRef<HTMLDivElement>(null);
 
@@ -37,13 +42,19 @@ export default function Settings() {
     return () => document.removeEventListener("mousedown", handleClickOutside);
   }, [isOpen]);
 
-  // Apply font size to document
-  useEffect(() => {
-    if (typeof document !== "undefined") {
-      const root = document.documentElement;
-      root.style.fontSize = settings.fontSize === "small" ? "14px" : settings.fontSize === "large" ? "18px" : "16px";
-    }
-  }, [settings.fontSize]);
+      // Apply font size to document
+      useEffect(() => {
+        if (typeof document !== "undefined") {
+          const root = document.documentElement;
+          root.style.fontSize = settings.fontSize === "small" ? "14px" : settings.fontSize === "large" ? "18px" : "16px";
+        }
+      }, [settings.fontSize]);
+
+      // Apply sound settings on mount
+      useEffect(() => {
+        setSoundEnabled(settings.soundEffects ?? true);
+        setSoundVolume(settings.soundVolume ?? 0.5);
+      }, [settings.soundEffects, settings.soundVolume]);
 
   // Apply dark mode to document
   useEffect(() => {
@@ -270,25 +281,79 @@ export default function Settings() {
           </div>
         </div>
 
-        {/* Reset */}
-        <div className="pt-3 border-t border-gray-200 dark:border-gray-700">
-          <button
-            onClick={() => {
-              if (confirm("Reset all settings to default?")) {
-                setSettings({
-                  autoSave: true,
-                  voiceEnabled: true,
-                  showStats: true,
-                  fontSize: "medium",
-                  darkMode: false,
-                });
-              }
-            }}
-            className="w-full px-4 py-2 text-sm text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-gray-100 hover:bg-gray-100 dark:hover:bg-gray-800 rounded-lg transition-colors"
-          >
-            Reset to Defaults
-          </button>
-        </div>
+            {/* Sound Effects */}
+            <div className="flex items-center justify-between">
+              <div>
+                <label className="text-sm font-medium text-gray-900 dark:text-gray-100">Sound Effects</label>
+                <p className="text-xs text-gray-500 dark:text-gray-400 mt-0.5">Audio feedback for interactions</p>
+              </div>
+              <label className="relative inline-flex items-center cursor-pointer">
+                <input
+                  type="checkbox"
+                  checked={settings.soundEffects ?? true}
+                  onChange={(e) => {
+                    setSettings({ ...settings, soundEffects: e.target.checked });
+                    setSoundEnabled(e.target.checked);
+                  }}
+                  className="sr-only peer"
+                  style={{ appearance: "none", WebkitAppearance: "none", MozAppearance: "none" }}
+                />
+                <div className={`w-11 h-6 rounded-full transition-colors relative ${
+                  settings.soundEffects ? "bg-gray-900 dark:bg-gray-700" : "bg-gray-200"
+                }`}>
+                  <div className={`absolute top-[2px] left-[2px] bg-white dark:bg-gray-200 border border-gray-300 dark:border-gray-600 rounded-full h-5 w-5 transition-transform ${
+                    settings.soundEffects ? "translate-x-5" : "translate-x-0"
+                  }`}></div>
+                </div>
+              </label>
+            </div>
+
+            {/* Sound Volume */}
+            {settings.soundEffects && (
+              <div>
+                <label className="text-sm font-medium text-gray-900 dark:text-gray-100 mb-2 block">Sound Volume</label>
+                <div className="flex items-center gap-3">
+                  <input
+                    type="range"
+                    min="0"
+                    max="1"
+                    step="0.1"
+                    value={settings.soundVolume ?? 0.5}
+                    onChange={(e) => {
+                      const volume = parseFloat(e.target.value);
+                      setSettings({ ...settings, soundVolume: volume });
+                      setSoundVolume(volume);
+                    }}
+                    className="flex-1 h-2 bg-gray-200 dark:bg-gray-700 rounded-lg appearance-none cursor-pointer accent-gray-900 dark:accent-gray-700"
+                  />
+                  <span className="text-xs text-gray-600 dark:text-gray-400 w-12 text-right">
+                    {Math.round((settings.soundVolume ?? 0.5) * 100)}%
+                  </span>
+                </div>
+              </div>
+            )}
+
+            {/* Reset */}
+            <div className="pt-3 border-t border-gray-200 dark:border-gray-700">
+              <button
+                onClick={() => {
+                  if (confirm("Reset all settings to default?")) {
+                    setSettings({
+                      autoSave: true,
+                      voiceEnabled: true,
+                      showStats: true,
+                      fontSize: "medium",
+                      darkMode: false,
+                      soundEffects: true,
+                      soundVolume: 0.5,
+                    });
+                  }
+                }}
+                className="w-full px-4 py-2 text-sm text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-gray-100 hover:bg-gray-100 dark:hover:bg-gray-800 rounded-lg transition-colors"
+              >
+                Reset to Defaults
+              </button>
+            </div>
       </div>
     </div>
   );

@@ -46,12 +46,18 @@ export default function ProgressiveHints({
         throw new Error(errorData.error || `Failed to generate hint: ${response.status}`);
       }
 
-      const data = await response.json();
-      if (data.hint) {
-        onHintRequest(data.hint);
-      } else {
-        throw new Error("No hint received from server");
-      }
+          const data = await response.json();
+          if (data.hint) {
+            onHintRequest(data.hint);
+            // Play hint sound
+            if (typeof window !== "undefined") {
+              import("@/lib/soundEffects").then(({ playHint }) => {
+                playHint();
+              });
+            }
+          } else {
+            throw new Error("No hint received from server");
+          }
     } catch (error) {
       console.error("Error generating hint:", error);
       // NO FALLBACK - Show error to user instead of hardcoded hints

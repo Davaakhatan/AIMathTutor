@@ -30,6 +30,8 @@ import AchievementBadge from "@/components/AchievementBadge";
 import ProblemSuggestions from "@/components/ProblemSuggestions";
 import SessionResume from "@/components/SessionResume";
 import ProblemProgress from "@/components/ProblemProgress";
+import ProblemOfTheDay from "@/components/ProblemOfTheDay";
+import XPSystem from "@/components/XPSystem";
 import { ParsedProblem, Message } from "@/types";
 import { normalizeProblemText } from "@/lib/textUtils";
 
@@ -259,15 +261,19 @@ export default function Home() {
           </p>
         </div>
 
-        {!currentProblem ? (
-          <div className="space-y-4">
-              <ProblemInput 
-                onProblemParsed={handleProblemParsed} 
-                apiKey={settings.apiKey} 
-              />
-            <ProblemGenerator onProblemGenerated={handleProblemParsed} apiKey={settings.apiKey} />
-          </div>
-        ) : (
+            {!currentProblem ? (
+              <div className="space-y-4">
+                <ProblemOfTheDay 
+                  onProblemSelected={handleProblemParsed}
+                  apiKey={settings.apiKey}
+                />
+                <ProblemInput 
+                  onProblemParsed={handleProblemParsed} 
+                  apiKey={settings.apiKey} 
+                />
+                <ProblemGenerator onProblemGenerated={handleProblemParsed} apiKey={settings.apiKey} />
+              </div>
+            ) : (
           <div className="space-y-6">
             {/* Problem Display */}
             <div className="bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-700 rounded-lg p-6 transition-colors">
@@ -451,6 +457,16 @@ export default function Home() {
 
           {/* Study Streak */}
           <StudyStreak />
+
+          {/* XP System */}
+          <XPSystem 
+            messages={allMessages} 
+            problem={currentProblem}
+            onLevelUp={(newLevel) => {
+              showToast(`🎉 Level Up! You reached Level ${newLevel}!`, "success");
+              // Sound is already played in XPSystem component
+            }}
+          />
 
           {/* Search Problems */}
           <SearchProblems onSelectProblem={handleProblemParsed} />
