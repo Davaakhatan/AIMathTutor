@@ -46,8 +46,8 @@ export default function Whiteboard({
   const [hasContent, setHasContent] = useState(false);
   const [drawingMode, setDrawingMode] = useState<"freehand" | "rectangle" | "circle" | "triangle" | "line" | "text" | "select">("freehand");
   const [startPos, setStartPos] = useState<{ x: number; y: number } | null>(null);
+  const [endPos, setEndPos] = useState<{ x: number; y: number } | null>(null); // For shape preview
   const [textInput, setTextInput] = useState<{ x: number; y: number; text: string } | null>(null);
-  const [savedCanvasState, setSavedCanvasState] = useState<ImageData | null>(null);
   
   // Store shapes and paths as objects for selection/moving
   const [shapes, setShapes] = useState<Shape[]>([]);
@@ -231,7 +231,7 @@ export default function Whiteboard({
     };
   }, [redrawCanvas]);
 
-  // Redraw when shapes or paths change
+  // Redraw when shapes or paths change (but not during render)
   useEffect(() => {
     redrawCanvas();
   }, [redrawCanvas]);
