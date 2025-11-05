@@ -117,7 +117,7 @@ export default function LearningHub({ onSelectProblem, apiKey }: LearningHubProp
       </div>
 
       {/* Tab Content */}
-      <div className="flex-1 overflow-hidden">
+      <div className="flex-1 overflow-y-auto min-h-0">
         {activeTab === "dashboard" && <DashboardContent />}
         {activeTab === "history" && <HistoryContent onSelectProblem={onSelectProblem} />}
         {activeTab === "practice" && <PracticeContent onStartPractice={onSelectProblem} apiKey={apiKey} />}

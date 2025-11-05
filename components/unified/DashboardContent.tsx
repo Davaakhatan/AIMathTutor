@@ -167,7 +167,7 @@ export default function DashboardContent() {
   }
 
   return (
-    <div className="flex-1 overflow-y-auto p-4 space-y-4">
+    <div className="p-4 space-y-4 pb-6">
       {/* Overview Stats */}
       <div className="grid grid-cols-2 gap-3">
         <div className="p-3 bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-700 rounded-lg transition-colors">
@@ -241,11 +241,11 @@ export default function DashboardContent() {
           {Object.entries(stats.problemsByType)
             .sort(([, a], [, b]) => b - a)
             .map(([type, count]) => (
-              <div key={type} className="flex items-center justify-between">
-                <span className="text-sm text-gray-600 dark:text-gray-300 transition-colors">
+              <div key={type} className="flex items-center justify-between gap-2">
+                <span className="text-sm text-gray-600 dark:text-gray-300 transition-colors flex-1 min-w-0 truncate">
                   {typeLabels[type] || type}
                 </span>
-                <div className="flex items-center gap-2">
+                <div className="flex items-center gap-2 flex-shrink-0">
                   <div className="w-24 h-2 bg-gray-200 dark:bg-gray-700 rounded-full overflow-hidden transition-colors">
                     <div
                       className="h-full bg-gray-900 dark:bg-gray-600 rounded-full transition-all"
@@ -267,19 +267,23 @@ export default function DashboardContent() {
           <h4 className="text-xs font-medium text-gray-700 dark:text-gray-300 mb-2 uppercase tracking-wide transition-colors">
             Weekly Activity
           </h4>
-          <div className="flex items-end gap-1 h-24">
+          <div className="flex items-end gap-1.5 h-28">
             {["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"].map((day, index) => {
               const maxCount = Math.max(...stats.weeklyActivity, 1);
-              const height = (stats.weeklyActivity[index] / maxCount) * 100;
+              const height = maxCount > 0 ? (stats.weeklyActivity[index] / maxCount) * 100 : 0;
               return (
-                <div key={day} className="flex-1 flex flex-col items-center gap-1">
-                  <div className="w-full flex items-end justify-center" style={{ height: "80px" }}>
+                <div key={day} className="flex-1 flex flex-col items-center gap-1 min-w-0">
+                  <div className="w-full flex items-end justify-center px-0.5" style={{ height: "80px" }}>
                     <div
-                      className="w-full bg-gradient-to-t from-blue-500 to-blue-400 dark:from-blue-600 dark:to-blue-500 rounded-t transition-all"
-                      style={{ height: `${height}%`, minHeight: stats.weeklyActivity[index] > 0 ? "4px" : "0" }}
+                      className="w-full max-w-full bg-gradient-to-t from-blue-500 to-blue-400 dark:from-blue-600 dark:to-blue-500 rounded-t transition-all"
+                      style={{ 
+                        height: `${height}%`, 
+                        minHeight: stats.weeklyActivity[index] > 0 ? "4px" : "0",
+                        maxWidth: "100%"
+                      }}
                     />
                   </div>
-                  <span className="text-xs text-gray-500 dark:text-gray-400 transition-colors">{day}</span>
+                  <span className="text-xs text-gray-500 dark:text-gray-400 transition-colors truncate w-full text-center">{day}</span>
                   <span className="text-xs font-medium text-gray-700 dark:text-gray-300 transition-colors">{stats.weeklyActivity[index]}</span>
                 </div>
               );
@@ -296,18 +300,21 @@ export default function DashboardContent() {
           </h4>
           <div className="space-y-2">
             {[
-              { key: "morning", label: "🌅 Morning (6am-12pm)", color: "from-yellow-400 to-orange-400" },
-              { key: "afternoon", label: "☀️ Afternoon (12pm-5pm)", color: "from-blue-400 to-cyan-400" },
-              { key: "evening", label: "🌆 Evening (5pm-10pm)", color: "from-purple-400 to-pink-400" },
-              { key: "night", label: "🌙 Night (10pm-6am)", color: "from-indigo-400 to-blue-400" },
-            ].map(({ key, label, color }) => {
+              { key: "morning", label: "🌅 Morning", time: "6am-12pm", color: "from-yellow-400 to-orange-400" },
+              { key: "afternoon", label: "☀️ Afternoon", time: "12pm-5pm", color: "from-blue-400 to-cyan-400" },
+              { key: "evening", label: "🌆 Evening", time: "5pm-10pm", color: "from-purple-400 to-pink-400" },
+              { key: "night", label: "🌙 Night", time: "10pm-6am", color: "from-indigo-400 to-blue-400" },
+            ].map(({ key, label, time, color }) => {
               const count = stats.timeDistribution[key as keyof typeof stats.timeDistribution];
               const maxCount = Math.max(...Object.values(stats.timeDistribution), 1);
               const percentage = (count / maxCount) * 100;
               return (
                 <div key={key} className="flex items-center justify-between gap-2">
-                  <span className="text-xs text-gray-600 dark:text-gray-300 transition-colors flex-1">{label}</span>
-                  <div className="flex items-center gap-2">
+                  <div className="flex-1 min-w-0">
+                    <span className="text-xs text-gray-600 dark:text-gray-300 transition-colors block truncate">{label}</span>
+                    <span className="text-xs text-gray-500 dark:text-gray-400 transition-colors">{time}</span>
+                  </div>
+                  <div className="flex items-center gap-2 flex-shrink-0">
                     <div className="w-20 h-2 bg-gray-200 dark:bg-gray-700 rounded-full overflow-hidden transition-colors">
                       <div
                         className={`h-full bg-gradient-to-r ${color} rounded-full transition-all`}
@@ -333,11 +340,11 @@ export default function DashboardContent() {
             {Object.entries(stats.problemsByDifficulty)
               .sort(([, a], [, b]) => b - a)
               .map(([difficulty, count]) => (
-                <div key={difficulty} className="flex items-center justify-between">
-                  <span className="text-sm text-gray-600 dark:text-gray-300 capitalize transition-colors">
+                <div key={difficulty} className="flex items-center justify-between gap-2">
+                  <span className="text-sm text-gray-600 dark:text-gray-300 capitalize transition-colors flex-1 min-w-0 truncate">
                     {difficulty}
                   </span>
-                  <div className="flex items-center gap-2">
+                  <div className="flex items-center gap-2 flex-shrink-0">
                     <div className="w-24 h-2 bg-gray-200 dark:bg-gray-700 rounded-full overflow-hidden transition-colors">
                       <div
                         className={`h-full rounded-full transition-all ${
