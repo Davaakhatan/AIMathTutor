@@ -3,7 +3,6 @@
 import { useState, useEffect } from "react";
 import ProblemInput from "@/components/ProblemInput";
 import ChatUI from "@/components/chat/ChatUI";
-import Whiteboard from "@/components/stretch/Whiteboard";
 import DifficultyModeSelector from "@/components/stretch/DifficultyModeSelector";
 import ConversationExport from "@/components/ConversationExport";
 import ProblemGenerator from "@/components/ProblemGenerator";
@@ -79,7 +78,6 @@ export default function Home() {
   const [initialMessages, setInitialMessages] = useState<Message[]>([]);
   const [isInitializing, setIsInitializing] = useState(false);
   const [difficultyMode, setDifficultyMode] = useState<"elementary" | "middle" | "high" | "advanced">("middle");
-  const [showWhiteboard, setShowWhiteboard] = useState(false);
   const [allMessages, setAllMessages] = useState<Message[]>([]);
   const { toasts, showToast, removeToast } = useToast();
   const [xpData, setXPData] = useState({ totalXP: 0, level: 1, problemsSolved: 0 });
@@ -448,20 +446,7 @@ export default function Home() {
                   onChange={setDifficultyMode}
                 />
 
-                {/* Whiteboard */}
-                <div className="flex justify-end">
-                  <button
-                    onClick={() => setShowWhiteboard(!showWhiteboard)}
-                    className="text-xs text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-300 transition-colors font-light px-3 py-1.5 border border-gray-200 dark:border-gray-700 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-800 bg-white dark:bg-gray-900"
-                    aria-label={showWhiteboard ? "Hide whiteboard" : "Show whiteboard"}
-                  >
-                    {showWhiteboard ? "Hide" : "Show"} Whiteboard
-                  </button>
-                </div>
-
-                {showWhiteboard && (
-                  <Whiteboard isEnabled={true} />
-                )}
+                {/* Whiteboard is now integrated into ChatUI - toggle button in chat header */}
 
                 {/* Chat Interface */}
                 <div data-tutorial="chat">

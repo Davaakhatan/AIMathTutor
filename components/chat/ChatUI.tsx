@@ -7,6 +7,7 @@ import MessageInput from "./MessageInput";
 import StepVisualization from "../stretch/StepVisualization";
 import VoiceInterface, { speakText } from "../stretch/VoiceInterface";
 import ProgressiveHints from "../ProgressiveHints";
+import Whiteboard from "../stretch/Whiteboard";
 import { sanitizeInput, formatErrorMessage, isRetryableError, delay } from "@/lib/utils";
 import ErrorRecovery from "../ErrorRecovery";
 
@@ -37,6 +38,8 @@ const ChatUI = memo(function ChatUI({
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [voiceEnabled, setVoiceEnabled] = useState(propVoiceEnabled);
+  const [showWhiteboard, setShowWhiteboard] = useState(enableStretchFeatures); // Show by default when stretch features enabled
+  const whiteboardCanvasRef = useRef<HTMLCanvasElement | null>(null);
   
   // Sync with prop
   useEffect(() => {
@@ -79,7 +82,7 @@ const ChatUI = memo(function ChatUI({
     };
   }, [messages]);
 
-  const handleSendMessage = useCallback(async (message: string) => {
+  const handleSendMessage = useCallback(async (message: string, whiteboardImage?: string) => {
     if (!message.trim() || isLoading) return;
     
     // Validate sessionId exists before sending
@@ -119,17 +122,26 @@ const ChatUI = memo(function ChatUI({
           const controller = new AbortController();
           const timeoutId = setTimeout(() => controller.abort(), 30000); // 30s timeout
 
+          // Prepare request body
+          const requestBody: any = {
+            sessionId,
+            message: sanitizedMessage,
+            difficultyMode: difficultyMode,
+            apiKey: apiKey, // Include client-provided API key if available
+          };
+
+          // Add whiteboard image if provided (convert data URL to base64)
+          if (whiteboardImage) {
+            const base64Data = whiteboardImage.split(",")[1]; // Remove data URL prefix
+            requestBody.whiteboardImage = base64Data;
+          }
+
           const response = await fetch("/api/chat", {
             method: "POST",
             headers: {
               "Content-Type": "application/json",
             },
-            body: JSON.stringify({
-              sessionId,
-              message: sanitizedMessage,
-              difficultyMode: difficultyMode,
-              apiKey: apiKey, // Include client-provided API key if available
-            }),
+            body: JSON.stringify(requestBody),
             signal: controller.signal,
           });
 
@@ -185,29 +197,57 @@ const ChatUI = memo(function ChatUI({
     }
   }, [sessionId, voiceEnabled, enableStretchFeatures, difficultyMode, isLoading, apiKey]);
 
+  // Handle whiteboard drawing send
+  const handleSendWhiteboard = useCallback((imageDataUrl: string) => {
+    // Send whiteboard with a message indicating it's a drawing
+    handleSendMessage("Here's my drawing/work:", imageDataUrl);
+  }, [handleSendMessage]);
+
       return (
-        <div 
-          ref={chatContainerRef}
-          className="flex flex-col h-full max-h-[400px] sm:max-h-[500px] md:max-h-[600px] bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-700 rounded-lg overflow-hidden transition-colors"
-          role="log"
-          aria-label="Conversation with math tutor"
-          aria-live="polite"
-          aria-atomic="false"
-        >
-      {/* Header with restart button and voice toggle */}
+        <div className="flex flex-col gap-4">
+          {/* Whiteboard - Always visible when enabled */}
+          {enableStretchFeatures && showWhiteboard && (
+            <Whiteboard
+              isEnabled={true}
+              onSendDrawing={handleSendWhiteboard}
+              compact={false}
+            />
+          )}
+          
+          <div 
+            ref={chatContainerRef}
+            className="flex flex-col h-full max-h-[400px] sm:max-h-[500px] md:max-h-[600px] bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-700 rounded-lg overflow-hidden transition-colors"
+            role="log"
+            aria-label="Conversation with math tutor"
+            aria-live="polite"
+            aria-atomic="false"
+          >
+      {/* Header with restart button, voice toggle, and whiteboard toggle */}
       {(onRestart || enableStretchFeatures) && messages.length > 0 && (
         <div className="border-b border-gray-200 dark:border-gray-700 px-4 py-2 flex justify-between items-center transition-colors">
           <div className="flex items-center gap-2">
             {enableStretchFeatures && (
               <>
                 <VoiceInterface
-                  onTranscript={handleSendMessage}
+                  onTranscript={(text) => handleSendMessage(text)}
                   onSpeak={() => {}}
                   isEnabled={voiceEnabled}
                 />
                 <span className="text-xs text-gray-400 dark:text-gray-500 hidden sm:inline transition-colors">
                   Voice input
                 </span>
+                <button
+                  onClick={() => setShowWhiteboard(!showWhiteboard)}
+                  className={`text-xs px-2 py-1 rounded-lg transition-colors ${
+                    showWhiteboard
+                      ? "bg-blue-100 dark:bg-blue-900/20 text-blue-700 dark:text-blue-300"
+                      : "text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-300"
+                  }`}
+                  aria-label={showWhiteboard ? "Hide whiteboard" : "Show whiteboard"}
+                  title={showWhiteboard ? "Hide whiteboard" : "Show whiteboard"}
+                >
+                  ✏️
+                </button>
               </>
             )}
           </div>
@@ -337,9 +377,10 @@ const ChatUI = memo(function ChatUI({
 
       {/* Input Area */}
       <MessageInput
-        onSendMessage={handleSendMessage}
+        onSendMessage={(message) => handleSendMessage(message)}
         disabled={isLoading}
       />
+    </div>
     </div>
   );
 });

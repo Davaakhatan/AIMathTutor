@@ -214,7 +214,8 @@ export async function POST(request: NextRequest) {
       body.sessionId,
       body.message,
       difficultyMode as "elementary" | "middle" | "high" | "advanced",
-      clientApiKey // Pass client-provided API key if available
+      clientApiKey, // Pass client-provided API key if available
+      body.whiteboardImage // Pass whiteboard image if provided
     );
 
     const response = NextResponse.json({

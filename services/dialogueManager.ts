@@ -120,7 +120,8 @@ export class DialogueManager {
     sessionId: string,
     userMessage: string,
     difficultyMode: "elementary" | "middle" | "high" | "advanced" = "middle",
-    clientApiKey?: string // Optional: Client-provided API key as fallback
+    clientApiKey?: string, // Optional: Client-provided API key as fallback
+    whiteboardImage?: string // Optional: Base64 whiteboard image
   ): Promise<Message> {
     // Add user message to context
     const userMsg: Message = {
@@ -172,16 +173,35 @@ export class DialogueManager {
       // Call OpenAI API
       let response;
       try {
+        // Build user message content
+        const userContent: any[] = [
+          {
+            type: "text",
+            text: prompt,
+          },
+        ];
+
+        // Add whiteboard image if provided
+        if (whiteboardImage) {
+          userContent.push({
+            type: "image_url",
+            image_url: {
+              url: `data:image/png;base64,${whiteboardImage}`,
+            },
+          });
+        }
+
         response = await client.chat.completions.create({
           model: "gpt-4o",
           messages: [
             {
               role: "system",
-              content: socraticPromptEngine.generateSystemPrompt(difficultyMode),
+              content: socraticPromptEngine.generateSystemPrompt(difficultyMode) + 
+                (whiteboardImage ? "\n\nNote: The student has shared a whiteboard drawing. Look at it carefully and reference it in your response. Use it to guide your questions and provide visual feedback." : ""),
             },
             {
               role: "user",
-              content: prompt,
+              content: userContent,
             },
           ],
           temperature,

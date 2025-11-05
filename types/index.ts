@@ -59,6 +59,7 @@ export interface ChatRequest {
   problem?: ParsedProblem;
   difficultyMode?: "elementary" | "middle" | "high" | "advanced";
   apiKey?: string; // Optional: Client-provided API key as fallback
+  whiteboardImage?: string; // Base64 image data URL from whiteboard
 }
 
 export interface ChatResponse {
