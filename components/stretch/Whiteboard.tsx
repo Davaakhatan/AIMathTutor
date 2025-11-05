@@ -6,7 +6,30 @@ interface WhiteboardProps {
   isEnabled?: boolean;
   onDrawingChange?: (hasDrawing: boolean) => void;
   onSendDrawing?: (imageDataUrl: string) => void;
+  onReviewDrawing?: (imageDataUrl: string) => void;
   compact?: boolean; // Compact mode for sidebar integration
+}
+
+// Shape types for object tracking
+interface Shape {
+  id: string;
+  type: "rectangle" | "circle" | "triangle" | "line" | "text";
+  x: number;
+  y: number;
+  width?: number;
+  height?: number;
+  radius?: number;
+  endX?: number;
+  endY?: number;
+  color: string;
+  lineWidth: number;
+  text?: string;
+}
+
+interface FreehandPath {
+  points: Array<{ x: number; y: number }>;
+  color: string;
+  lineWidth: number;
 }
 
 export default function Whiteboard({
@@ -21,10 +44,18 @@ export default function Whiteboard({
   const [color, setColor] = useState("#000000");
   const [lineWidth, setLineWidth] = useState(2);
   const [hasContent, setHasContent] = useState(false);
-  const [drawingMode, setDrawingMode] = useState<"freehand" | "rectangle" | "circle" | "triangle" | "line" | "text">("freehand");
+  const [drawingMode, setDrawingMode] = useState<"freehand" | "rectangle" | "circle" | "triangle" | "line" | "text" | "select">("freehand");
   const [startPos, setStartPos] = useState<{ x: number; y: number } | null>(null);
   const [textInput, setTextInput] = useState<{ x: number; y: number; text: string } | null>(null);
   const [savedCanvasState, setSavedCanvasState] = useState<ImageData | null>(null);
+  
+  // Store shapes and paths as objects for selection/moving
+  const [shapes, setShapes] = useState<Shape[]>([]);
+  const [freehandPaths, setFreehandPaths] = useState<FreehandPath[]>([]);
+  const [currentPath, setCurrentPath] = useState<FreehandPath | null>(null);
+  const [selectedShapeId, setSelectedShapeId] = useState<string | null>(null);
+  const [isDragging, setIsDragging] = useState(false);
+  const [dragOffset, setDragOffset] = useState<{ x: number; y: number } | null>(null);
 
   const colors = [
     "#000000", // Black
@@ -34,6 +65,148 @@ export default function Whiteboard({
     "#ca8a04", // Yellow
     "#9333ea", // Purple
   ];
+
+  // Redraw all shapes and paths
+  const redrawCanvas = useCallback(() => {
+    const canvas = canvasRef.current;
+    if (!canvas) return;
+    
+    const ctx = canvas.getContext("2d");
+    if (!ctx) return;
+    
+    // Clear canvas
+    ctx.clearRect(0, 0, canvas.width, canvas.height);
+    
+    // Draw all freehand paths
+    freehandPaths.forEach((path) => {
+      if (path.points.length < 2) return;
+      ctx.strokeStyle = path.color;
+      ctx.lineWidth = path.lineWidth;
+      ctx.lineCap = "round";
+      ctx.lineJoin = "round";
+      ctx.beginPath();
+      ctx.moveTo(path.points[0].x, path.points[0].y);
+      for (let i = 1; i < path.points.length; i++) {
+        ctx.lineTo(path.points[i].x, path.points[i].y);
+      }
+      ctx.stroke();
+    });
+    
+    // Draw current path if drawing
+    if (currentPath && currentPath.points.length > 1) {
+      ctx.strokeStyle = currentPath.color;
+      ctx.lineWidth = currentPath.lineWidth;
+      ctx.lineCap = "round";
+      ctx.lineJoin = "round";
+      ctx.beginPath();
+      ctx.moveTo(currentPath.points[0].x, currentPath.points[0].y);
+      for (let i = 1; i < currentPath.points.length; i++) {
+        ctx.lineTo(currentPath.points[i].x, currentPath.points[i].y);
+      }
+      ctx.stroke();
+    }
+    
+    // Draw all shapes
+    shapes.forEach((shape) => {
+      ctx.strokeStyle = shape.color;
+      ctx.fillStyle = shape.color;
+      ctx.lineWidth = shape.lineWidth;
+      ctx.beginPath();
+      
+      switch (shape.type) {
+        case "rectangle":
+          ctx.rect(shape.x, shape.y, shape.width || 0, shape.height || 0);
+          ctx.stroke();
+          break;
+        case "circle":
+          ctx.arc(shape.x, shape.y, shape.radius || 0, 0, 2 * Math.PI);
+          ctx.stroke();
+          break;
+        case "triangle":
+          ctx.moveTo(shape.x, shape.y);
+          ctx.lineTo(shape.endX || shape.x, shape.endY || shape.y);
+          ctx.lineTo(shape.x + ((shape.endX || shape.x) - shape.x) * 2, shape.y);
+          ctx.closePath();
+          ctx.stroke();
+          break;
+        case "line":
+          ctx.moveTo(shape.x, shape.y);
+          ctx.lineTo(shape.endX || shape.x, shape.endY || shape.y);
+          ctx.stroke();
+          break;
+        case "text":
+          ctx.font = `${shape.lineWidth * 8}px Arial`;
+          ctx.fillText(shape.text || "", shape.x, shape.y);
+          break;
+      }
+      
+      // Draw selection highlight
+      if (shape.id === selectedShapeId) {
+        ctx.strokeStyle = "#3b82f6";
+        ctx.lineWidth = 2;
+        ctx.setLineDash([5, 5]);
+        let highlightX = shape.x - 5;
+        let highlightY = shape.y - 5;
+        let highlightW = 50;
+        let highlightH = 50;
+        
+        if (shape.type === "rectangle" && shape.width && shape.height) {
+          highlightW = shape.width + 10;
+          highlightH = shape.height + 10;
+        } else if (shape.type === "circle" && shape.radius) {
+          highlightX = shape.x - shape.radius - 5;
+          highlightY = shape.y - shape.radius - 5;
+          highlightW = shape.radius * 2 + 10;
+          highlightH = shape.radius * 2 + 10;
+        } else if (shape.type === "text") {
+          highlightW = (shape.text?.length || 0) * (shape.lineWidth * 5) + 10;
+          highlightH = shape.lineWidth * 8 + 10;
+          highlightY = shape.y - shape.lineWidth * 8 - 5;
+        }
+        
+        ctx.strokeRect(highlightX, highlightY, highlightW, highlightH);
+        ctx.setLineDash([]);
+      }
+    });
+    
+    // Draw shape preview while drawing
+    if (isDrawing && startPos && endPos && drawingMode !== "freehand" && drawingMode !== "select" && drawingMode !== "text") {
+      ctx.strokeStyle = color;
+      ctx.lineWidth = lineWidth;
+      ctx.beginPath();
+      
+      switch (drawingMode) {
+        case "rectangle":
+          ctx.rect(
+            Math.min(startPos.x, endPos.x),
+            Math.min(startPos.y, endPos.y),
+            Math.abs(endPos.x - startPos.x),
+            Math.abs(endPos.y - startPos.y)
+          );
+          ctx.stroke();
+          break;
+        case "circle":
+          const radius = Math.sqrt(
+            Math.pow(endPos.x - startPos.x, 2) + Math.pow(endPos.y - startPos.y, 2)
+          );
+          ctx.arc(startPos.x, startPos.y, radius, 0, 2 * Math.PI);
+          ctx.stroke();
+          break;
+        case "triangle":
+          ctx.moveTo(startPos.x, startPos.y);
+          ctx.lineTo(endPos.x, endPos.y);
+          ctx.lineTo(startPos.x + (endPos.x - startPos.x) * 2, startPos.y);
+          ctx.closePath();
+          ctx.stroke();
+          break;
+        case "line":
+          ctx.moveTo(startPos.x, startPos.y);
+          ctx.lineTo(endPos.x, endPos.y);
+          ctx.stroke();
+          break;
+      }
+    }
+  }, [shapes, freehandPaths, currentPath, selectedShapeId, isDrawing, startPos, endPos, drawingMode, color, lineWidth]);
 
   useEffect(() => {
     const canvas = canvasRef.current;
@@ -47,12 +220,7 @@ export default function Whiteboard({
       const rect = canvas.getBoundingClientRect();
       canvas.width = rect.width;
       canvas.height = rect.height;
-      
-      // Set drawing properties
-      ctx.lineCap = "round";
-      ctx.lineJoin = "round";
-      ctx.strokeStyle = color;
-      ctx.lineWidth = lineWidth;
+      redrawCanvas();
     };
 
     resizeCanvas();
@@ -61,7 +229,12 @@ export default function Whiteboard({
     return () => {
       window.removeEventListener("resize", resizeCanvas);
     };
-  }, [color, lineWidth]);
+  }, [redrawCanvas]);
+
+  // Redraw when shapes or paths change
+  useEffect(() => {
+    redrawCanvas();
+  }, [redrawCanvas]);
 
   const getMousePos = useCallback((e: React.MouseEvent<HTMLCanvasElement> | React.TouchEvent<HTMLCanvasElement>) => {
     const canvas = canvasRef.current;
@@ -74,55 +247,57 @@ export default function Whiteboard({
     };
   }, []);
 
-  const drawShape = useCallback((start: { x: number; y: number }, end: { x: number; y: number }, mode: string, isPreview: boolean = true) => {
-    const canvas = canvasRef.current;
-    if (!canvas) return;
-    
-    const ctx = canvas.getContext("2d");
-    if (!ctx) return;
-
-    // If preview, restore saved state and draw preview
-    if (isPreview && savedCanvasState) {
-      ctx.clearRect(0, 0, canvas.width, canvas.height);
-      ctx.putImageData(savedCanvasState, 0, 0);
+  // Hit testing for selection
+  const hitTest = useCallback((x: number, y: number): string | null => {
+    // Check shapes in reverse order (top to bottom)
+    for (let i = shapes.length - 1; i >= 0; i--) {
+      const shape = shapes[i];
+      let hit = false;
+      
+      switch (shape.type) {
+        case "rectangle":
+          if (shape.width && shape.height) {
+            hit = x >= shape.x && x <= shape.x + shape.width &&
+                  y >= shape.y && y <= shape.y + shape.height;
+          }
+          break;
+        case "circle":
+          if (shape.radius) {
+            const dist = Math.sqrt(Math.pow(x - shape.x, 2) + Math.pow(y - shape.y, 2));
+            hit = dist <= shape.radius;
+          }
+          break;
+        case "line":
+          if (shape.endX !== undefined && shape.endY !== undefined) {
+            // Simple line hit test (point to line distance)
+            const dist = Math.abs(
+              ((shape.endY - shape.y) * x - (shape.endX - shape.x) * y + shape.endX * shape.y - shape.endY * shape.x) /
+              Math.sqrt(Math.pow(shape.endY - shape.y, 2) + Math.pow(shape.endX - shape.x, 2))
+            );
+            hit = dist < 5; // 5px tolerance
+          }
+          break;
+        case "triangle":
+          // Simple bounding box test for triangle
+          const minX = Math.min(shape.x, shape.endX || shape.x, shape.x + ((shape.endX || shape.x) - shape.x) * 2);
+          const maxX = Math.max(shape.x, shape.endX || shape.x, shape.x + ((shape.endX || shape.x) - shape.x) * 2);
+          const minY = Math.min(shape.y, shape.endY || shape.y);
+          const maxY = Math.max(shape.y, shape.endY || shape.y);
+          hit = x >= minX && x <= maxX && y >= minY && y <= maxY;
+          break;
+        case "text":
+          // Text bounding box (rough estimate)
+          const textWidth = (shape.text?.length || 0) * (shape.lineWidth * 5);
+          hit = x >= shape.x && x <= shape.x + textWidth &&
+                y >= shape.y - shape.lineWidth * 8 && y <= shape.y;
+          break;
+      }
+      
+      if (hit) return shape.id;
     }
     
-    ctx.strokeStyle = color;
-    ctx.fillStyle = color;
-    ctx.lineWidth = lineWidth;
-    ctx.beginPath();
-
-    switch (mode) {
-      case "rectangle":
-        ctx.rect(
-          Math.min(start.x, end.x),
-          Math.min(start.y, end.y),
-          Math.abs(end.x - start.x),
-          Math.abs(end.y - start.y)
-        );
-        ctx.stroke();
-        break;
-      case "circle":
-        const radius = Math.sqrt(
-          Math.pow(end.x - start.x, 2) + Math.pow(end.y - start.y, 2)
-        );
-        ctx.arc(start.x, start.y, radius, 0, 2 * Math.PI);
-        ctx.stroke();
-        break;
-      case "triangle":
-        ctx.moveTo(start.x, start.y);
-        ctx.lineTo(end.x, end.y);
-        ctx.lineTo(start.x + (end.x - start.x) * 2, start.y);
-        ctx.closePath();
-        ctx.stroke();
-        break;
-      case "line":
-        ctx.moveTo(start.x, start.y);
-        ctx.lineTo(end.x, end.y);
-        ctx.stroke();
-        break;
-    }
-  }, [color, lineWidth, savedCanvasState]);
+    return null;
+  }, [shapes]);
 
   const startDrawing = useCallback(
     (e: React.MouseEvent<HTMLCanvasElement> | React.TouchEvent<HTMLCanvasElement>) => {
@@ -133,6 +308,25 @@ export default function Whiteboard({
 
       const pos = getMousePos(e);
       
+      // Handle select mode
+      if (drawingMode === "select") {
+        const hitId = hitTest(pos.x, pos.y);
+        if (hitId) {
+          setSelectedShapeId(hitId);
+          const shape = shapes.find(s => s.id === hitId);
+          if (shape) {
+            setIsDragging(true);
+            setDragOffset({
+              x: pos.x - shape.x,
+              y: pos.y - shape.y,
+            });
+          }
+        } else {
+          setSelectedShapeId(null);
+        }
+        return;
+      }
+      
       if (drawingMode === "text") {
         setTextInput({ x: pos.x, y: pos.y, text: "" });
         return;
@@ -140,90 +334,136 @@ export default function Whiteboard({
 
       setIsDrawing(true);
       setStartPos(pos);
+      setEndPos(pos);
       
       if (drawingMode === "freehand") {
-        const ctx = canvas.getContext("2d");
-        if (!ctx) return;
-        ctx.beginPath();
-        ctx.moveTo(pos.x, pos.y);
+        // Start new freehand path
+        setCurrentPath({
+          points: [pos],
+          color,
+          lineWidth,
+        });
         setHasContent(true);
         onDrawingChange?.(true);
-      } else {
-        // Save canvas state before drawing shape preview
-        const ctx = canvas.getContext("2d");
-        if (!ctx) return;
-        const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
-        setSavedCanvasState(imageData);
       }
+      // For shapes, we'll create them on stopDrawing
     },
-    [isEnabled, onDrawingChange, drawingMode, getMousePos]
+    [isEnabled, drawingMode, getMousePos, hitTest, shapes, color, lineWidth, onDrawingChange]
   );
 
   const draw = useCallback(
     (e: React.MouseEvent<HTMLCanvasElement> | React.TouchEvent<HTMLCanvasElement>) => {
-      if (!isDrawing || !isEnabled || !startPos) return;
-
-      const canvas = canvasRef.current;
-      if (!canvas) return;
+      if (!isEnabled) return;
 
       const pos = getMousePos(e);
 
+      // Handle dragging
+      if (isDragging && selectedShapeId && dragOffset) {
+        setShapes(prev => prev.map(shape => {
+          if (shape.id === selectedShapeId) {
+            const newX = pos.x - dragOffset.x;
+            const newY = pos.y - dragOffset.y;
+            return {
+              ...shape,
+              x: newX,
+              y: newY,
+              // Update end positions for line/triangle
+              endX: shape.endX !== undefined ? newX + (shape.endX - shape.x) : undefined,
+              endY: shape.endY !== undefined ? newY + (shape.endY - shape.y) : undefined,
+            };
+          }
+          return shape;
+        }));
+        return;
+      }
+
+      if (!isDrawing || !startPos) return;
+
       if (drawingMode === "freehand") {
-        const ctx = canvas.getContext("2d");
-        if (!ctx) return;
-        ctx.lineTo(pos.x, pos.y);
-        ctx.stroke();
-      } else {
-        // Draw shape preview (will restore saved state)
-        drawShape(startPos, pos, drawingMode, true);
+        // Add point to current path
+        setCurrentPath(prev => prev ? {
+          ...prev,
+          points: [...prev.points, pos],
+        } : null);
+      } else if (drawingMode !== "select" && startPos) {
+        // Update end position for shape preview
+        setEndPos(pos);
       }
     },
-    [isDrawing, isEnabled, startPos, drawingMode, getMousePos, drawShape]
+    [isEnabled, isDrawing, startPos, drawingMode, getMousePos, isDragging, selectedShapeId, dragOffset]
   );
 
   const stopDrawing = useCallback((e?: React.MouseEvent<HTMLCanvasElement> | React.TouchEvent<HTMLCanvasElement>) => {
-    if (!isDrawing || !startPos) {
-      setIsDrawing(false);
-      setStartPos(null);
-      setSavedCanvasState(null);
+    // Handle drag end
+    if (isDragging) {
+      setIsDragging(false);
+      setDragOffset(null);
       return;
     }
 
-    const canvas = canvasRef.current;
-    if (!canvas) return;
+    if (!isDrawing || !startPos) {
+      setIsDrawing(false);
+      setStartPos(null);
+      setEndPos(null);
+      return;
+    }
 
-    const ctx = canvas.getContext("2d");
-    if (!ctx) return;
+    const pos = e ? getMousePos(e) : (endPos || startPos);
 
-    // For shapes, finalize the drawing
-    if (drawingMode !== "freehand" && savedCanvasState) {
-      // Get final position
-      let endPos = startPos;
-      if (e) {
-        endPos = getMousePos(e);
+    if (drawingMode === "freehand") {
+      // Finalize freehand path
+      if (currentPath && currentPath.points.length > 1) {
+        setFreehandPaths(prev => [...prev, currentPath]);
+        setCurrentPath(null);
+        setHasContent(true);
+        onDrawingChange?.(true);
       }
-      
-      // Restore saved state and draw final shape
-      ctx.clearRect(0, 0, canvas.width, canvas.height);
-      ctx.putImageData(savedCanvasState, 0, 0);
-      drawShape(startPos, endPos, drawingMode, false);
+    } else if (drawingMode !== "select" && drawingMode !== "text") {
+      // Create shape object
+      const shapeId = `shape-${Date.now()}-${Math.random()}`;
+      const newShape: Shape = {
+        id: shapeId,
+        type: drawingMode,
+        x: startPos.x,
+        y: startPos.y,
+        color,
+        lineWidth,
+      };
+
+      switch (drawingMode) {
+        case "rectangle":
+          newShape.width = Math.abs(pos.x - startPos.x);
+          newShape.height = Math.abs(pos.y - startPos.y);
+          newShape.x = Math.min(startPos.x, pos.x);
+          newShape.y = Math.min(startPos.y, pos.y);
+          break;
+        case "circle":
+          newShape.radius = Math.sqrt(
+            Math.pow(pos.x - startPos.x, 2) + Math.pow(pos.y - startPos.y, 2)
+          );
+          break;
+        case "line":
+        case "triangle":
+          newShape.endX = pos.x;
+          newShape.endY = pos.y;
+          break;
+      }
+
+      setShapes(prev => [...prev, newShape]);
       setHasContent(true);
       onDrawingChange?.(true);
     }
 
     setIsDrawing(false);
     setStartPos(null);
-    setSavedCanvasState(null);
-  }, [isDrawing, startPos, drawingMode, savedCanvasState, onDrawingChange, getMousePos, drawShape]);
+    setEndPos(null);
+  }, [isDrawing, isDragging, startPos, endPos, drawingMode, currentPath, color, lineWidth, onDrawingChange, getMousePos]);
 
   const clearCanvas = useCallback(() => {
-    const canvas = canvasRef.current;
-    if (!canvas) return;
-
-    const ctx = canvas.getContext("2d");
-    if (!ctx) return;
-
-    ctx.clearRect(0, 0, canvas.width, canvas.height);
+    setShapes([]);
+    setFreehandPaths([]);
+    setCurrentPath(null);
+    setSelectedShapeId(null);
     setHasContent(false);
     onDrawingChange?.(false);
   }, [onDrawingChange]);
@@ -412,6 +652,20 @@ export default function Whiteboard({
             >
               Aa Text
             </button>
+            <button
+              onClick={() => {
+                setDrawingMode("select");
+                setSelectedShapeId(null);
+              }}
+              className={`px-2 py-1 text-xs rounded transition-colors ${
+                drawingMode === "select"
+                  ? "bg-blue-100 dark:bg-blue-900/20 text-blue-700 dark:text-blue-300"
+                  : "bg-gray-100 dark:bg-gray-800 text-gray-600 dark:text-gray-400 hover:bg-gray-200 dark:hover:bg-gray-700"
+              }`}
+              title="Select and move"
+            >
+              ✋ Select
+            </button>
           </div>
         </div>
       )}
@@ -526,7 +780,10 @@ export default function Whiteboard({
           onTouchMove={draw}
           onTouchEnd={(e) => stopDrawing(e)}
           className={`w-full ${compact ? 'h-32' : 'h-64'} ${
-            drawingMode === "text" ? "cursor-text" : "cursor-crosshair"
+            drawingMode === "text" ? "cursor-text" : 
+            drawingMode === "select" ? "cursor-grab" : 
+            isDragging ? "cursor-grabbing" :
+            "cursor-crosshair"
           } touch-none`}
           aria-label="Whiteboard canvas"
         />
@@ -540,14 +797,18 @@ export default function Whiteboard({
             }}
             onBlur={() => {
               if (textInput.text) {
-                const canvas = canvasRef.current;
-                if (!canvas) return;
-                const ctx = canvas.getContext("2d");
-                if (!ctx) return;
-                
-                ctx.fillStyle = color;
-                ctx.font = `${lineWidth * 8}px Arial`;
-                ctx.fillText(textInput.text, textInput.x, textInput.y);
+                // Create text shape object
+                const shapeId = `shape-${Date.now()}-${Math.random()}`;
+                const newShape: Shape = {
+                  id: shapeId,
+                  type: "text",
+                  x: textInput.x,
+                  y: textInput.y,
+                  color,
+                  lineWidth,
+                  text: textInput.text,
+                };
+                setShapes(prev => [...prev, newShape]);
                 setHasContent(true);
                 onDrawingChange?.(true);
               }
