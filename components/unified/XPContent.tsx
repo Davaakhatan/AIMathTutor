@@ -57,7 +57,8 @@ export default function XPContent({ onXPDataChange }: XPContentProps) {
     if (xpToNext !== xpData.xpToNextLevel) {
       setXPData((prev) => ({ ...prev, xpToNextLevel: xpToNext }));
     }
-  }, [xpData.totalXP, xpData.level]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [xpData.totalXP, xpData.level]); // calculateXPToNext, setXPData are stable
 
   const progressPercentage = xpData.xpToNextLevel > 0
     ? ((calculateXPForLevel(xpData.level) - xpData.xpToNextLevel) / calculateXPForLevel(xpData.level)) * 100

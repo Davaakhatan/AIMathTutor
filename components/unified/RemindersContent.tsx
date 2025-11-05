@@ -84,7 +84,7 @@ export default function RemindersContent() {
       <div className="flex items-center justify-between">
         <div>
           <label className="text-sm font-medium text-gray-900 dark:text-gray-100">Enable Reminders</label>
-          <p className="text-xs text-gray-500 dark:text-gray-400 mt-0.5">Get notified when it's time to study</p>
+          <p className="text-xs text-gray-500 dark:text-gray-400 mt-0.5">Get notified when it&apos;s time to study</p>
         </div>
         <label className="relative inline-flex items-center cursor-pointer">
           <input

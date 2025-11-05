@@ -97,7 +97,7 @@ export default function Leaderboard({
       // Keep top 100
       return updated.slice(0, 100);
     });
-  }, [currentXP, currentLevel, currentProblemsSolved, currentStreak]); // Removed setLeaderboard from deps
+  }, [currentXP, currentLevel, currentProblemsSolved, currentStreak, setLeaderboard]);
 
   // Calculate user rank
   useEffect(() => {

@@ -77,7 +77,8 @@ export default function Settings() {
       // Uncomment if you want auto dark mode based on system
       // setSettings({ ...settings, darkMode: true });
     }
-  }, []);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []); // Only run once on mount
   
   // Notify parent component of voice setting changes
   useEffect(() => {

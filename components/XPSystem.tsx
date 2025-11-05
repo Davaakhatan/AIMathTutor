@@ -101,7 +101,7 @@ export default function XPSystem({
         setPreviousProblemId(null);
       }
     }
-  }, [problem?.text, problem?.type]);
+  }, [problem?.text, problem?.type, previousProblemId, problem]);
 
   // Award XP when problem is solved
   useEffect(() => {
@@ -254,7 +254,8 @@ export default function XPSystem({
     setTimeout(() => {
       setShowXPNotification(false);
     }, 3000);
-  }, [messages, problem, previousProblemId, previousLevel, onLevelUp, solvedProblems]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [messages, problem, previousProblemId, previousLevel, onLevelUp, solvedProblems]); // calculateLevel, calculateXPToNext, setXPData are stable
 
   // Level up celebration
   useEffect(() => {
@@ -317,6 +318,7 @@ export default function XPSystem({
 
     window.addEventListener("problemStarted", handleProblemStarted);
     return () => window.removeEventListener("problemStarted", handleProblemStarted);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []); // Empty deps - only set up listener once
 
   // Only render after client-side hydration to avoid hydration mismatch
@@ -334,7 +336,8 @@ export default function XPSystem({
       const count = xpData.xpHistory.filter(h => h.reason.includes("Problem solved")).length;
       setProblemsSolvedCount(count);
     }
-  }, [xpData.xpHistory.length, isMounted]); // Only depend on length, not the array itself
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [xpData.xpHistory.length, isMounted]); // Only depend on length to avoid unnecessary re-renders
 
   // Notify parent of XP data changes (use useRef to track previous values and avoid unnecessary calls)
   const prevXPRef = useRef({ totalXP: 0, level: 1, problemsSolved: 0 });

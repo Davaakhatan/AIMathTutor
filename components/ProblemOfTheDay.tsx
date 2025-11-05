@@ -62,7 +62,7 @@ export default function ProblemOfTheDay({
         setShowCard(true);
       }
     }
-  }, [dailyProblem?.date]);
+  }, [dailyProblem?.date, dailyProblem, showCard]);
 
   const generateDailyProblem = async () => {
     setIsGenerating(true);
