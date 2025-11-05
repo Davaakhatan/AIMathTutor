@@ -3,6 +3,7 @@
 import { useState, useEffect } from "react";
 import { useLocalStorage } from "@/hooks/useLocalStorage";
 import { ProblemType } from "@/types";
+import { getAllConcepts, getConceptsByCategory, getConceptsNeedingPractice, ConceptTrackingData } from "@/services/conceptTracker";
 
 interface ProblemStats {
   totalProblems: number;
@@ -54,6 +55,7 @@ export default function DashboardContent() {
   const [savedProblems] = useLocalStorage<SavedProblem[]>("aitutor-problem-history", []);
   const [xpData] = useLocalStorage<XPData>("aitutor-xp", { totalXP: 0, level: 1, xpHistory: [] });
   const [streakData] = useLocalStorage<StreakData>("aitutor-streak", { currentStreak: 0, longestStreak: 0, lastStudyDate: 0 });
+  const [conceptData] = useLocalStorage<ConceptTrackingData>("aitutor-concepts", { concepts: {}, lastUpdated: Date.now() });
   const [stats, setStats] = useState<ProblemStats | null>(null);
 
   useEffect(() => {
@@ -231,6 +233,94 @@ export default function DashboardContent() {
           </div>
         </div>
       </div>
+
+      {/* Concept Mastery */}
+      {(() => {
+        const concepts = getAllConcepts(conceptData);
+        const conceptsNeedingPractice = getConceptsNeedingPractice(conceptData, 70);
+        const conceptsByCategory = getConceptsByCategory(conceptData);
+
+        if (concepts.length === 0) {
+          return null; // Don't show if no concepts tracked yet
+        }
+
+        return (
+          <div>
+            <h4 className="text-xs font-medium text-gray-700 dark:text-gray-300 mb-2 uppercase tracking-wide transition-colors">
+              Concept Mastery
+            </h4>
+            
+            {/* Concepts Needing Practice */}
+            {conceptsNeedingPractice.length > 0 && (
+              <div className="mb-3 p-2 bg-yellow-50 dark:bg-yellow-900/10 border border-yellow-200 dark:border-yellow-800 rounded-lg">
+                <p className="text-xs font-medium text-yellow-700 dark:text-yellow-400 mb-2 transition-colors">
+                  💪 Practice These:
+                </p>
+                <div className="space-y-1.5">
+                  {conceptsNeedingPractice.slice(0, 5).map((concept) => (
+                    <div key={concept.id} className="flex items-center justify-between gap-2">
+                      <span className="text-xs text-gray-700 dark:text-gray-300 flex-1 min-w-0 truncate transition-colors">
+                        {concept.name}
+                      </span>
+                      <div className="flex items-center gap-2 flex-shrink-0">
+                        <div className="w-20 h-1.5 bg-gray-200 dark:bg-gray-700 rounded-full overflow-hidden transition-colors">
+                          <div
+                            className="h-full bg-gradient-to-r from-yellow-400 to-yellow-600 dark:from-yellow-500 dark:to-yellow-700 rounded-full transition-all"
+                            style={{ width: `${concept.masteryLevel}%` }}
+                          />
+                        </div>
+                        <span className="text-xs text-gray-600 dark:text-gray-400 w-10 text-right transition-colors">
+                          {concept.masteryLevel}%
+                        </span>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+
+            {/* All Concepts by Category */}
+            <div className="space-y-3">
+              {Object.entries(conceptsByCategory).map(([category, categoryConcepts]) => (
+                <div key={category} className="space-y-1.5">
+                  <h5 className="text-xs font-medium text-gray-600 dark:text-gray-400 uppercase tracking-wide transition-colors">
+                    {category.charAt(0).toUpperCase() + category.slice(1)}
+                  </h5>
+                  {categoryConcepts.slice(0, 3).map((concept) => (
+                    <div key={concept.id} className="flex items-center justify-between gap-2">
+                      <span className="text-xs text-gray-600 dark:text-gray-300 flex-1 min-w-0 truncate transition-colors">
+                        {concept.name}
+                      </span>
+                      <div className="flex items-center gap-2 flex-shrink-0">
+                        <div className="w-16 h-1.5 bg-gray-200 dark:bg-gray-700 rounded-full overflow-hidden transition-colors">
+                          <div
+                            className={`h-full rounded-full transition-all ${
+                              concept.masteryLevel >= 80
+                                ? "bg-gradient-to-r from-green-400 to-green-600 dark:from-green-500 dark:to-green-700"
+                                : concept.masteryLevel >= 60
+                                ? "bg-gradient-to-r from-blue-400 to-blue-600 dark:from-blue-500 dark:to-blue-700"
+                                : "bg-gradient-to-r from-gray-400 to-gray-600 dark:from-gray-500 dark:to-gray-700"
+                            }`}
+                            style={{ width: `${concept.masteryLevel}%` }}
+                          />
+                        </div>
+                        <span className="text-xs text-gray-500 dark:text-gray-400 w-8 text-right transition-colors">
+                          {concept.masteryLevel}%
+                        </span>
+                      </div>
+                    </div>
+                  ))}
+                  {categoryConcepts.length > 3 && (
+                    <p className="text-xs text-gray-400 dark:text-gray-500 transition-colors">
+                      +{categoryConcepts.length - 3} more
+                    </p>
+                  )}
+                </div>
+              ))}
+            </div>
+          </div>
+        );
+      })()}
 
       {/* Problems by Type */}
       <div>

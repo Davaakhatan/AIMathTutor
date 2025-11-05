@@ -2,6 +2,7 @@
 
 import { Message, ParsedProblem } from "@/types";
 import { useState } from "react";
+import { useConceptTracking } from "@/hooks/useConceptTracking";
 
 interface ProblemProgressProps {
   messages: Message[];
@@ -96,6 +97,9 @@ export default function ProblemProgress({ messages, problem }: ProblemProgressPr
     
     return hasDefinitiveCompletion || congratulationsWithCompletion || confirmsFinalAnswer;
   });
+  
+  // Track concept mastery when problem is solved
+  useConceptTracking(problem, messages, isSolved);
 
   // Calculate progress (rough estimate based on conversation length)
   // More exchanges = more progress, but also more hints = less progress
