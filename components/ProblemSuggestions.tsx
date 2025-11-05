@@ -88,12 +88,16 @@ export default function ProblemSuggestions({ onSelectProblem }: ProblemSuggestio
     setIsGenerating(true);
     
     try {
+      // Randomly select difficulty level
+      const difficulties = ["elementary", "middle school", "high school", "advanced"];
+      const randomDifficulty = difficulties[Math.floor(Math.random() * difficulties.length)];
+      
       const response = await fetch("/api/generate-problem", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           type,
-          difficulty: "middle school",
+          difficulty: randomDifficulty,
         }),
       });
 

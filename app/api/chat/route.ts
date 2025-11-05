@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { dialogueManager } from "@/services/dialogueManager";
 import { contextManager } from "@/services/contextManager";
-import { ChatRequest, ChatResponse } from "@/types";
+import { ChatRequest, ChatResponse, Message } from "@/types";
 import { chatRateLimiter, getClientId, createRateLimitHeaders } from "@/lib/rateLimit";
 import { logger } from "@/lib/logger";
 
@@ -29,6 +29,16 @@ export async function POST(request: NextRequest) {
 
     // Extract API key from request if provided (fallback when env var not available)
     const clientApiKey = body.apiKey;
+    
+    // Log API key status for debugging (don't log the actual key)
+    logger.info("Chat API request received", {
+      hasClientApiKey: !!clientApiKey,
+      clientApiKeyLength: clientApiKey?.length || 0,
+      hasEnvApiKey: !!process.env.OPENAI_API_KEY,
+      envApiKeyLength: process.env.OPENAI_API_KEY?.length || 0,
+      isInitialization: !!body.problem,
+      hasSessionId: !!body.sessionId,
+    });
 
     // If this is the first message and includes a problem, initialize conversation
     if (body.problem) {
@@ -47,23 +57,54 @@ export async function POST(request: NextRequest) {
       try {
         // When initializing, we don't need sessionId or message
         const session = dialogueManager.initializeConversation(body.problem);
-        const history = dialogueManager.getHistory(session.id);
-
-        // Return the initial tutor message
-        const initialMessage = history.find((msg) => msg.role === "tutor");
         
-        if (!initialMessage) {
-          logger.warn("No initial tutor message found", { sessionId: session.id });
+        logger.info("Initializing conversation", {
+          sessionId: session.id,
+          hasClientApiKey: !!clientApiKey,
+          hasEnvApiKey: !!process.env.OPENAI_API_KEY,
+        });
+        
+        // Generate initial tutor message using OpenAI (with API key if provided)
+        const difficultyMode = body.difficultyMode || "middle";
+        let initialTutorMessage: Message;
+        
+        try {
+          initialTutorMessage = await dialogueManager.generateInitialMessage(
+            session.id,
+            body.problem,
+            difficultyMode as "elementary" | "middle" | "high" | "advanced",
+            clientApiKey
+          );
+        } catch (generateError) {
+          // If initial message generation fails, clean up the session
+          logger.error("Failed to generate initial message, cleaning up session", {
+            sessionId: session.id,
+            error: generateError instanceof Error ? generateError.message : String(generateError),
+          });
+          // Session will be cleaned up automatically on next request, but we should still throw
+          throw generateError;
         }
-        
-        // Note: Difficulty mode is applied in subsequent messages, not initialization
-        // The initial message uses default mode
-        
+
+        // Verify session still exists after initialization
+        const verifySession = contextManager.getSession(session.id);
+        if (!verifySession) {
+          logger.error("Session disappeared after initialization", { sessionId: session.id });
+          throw new Error("Session was lost during initialization. Please try again.");
+        }
+
+        const allSessions = contextManager.getAllSessions();
+        logger.info("Conversation initialized successfully", {
+          sessionId: session.id,
+          messageCount: verifySession.messages.length,
+          totalSessions: allSessions.length,
+          allSessionIds: allSessions.map(s => s.id),
+        });
+
         return NextResponse.json({
           success: true,
           response: {
-            text: initialMessage?.content || "Let's start working on this problem!",
-            timestamp: initialMessage?.timestamp || Date.now(),
+            text: initialTutorMessage.content,
+            timestamp: initialTutorMessage.timestamp,
           },
           sessionId: session.id,
         } as ChatResponse & { sessionId: string });
@@ -76,14 +117,26 @@ export async function POST(request: NextRequest) {
             text: body.problem.text?.substring(0, 100),
             type: body.problem.type,
           } : null,
+          hasClientApiKey: !!clientApiKey,
+          hasEnvApiKey: !!process.env.OPENAI_API_KEY,
         };
         
         logger.error("Error initializing conversation", errorDetails);
         
+        // Provide more detailed error message
+        let errorMessage = "Failed to initialize conversation";
+        if (initError instanceof Error) {
+          errorMessage = initError.message;
+          // If it's an API key error, make it more user-friendly
+          if (errorMessage.includes("API key") || errorMessage.includes("401") || errorMessage.includes("unauthorized")) {
+            errorMessage = "OpenAI API key error. Please check your API key in Settings or .env.local file.";
+          }
+        }
+        
         return NextResponse.json(
           {
             success: false,
-            error: initError instanceof Error ? initError.message : "Failed to initialize conversation",
+            error: errorMessage,
           } as ChatResponse,
           { status: 500 }
         );
@@ -92,10 +145,17 @@ export async function POST(request: NextRequest) {
 
     // For regular messages, we need both sessionId and message
     if (!body.sessionId || !body.message) {
+      logger.warn("Missing required fields", {
+        hasSessionId: !!body.sessionId,
+        hasMessage: !!body.message,
+        messageLength: body.message?.length || 0,
+      });
       return NextResponse.json(
         {
           success: false,
-          error: "Missing required fields: sessionId and message",
+          error: body.sessionId 
+            ? "Message cannot be empty. Please enter a message."
+            : "No active session. Please start a new problem or restart the conversation.",
         } as ChatResponse,
         { status: 400 }
       );
@@ -104,11 +164,34 @@ export async function POST(request: NextRequest) {
     // Validate session exists
     const session = contextManager.getSession(body.sessionId);
     if (!session) {
-      logger.warn(`Session not found: ${body.sessionId}`);
+      const allSessions = contextManager.getAllSessions();
+      logger.error(`Session not found when processing message`, {
+        requestedSessionId: body.sessionId,
+        totalSessions: allSessions.length,
+        allSessionIds: allSessions.map(s => s.id),
+        sessionAges: allSessions.map(s => ({
+          id: s.id,
+          ageSeconds: Math.round((Date.now() - s.createdAt) / 1000),
+          messageCount: s.messages.length,
+        })),
+      });
+      
+      // Check if session was recently created (within last 10 seconds) - might be a timing issue
+      const recentSessions = allSessions.filter(s => 
+        Date.now() - s.createdAt < 10000
+      );
+      
+      if (recentSessions.length > 0) {
+        logger.warn("Found recent sessions but requested session not found", {
+          requestedId: body.sessionId,
+          recentSessionIds: recentSessions.map(s => s.id),
+        });
+      }
+      
       return NextResponse.json(
         {
           success: false,
-          error: "Session expired. Please start a new conversation.",
+          error: "Session expired or not found. Please start a new conversation.",
         } as ChatResponse,
         { status: 400 }
       );

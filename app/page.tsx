@@ -122,6 +122,24 @@ export default function Home() {
     }
 
     setCurrentProblem(problem);
+    
+    // Map problem generation difficulty to chat difficulty mode
+    // Check if problem has generatedDifficulty property (from ProblemGenerator)
+    const problemWithDifficulty = problem as any;
+    if (problemWithDifficulty.generatedDifficulty) {
+      const genDifficulty = problemWithDifficulty.generatedDifficulty.toLowerCase();
+      // Map generation difficulty to chat difficulty mode
+      if (genDifficulty === "elementary") {
+        setDifficultyMode("elementary");
+      } else if (genDifficulty === "middle school") {
+        setDifficultyMode("middle");
+      } else if (genDifficulty === "high school") {
+        setDifficultyMode("high");
+      } else if (genDifficulty === "advanced") {
+        setDifficultyMode("advanced");
+      }
+    }
+    
     setIsInitializing(true);
     setSessionId(null);
     setInitialMessages([]);
@@ -149,37 +167,58 @@ export default function Home() {
 
       if (!response.ok) {
         const errorData = await response.json().catch(() => ({}));
-        throw new Error(errorData.error || `Failed to initialize: ${response.status}`);
+        const errorMessage = errorData.error || `Failed to initialize: ${response.status}`;
+        console.error("Initialization failed:", errorMessage, errorData);
+        throw new Error(errorMessage);
       }
 
       const result = await response.json();
 
-      if (result.success) {
-        // Set session ID if provided
-        if (result.sessionId) {
-          setSessionId(result.sessionId);
-        }
-
-        // Create initial message from tutor response
-        if (result.response) {
-          const initialMessage: Message = {
-            id: Date.now().toString(),
-            role: "tutor",
-            content: result.response.text,
-            timestamp: result.response.timestamp,
-          };
-          setInitialMessages([initialMessage]);
-          setAllMessages([initialMessage]);
-        }
-      } else {
-        throw new Error(result.error || "Failed to start conversation");
+      if (!result.success) {
+        const errorMessage = result.error || "Failed to start conversation";
+        console.error("Initialization failed:", errorMessage, result);
+        throw new Error(errorMessage);
       }
+
+      // Verify we have both sessionId and response
+      if (!result.sessionId) {
+        console.error("No sessionId in response:", result);
+        throw new Error("Server did not return a session ID. Please try again.");
+      }
+
+      if (!result.response || !result.response.text) {
+        console.error("No response text in result:", result);
+        throw new Error("Server did not return an initial message. Please try again.");
+      }
+
+      // Set session ID
+      setSessionId(result.sessionId);
+      console.log("Session initialized:", result.sessionId);
+
+      // Create initial message from tutor response
+      const initialMessage: Message = {
+        id: Date.now().toString(),
+        role: "tutor",
+        content: result.response.text,
+        timestamp: result.response.timestamp,
+      };
+      setInitialMessages([initialMessage]);
+      setAllMessages([initialMessage]);
     } catch (error) {
       console.error("Error initializing chat:", error);
+      
+      // Clear any stale session ID
+      setSessionId(null);
+      setInitialMessages([]);
+      setAllMessages([]);
+      
       if (error instanceof Error && error.name === "AbortError") {
         showToast("Request timed out. Please try again.", "error");
       } else if (error instanceof Error) {
-        showToast(error.message || "Failed to start conversation. Please try again.", "error");
+        // Show the actual error message to help debug
+        const errorMsg = error.message || "Failed to start conversation. Please try again.";
+        console.error("Initialization error details:", errorMsg);
+        showToast(errorMsg, "error");
       } else {
         showToast("An unexpected error occurred. Please try again.", "error");
       }
@@ -222,7 +261,7 @@ export default function Home() {
                 onProblemParsed={handleProblemParsed} 
                 apiKey={settings.apiKey} 
               />
-            <ProblemGenerator onProblemGenerated={handleProblemParsed} />
+            <ProblemGenerator onProblemGenerated={handleProblemParsed} apiKey={settings.apiKey} />
           </div>
         ) : (
           <div className="space-y-6">
@@ -392,14 +431,14 @@ export default function Home() {
           {/* Helpful Tips */}
           <HelpfulTips />
 
-          {/* Problem History */}
+          {/* Problem History (includes bookmarks) */}
           <ProblemHistory onSelectProblem={handleProblemParsed} />
 
           {/* Formula Reference */}
           <FormulaReference />
 
           {/* Practice Mode */}
-          <PracticeMode onStartPractice={handleProblemParsed} />
+          <PracticeMode onStartPractice={handleProblemParsed} apiKey={settings.apiKey} />
 
           {/* Learning Dashboard */}
           <LearningDashboard />

@@ -3,16 +3,45 @@ import { Session, Message, ConversationContext, ParsedProblem } from "@/types";
 import { logger } from "@/lib/logger";
 
 /**
+ * Global session storage that persists across hot reloads in Next.js dev mode
+ * This is a workaround for Next.js dev mode clearing module-level state on hot reload
+ */
+declare global {
+  // eslint-disable-next-line no-var
+  var __globalSessions: Map<string, Session> | undefined;
+}
+
+/**
  * Context Manager for maintaining conversation state
  * In-memory storage for MVP (can be upgraded to Redis/database later)
  */
 export class ContextManager {
-  private sessions: Map<string, Session> = new Map();
+  private sessions: Map<string, Session>;
   private readonly SESSION_TIMEOUT = 30 * 60 * 1000; // 30 minutes
 
   constructor() {
+    // Use global storage in dev mode to survive hot reloads
+    // In production, use instance-level storage
+    if (typeof global !== "undefined") {
+      if (!global.__globalSessions) {
+        global.__globalSessions = new Map();
+        logger.info("Initialized global session storage");
+      }
+      this.sessions = global.__globalSessions;
+    } else {
+      this.sessions = new Map();
+    }
+    
     // Clean up old sessions every 5 minutes
-    setInterval(() => this.cleanupOldSessions(), 5 * 60 * 1000);
+    if (typeof setInterval !== "undefined") {
+      setInterval(() => this.cleanupOldSessions(), 5 * 60 * 1000);
+    }
+    
+    logger.debug("ContextManager initialized", {
+      timestamp: new Date().toISOString(),
+      sessionCount: this.sessions.size,
+      usingGlobalStorage: typeof global !== "undefined" && !!global.__globalSessions,
+    });
   }
 
   /**
@@ -27,6 +56,11 @@ export class ContextManager {
     };
 
     this.sessions.set(session.id, session);
+    logger.info("Session created", {
+      sessionId: session.id,
+      totalSessions: this.sessions.size,
+      hasProblem: !!problem,
+    });
     return session;
   }
 
@@ -55,7 +89,15 @@ export class ContextManager {
    * Get a session by ID
    */
   getSession(sessionId: string): Session | undefined {
-    return this.sessions.get(sessionId);
+    const session = this.sessions.get(sessionId);
+    if (!session) {
+      logger.warn("Session not found in getSession", {
+        sessionId,
+        totalSessions: this.sessions.size,
+        allSessionIds: Array.from(this.sessions.keys()),
+      });
+    }
+    return session;
   }
 
   /**

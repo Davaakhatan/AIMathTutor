@@ -5,16 +5,32 @@ import OpenAI from "openai";
 // Also supports client-provided API key as fallback
 function getOpenAIClient(providedApiKey?: string): OpenAI {
   // Priority: provided API key > environment variable
-  const apiKey = providedApiKey || process.env.OPENAI_API_KEY;
+  let apiKey = providedApiKey || process.env.OPENAI_API_KEY;
+  
+  // Trim whitespace from API key (common issue when copying/pasting)
+  if (apiKey) {
+    apiKey = apiKey.trim();
+  }
 
-  if (!apiKey) {
+  // Validate API key format
+  if (!apiKey || apiKey.length === 0) {
     // In production, provide a helpful error message
     const isProduction = process.env.NODE_ENV === "production";
     const errorMessage = isProduction
       ? "OpenAI API key is not configured. Please add OPENAI_API_KEY to your AWS Amplify environment variables. Go to: Amplify Console → App Settings → Environment Variables → Add OPENAI_API_KEY. Then redeploy the app. Alternatively, you can enter your API key in Settings."
-      : "OPENAI_API_KEY is not set in environment variables. Please create a .env.local file with your OpenAI API key, or enter it in Settings.";
+      : "OPENAI API key is not set. Please:\n1. Create/update .env.local with: OPENAI_API_KEY=sk-your-key\n2. Restart your dev server (Next.js requires restart to load .env.local)\n3. Or enter your API key in Settings panel.";
     
     throw new Error(errorMessage);
+  }
+
+  // Validate API key format (should start with 'sk-' or 'sk-proj-' for new format)
+  if (!apiKey.startsWith("sk-") && !apiKey.startsWith("sk-proj-")) {
+    throw new Error(`Invalid API key format. OpenAI API keys should start with 'sk-' or 'sk-proj-'. Your key starts with '${apiKey.substring(0, Math.min(10, apiKey.length))}...'. Please check your API key and try again.`);
+  }
+
+  // Validate minimum length (OpenAI keys are typically 51+ characters)
+  if (apiKey.length < 20) {
+    throw new Error(`API key appears to be too short (${apiKey.length} characters). OpenAI API keys are typically 51+ characters. Please check your API key and try again.`);
   }
 
   return new OpenAI({
@@ -28,14 +44,22 @@ let clientInstance: OpenAI | null = null;
 let lastApiKey: string | undefined = undefined;
 
 export function getOpenAI(providedApiKey?: string): OpenAI {
+  // Get the current env var API key (trimmed)
+  const currentEnvKey = process.env.OPENAI_API_KEY?.trim();
+  
+  // Determine which key to use
+  const keyToUse = providedApiKey?.trim() || currentEnvKey;
+  
   // If API key changed, recreate client
-  if (!clientInstance || (providedApiKey && providedApiKey !== lastApiKey)) {
+  if (!clientInstance || 
+      (providedApiKey && providedApiKey.trim() !== lastApiKey) ||
+      (!providedApiKey && currentEnvKey && currentEnvKey !== lastApiKey)) {
     clientInstance = getOpenAIClient(providedApiKey);
-    lastApiKey = providedApiKey;
+    lastApiKey = keyToUse;
   } else if (!providedApiKey && !lastApiKey) {
     // First time initialization with env var
     clientInstance = getOpenAIClient();
-    lastApiKey = process.env.OPENAI_API_KEY;
+    lastApiKey = currentEnvKey;
   }
   return clientInstance;
 }

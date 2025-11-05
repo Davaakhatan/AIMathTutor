@@ -17,23 +17,100 @@ export default function ProblemProgress({ messages, problem }: ProblemProgressPr
   
   const userMessages = messages.filter(m => m.role === "user");
   const tutorMessages = messages.filter(m => m.role === "tutor");
-  const hintsUsed = messages.filter(m => 
-    m.role === "tutor" && (
-      m.content.toLowerCase().includes("hint") ||
-      m.content.toLowerCase().includes("clue") ||
-      m.content.toLowerCase().includes("try")
-    )
-  ).length;
+  
+  // Count actual hints - only messages that were explicitly requested via the hint button
+  // ProgressiveHints component adds messages with "💡 Hint:" prefix
+  // Or messages that explicitly say they're hints
+  const hintsUsed = messages.filter(m => {
+    if (m.role !== "tutor") return false;
+    const content = m.content;
+    // Only count if it's an explicit hint message from the hint system
+    // ProgressiveHints adds "💡 Hint:" prefix when user clicks "Get Hint"
+    return (
+      content.startsWith("💡 Hint:") ||
+      (content.startsWith("💡") && content.toLowerCase().includes("hint")) ||
+      /^hint\s*:/i.test(content.trim())
+    );
+  }).length;
+
+  // Check if problem is solved by looking for completion indicators in tutor messages
+  // Must be more strict - only mark as solved if tutor explicitly confirms completion
+  // NOT just encouragement during the process
+  const isSolved = tutorMessages.some(msg => {
+    const content = msg.content.toLowerCase();
+    
+    // Only mark as solved if tutor explicitly confirms completion with definitive phrases
+    // These phrases should only appear when the problem is actually solved
+    const definitiveCompletionPhrases = [
+      "you've solved it",
+      "you solved it",
+      "you've solved the problem",
+      "you solved the problem",
+      "solution is correct",
+      "answer is correct",
+      "that's the correct answer",
+      "that is the correct answer",
+      "you got it right",
+      "you found the answer",
+      "you found the solution",
+      "congratulations! you solved",
+      "congratulations! it looks like you've reached",
+      "congratulations! you've reached an answer",
+      "you've reached an answer",
+      "you've reached the answer",
+      "you reached an answer",
+      "well done! you solved",
+      "excellent! you solved",
+      "perfect! you solved",
+      "you've completed",
+      "problem solved",
+      "correctly solved",
+      "congratulations!",
+      // Check if congratulations is followed by completion indicators
+    ];
+    
+    // Check for definitive completion phrases
+    const hasDefinitiveCompletion = definitiveCompletionPhrases.some(phrase => 
+      content.includes(phrase)
+    );
+    
+    // Special case: "Congratulations!" followed by completion indicators
+    // "Congratulations! It looks like you've reached an answer" should be detected
+    const congratulationsWithCompletion = (
+      content.includes("congratulations") && 
+      (content.includes("reached") || 
+       content.includes("answer") || 
+       content.includes("solution") ||
+       content.includes("solved") ||
+       content.includes("completed"))
+    );
+    
+    // Also check if tutor confirms a final numerical answer
+    // Look for patterns like "yes, x = 4" or "the answer is 4" in tutor's response
+    const confirmsFinalAnswer = (
+      /(yes|correct|right|exactly),?\s+(x|the answer|the solution|it)\s*=\s*\d+/.test(content) ||
+      /(the answer|the solution|it)\s+is\s+\d+/.test(content) ||
+      /you're right.*\d+/.test(content) ||
+      /correct.*answer.*\d+/.test(content)
+    ) && !content.includes("?") && !content.includes("what"); // Exclude questions
+    
+    return hasDefinitiveCompletion || congratulationsWithCompletion || confirmsFinalAnswer;
+  });
 
   // Calculate progress (rough estimate based on conversation length)
   // More exchanges = more progress, but also more hints = less progress
   const totalExchanges = Math.min(userMessages.length, tutorMessages.length);
-  const progress = Math.min(100, Math.max(0, 
-    (totalExchanges * 15) - (hintsUsed * 5)
-  ));
+  
+  // If solved, set to 100%, otherwise calculate based on exchanges
+  const progress = isSolved 
+    ? 100 
+    : Math.min(100, Math.max(0, 
+        (totalExchanges * 15) - (hintsUsed * 5)
+      ));
 
   // Determine stage
   const getStage = () => {
+    if (isSolved) return "Solved!";
     if (totalExchanges === 0) return "Starting";
     if (totalExchanges < 3) return "Understanding";
     if (totalExchanges < 6) return "Working";
@@ -78,7 +155,9 @@ export default function ProblemProgress({ messages, problem }: ProblemProgressPr
       {/* Progress Bar */}
       <div className="w-full h-2 bg-gray-200 rounded-full overflow-hidden mb-3">
         <div
-          className="h-full bg-gray-900 rounded-full transition-all duration-500"
+          className={`h-full rounded-full transition-all duration-500 ${
+            isSolved ? "bg-green-600" : "bg-gray-900"
+          }`}
           style={{ width: `${progress}%` }}
         />
       </div>
@@ -100,7 +179,9 @@ export default function ProblemProgress({ messages, problem }: ProblemProgressPr
             </div>
           </div>
           <p className="text-xs text-gray-400 pt-2">
-            Keep going! You&apos;re making progress through this problem.
+            {isSolved 
+              ? "🎉 Congratulations! You solved this problem!" 
+              : "Keep going! You&apos;re making progress through this problem."}
           </p>
         </div>
       )}

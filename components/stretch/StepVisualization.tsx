@@ -35,61 +35,142 @@ const StepVisualization = memo(function StepVisualization({
       status: "completed",
     });
 
-    // Analyze tutor messages for step indicators
-    messages.forEach((msg, index) => {
-      if (msg.role === "tutor") {
-        const content = msg.content.toLowerCase();
-        
-        // Detect step indicators
-        if (
-          content.includes("first") ||
-          content.includes("step 1") ||
-          content.includes("start by") ||
-          content.includes("begin by")
-        ) {
-          extractedSteps.push({
-            id: `step-${index}-1`,
-            description: "Step 1: Initial Setup",
-            status: index === messages.length - 1 ? "current" : "completed",
-          });
+    const tutorMessages = messages.filter(m => m.role === "tutor");
+    const userMessages = messages.filter(m => m.role === "user");
+    
+    // Track step types we've seen to avoid duplicates
+    const seenSteps = new Set<string>();
+    
+    // Analyze tutor messages for step indicators and operations
+    tutorMessages.forEach((msg, tutorIndex) => {
+      const content = msg.content.toLowerCase();
+      const fullContent = msg.content;
+      
+      // Detect step indicators with better pattern matching
+      let stepType: string | null = null;
+      let stepDescription: string = "";
+      let stepMath: string | undefined = undefined;
+      
+      // Step 1: Initial understanding/setup
+      if (
+        (content.includes("what are we trying") || 
+         content.includes("what information") ||
+         content.includes("what do we have") ||
+         content.includes("let's identify") ||
+         content.includes("start by")) &&
+        !seenSteps.has("setup")
+      ) {
+        stepType = "setup";
+        stepDescription = "Step 1: Understanding the Problem";
+        seenSteps.add("setup");
+      }
+      // Step 2: First operation (subtract, add, divide, multiply)
+      else if (
+        (content.includes("subtract") ||
+         content.includes("add") ||
+         content.includes("divide") ||
+         content.includes("multiply") ||
+         content.includes("undo")) &&
+        !seenSteps.has("operation1")
+      ) {
+        stepType = "operation1";
+        // Extract the operation description
+        const operationMatch = fullContent.match(/(subtract|add|divide|multiply|undo)\s+([^\.]+)/i);
+        stepDescription = operationMatch 
+          ? `Step 2: ${operationMatch[1].charAt(0).toUpperCase() + operationMatch[1].slice(1)} ${operationMatch[2].substring(0, 30)}...`
+          : "Step 2: First Operation";
+        seenSteps.add("operation1");
+      }
+      // Step 3: Next operation
+      else if (
+        (content.includes("next") && content.includes("step")) ||
+        (content.includes("now") && (content.includes("divide") || content.includes("multiply") || content.includes("subtract") || content.includes("add"))) ||
+        (seenSteps.has("operation1") && !seenSteps.has("operation2") && 
+         (content.includes("divide") || content.includes("multiply") || content.includes("get") || content.includes("result")))
+      ) {
+        stepType = "operation2";
+        const operationMatch = fullContent.match(/(divide|multiply|get|result|equals?)\s+([^\.]+)/i);
+        stepDescription = operationMatch 
+          ? `Step 3: ${operationMatch[1].charAt(0).toUpperCase() + operationMatch[1].slice(1)} ${operationMatch[2].substring(0, 30)}...`
+          : "Step 3: Next Operation";
+        seenSteps.add("operation2");
+      }
+      // Step 4: Verification/solution
+      else if (
+        content.includes("verify") ||
+        content.includes("plug") ||
+        content.includes("check") ||
+        content.includes("substitute") ||
+        (content.includes("excellent") && content.includes("x =")) ||
+        (content.includes("well done") && content.includes("="))
+      ) {
+        stepType = "verification";
+        stepDescription = "Step 4: Verify Solution";
+        // Extract the answer if present
+        const answerMatch = fullContent.match(/(x\s*=\s*[-]?\d+|answer\s*(is|:)?\s*[-]?\d+)/i);
+        if (answerMatch) {
+          stepMath = answerMatch[0];
         }
-        
-        if (
-          content.includes("next") ||
-          content.includes("step 2") ||
-          content.includes("then") ||
-          content.includes("after")
-        ) {
-          extractedSteps.push({
-            id: `step-${index}-2`,
-            description: "Step 2: Next Operation",
-            status: index === messages.length - 1 ? "current" : "completed",
-          });
-        }
-        
-        if (
-          content.includes("finally") ||
-          content.includes("last") ||
-          content.includes("step 3") ||
-          content.includes("complete")
-        ) {
-          extractedSteps.push({
-            id: `step-${index}-3`,
-            description: "Step 3: Final Step",
-            status: index === messages.length - 1 ? "current" : "completed",
-          });
-        }
+        seenSteps.add("verification");
+      }
+      
+      // If we found a step, add it
+      if (stepType) {
+        extractedSteps.push({
+          id: `step-${tutorIndex}-${stepType}`,
+          description: stepDescription,
+          math: stepMath,
+          status: tutorIndex === tutorMessages.length - 1 ? "current" : "completed",
+        });
       }
     });
 
-    // If we have tutor messages but no explicit steps, create generic progress
-    if (messages.filter((m) => m.role === "tutor").length > 0 && extractedSteps.length === 1) {
-      const tutorCount = messages.filter((m) => m.role === "tutor").length;
-      for (let i = 1; i <= Math.min(tutorCount, 4); i++) {
+    // Enhanced fallback: Create steps based on conversation progression
+    // Only if we don't have enough steps
+    if (extractedSteps.length <= 2 && tutorMessages.length > 0) {
+      // Create steps based on conversation flow
+      const totalExchanges = Math.min(userMessages.length, tutorMessages.length);
+      
+      // Step 1: Understanding (already have problem statement)
+      if (totalExchanges >= 1 && !seenSteps.has("setup")) {
         extractedSteps.push({
-          id: `auto-step-${i}`,
-          description: `Progress Checkpoint ${i}`,
-          status: i === tutorCount ? "current" : "completed",
+          id: "auto-step-1",
+          description: "Step 1: Understanding the Problem",
+          status: "completed",
+        });
+      }
+      
+      // Step 2: Working on solution
+      if (totalExchanges >= 2 && !seenSteps.has("operation1")) {
+        extractedSteps.push({
+          id: "auto-step-2",
+          description: "Step 2: Working on Solution",
+          status: totalExchanges >= 3 ? "completed" : "current",
+        });
+      }
+      
+      // Step 3: Solving
+      if (totalExchanges >= 3 && !seenSteps.has("operation2")) {
+        extractedSteps.push({
+          id: "auto-step-3",
+          description: "Step 3: Solving",
+          status: totalExchanges >= 4 ? "completed" : "current",
+        });
+      }
+      
+      // Step 4: Verification (if solved)
+      const isSolved = tutorMessages.some(m => 
+        m.content.toLowerCase().includes("excellent") ||
+        m.content.toLowerCase().includes("well done") ||
+        m.content.toLowerCase().includes("correctly") ||
+        m.content.toLowerCase().includes("you solved")
+      );
+      
+      if (isSolved && !seenSteps.has("verification")) {
+        extractedSteps.push({
+          id: "auto-step-4",
+          description: "Step 4: Verify Solution",
+          status: "completed",
         });
       }
     }

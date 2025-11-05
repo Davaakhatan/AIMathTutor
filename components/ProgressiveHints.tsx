@@ -7,6 +7,7 @@ interface ProgressiveHintsProps {
   problem: ParsedProblem;
   sessionMessages: any[];
   onHintRequest: (hint: string) => void;
+  apiKey?: string; // Optional: Client-provided API key
 }
 
 /**
@@ -15,7 +16,8 @@ interface ProgressiveHintsProps {
 export default function ProgressiveHints({ 
   problem, 
   sessionMessages, 
-  onHintRequest 
+  onHintRequest,
+  apiKey
 }: ProgressiveHintsProps) {
   const [hintLevel, setHintLevel] = useState(0);
   const [hintsUsed, setHintsUsed] = useState(0);
@@ -35,23 +37,26 @@ export default function ProgressiveHints({
           hintLevel: newLevel,
           conversationHistory: sessionMessages.slice(-4), // Last 2 exchanges
           problemType: problem.type,
+          ...(apiKey && { apiKey }), // Include API key if provided
         }),
       });
+
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => ({}));
+        throw new Error(errorData.error || `Failed to generate hint: ${response.status}`);
+      }
 
       const data = await response.json();
       if (data.hint) {
         onHintRequest(data.hint);
+      } else {
+        throw new Error("No hint received from server");
       }
     } catch (error) {
       console.error("Error generating hint:", error);
-      // Fallback hint
-      const fallbackHints = [
-        "Think about what information you have and what you're trying to find.",
-        "Consider breaking the problem into smaller steps.",
-        "What operations or formulas might be useful here?",
-        "Try working backwards from the answer you're looking for.",
-      ];
-      onHintRequest(fallbackHints[Math.min(newLevel - 1, fallbackHints.length - 1)]);
+      // NO FALLBACK - Show error to user instead of hardcoded hints
+      const errorMessage = error instanceof Error ? error.message : "Failed to generate hint";
+      onHintRequest(`⚠️ Error: ${errorMessage}. Please check your API key and try again.`);
     }
   };
 

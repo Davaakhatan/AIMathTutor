@@ -82,6 +82,12 @@ const ChatUI = memo(function ChatUI({
   const handleSendMessage = useCallback(async (message: string) => {
     if (!message.trim() || isLoading) return;
     
+    // Validate sessionId exists before sending
+    if (!sessionId) {
+      setError("No active session. Please start a new problem or restart the conversation.");
+      return;
+    }
+    
     // Handle voice input if needed
     if (enableStretchFeatures && voiceEnabled) {
       // Voice input is already handled by VoiceInterface onTranscript
@@ -287,6 +293,7 @@ const ChatUI = memo(function ChatUI({
             <ProgressiveHints
               problem={problem}
               sessionMessages={messages}
+              apiKey={apiKey}
               onHintRequest={(hint) => {
                 // Add hint as a tutor message
                 const hintMessage: Message = {

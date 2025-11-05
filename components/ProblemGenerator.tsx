@@ -6,16 +6,19 @@ import { ParsedProblem, ProblemType } from "@/types";
 interface ProblemGeneratorProps {
   onProblemGenerated: (problem: ParsedProblem) => void;
   currentType?: ProblemType;
+  apiKey?: string;
 }
 
 export default function ProblemGenerator({
   onProblemGenerated,
   currentType,
+  apiKey,
 }: ProblemGeneratorProps) {
   const [isGenerating, setIsGenerating] = useState(false);
   const [selectedType, setSelectedType] = useState<ProblemType>(
     currentType || ProblemType.ALGEBRA
   );
+  const [selectedDifficulty, setSelectedDifficulty] = useState<"elementary" | "middle school" | "high school" | "advanced" | "random">("random");
 
   const problemTemplates: Record<ProblemType, string[]> = {
     [ProblemType.ARITHMETIC]: [
@@ -64,6 +67,17 @@ export default function ProblemGenerator({
     setIsGenerating(true);
     
     try {
+      // Select difficulty level (random if "random" is selected)
+      let difficulty: string;
+      if (selectedDifficulty === "random") {
+        const difficulties = ["elementary", "middle school", "high school", "advanced"];
+        difficulty = difficulties[Math.floor(Math.random() * difficulties.length)];
+      } else {
+        difficulty = selectedDifficulty;
+      }
+      
+      console.log("Generating problem with difficulty:", difficulty); // Debug log
+      
       // Try AI generation first, fallback to templates
       try {
         const response = await fetch("/api/generate-problem", {
@@ -71,20 +85,27 @@ export default function ProblemGenerator({
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({
             type: selectedType,
-            difficulty: "middle school",
+            difficulty: difficulty,
+            ...(apiKey && { apiKey }), // Include API key if provided
           }),
         });
 
         if (response.ok) {
           const result = await response.json();
           if (result.success && result.problem) {
-            onProblemGenerated(result.problem);
+            // Store the difficulty with the problem for later reference
+            const problemWithDifficulty = {
+              ...result.problem,
+              generatedDifficulty: difficulty, // Store the difficulty used
+            };
+            onProblemGenerated(problemWithDifficulty);
             setIsGenerating(false);
             return;
           }
         }
       } catch (aiError) {
-        console.log("AI generation failed, using templates");
+        console.error("AI generation failed:", aiError);
+        console.log("Falling back to templates");
       }
 
       // Fallback to templates
@@ -118,6 +139,35 @@ export default function ProblemGenerator({
       <div className="flex items-center justify-between mb-3">
         <h3 className="text-sm font-medium text-gray-900">Generate Practice Problem</h3>
       </div>
+      
+      {/* Difficulty Selector */}
+      <div className="mb-3">
+        <label className="text-xs font-medium text-gray-700 mb-1.5 block">Difficulty Level</label>
+        <div className="flex gap-2 flex-wrap">
+          {[
+            { value: "random" as const, label: "🎲 Random" },
+            { value: "elementary" as const, label: "Elementary" },
+            { value: "middle school" as const, label: "Middle School" },
+            { value: "high school" as const, label: "High School" },
+            { value: "advanced" as const, label: "Advanced" },
+          ].map((diff) => (
+            <button
+              key={diff.value}
+              onClick={() => setSelectedDifficulty(diff.value)}
+              disabled={isGenerating}
+              className={`px-3 py-1.5 rounded-lg text-xs font-medium transition-colors whitespace-nowrap ${
+                selectedDifficulty === diff.value
+                  ? "bg-gray-900 text-white"
+                  : "bg-gray-100 text-gray-700 hover:bg-gray-200"
+              } disabled:opacity-50 disabled:cursor-not-allowed`}
+              aria-label={`Select ${diff.label} difficulty`}
+            >
+              {diff.label}
+            </button>
+          ))}
+        </div>
+      </div>
+      
       <div className="flex flex-col sm:flex-row gap-3">
         <div className="flex-1 flex gap-2 overflow-x-auto pb-2 sm:pb-0">
           {types.map((type) => (

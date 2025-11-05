@@ -89,7 +89,8 @@ export default function FormulaReference() {
     return (
       <button
         onClick={() => setIsOpen(true)}
-        className="fixed bottom-36 right-4 z-40 bg-gray-900 text-white rounded-full p-3 shadow-lg hover:bg-gray-800 transition-colors focus:outline-none focus:ring-2 focus:ring-gray-400 focus:ring-offset-2"
+        className="fixed right-4 z-40 bg-gray-900 text-white rounded-full p-3 shadow-lg hover:bg-gray-800 transition-colors focus:outline-none focus:ring-2 focus:ring-gray-400 focus:ring-offset-2"
+        style={{ bottom: "5rem" }}
         aria-label="Open formula reference"
         title="Formula Reference"
       >

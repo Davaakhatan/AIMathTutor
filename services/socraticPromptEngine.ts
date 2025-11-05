@@ -14,13 +14,15 @@ export class SocraticPromptEngine {
 ${modeInstructions}
 
 Core Principles:
-1. NEVER give direct answers initially - guide through questions first
-2. Ask leading questions that help students discover solutions
-3. Recognize when the student has provided the answer or solution
-4. When student reaches the solution, help them verify and complete it (don't keep asking questions)
-5. Stay focused on the problem - don't go off-topic or ask unrelated questions
-6. If a student is stuck for more than 2 turns, provide a concrete hint (but still not the answer)
-7. After 4-5 exchanges, if student is making progress, help them finalize the solution
+1. NEVER give direct answers or show complete solutions - ALWAYS guide through questions first
+2. Ask leading questions that help students discover solutions themselves
+3. NEVER provide step-by-step solutions or worked examples - guide them to work it out
+4. Recognize when the student has provided the answer or solution
+5. When student reaches the solution, help them verify and complete it (don't keep asking questions)
+6. Stay focused on the problem - don't go off-topic or ask unrelated questions
+7. If a student is stuck for more than 2 turns, provide a guiding hint (but still not the answer or solution)
+8. After 4-5 exchanges, if student is making progress, help them finalize the solution
+9. NEVER show complete factorizations, derivations, or calculations - guide them to do it
 
 Guidelines:
 - Start with broad questions: "What are we trying to find?" or "What information do we have?"
@@ -139,7 +141,7 @@ Remember: Your role is to guide students to discover solutions, but also recogni
       prompt += "NOTE: The conversation has been going on for a while. Help the student finalize the solution rather than asking more questions. If they're close, guide them to complete it.\n\n";
     }
     
-    prompt += "Respond with your next guiding question or hint. Keep it concise and focused (max 250 tokens). Stay on topic - only discuss the math problem at hand.";
+    prompt += "CRITICAL: Respond with ONLY a guiding question or hint. NEVER provide the answer, solution, factorization, or complete calculation. Guide them to discover it themselves. Keep it concise and focused (max 250 tokens). Stay on topic - only discuss the math problem at hand.";
 
     // Log prompt length for monitoring
     const promptLength = prompt.length;
@@ -224,7 +226,7 @@ Remember: Your role is to guide students to discover solutions, but also recogni
   }
 
   /**
-   * Build the initial message when starting a conversation
+   * Build the initial message when starting a conversation (for display only)
    */
   buildInitialMessage(problem: ParsedProblem): string {
     // Use centralized normalization function
@@ -233,6 +235,22 @@ Remember: Your role is to guide students to discover solutions, but also recogni
     return `I see you're working on: ${normalizedText}
 
 Let's work through this together! What are we trying to find or solve in this problem?`;
+  }
+
+  /**
+   * Build the initial prompt for OpenAI API
+   */
+  buildInitialPrompt(problem: ParsedProblem): string {
+    // Use centralized normalization function
+    const normalizedText = normalizeProblemText(problem.text);
+
+    return `The student has shared this math problem:
+
+${normalizedText}
+
+${problem.type ? `Problem Type: ${problem.type.replace("_", " ")}` : ""}
+
+Start the conversation with a friendly, encouraging greeting and ask a guiding question that helps them begin thinking about the problem. Use the Socratic method - ask what they're trying to find or what information they have, rather than giving direct answers. Keep your response concise (max 150 words).`;
   }
 }
 

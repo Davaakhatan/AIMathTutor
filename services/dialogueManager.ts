@@ -12,18 +12,105 @@ export class DialogueManager {
    */
   initializeConversation(problem: ParsedProblem): Session {
     const session = contextManager.createSession(problem);
-
-    // Add initial tutor message
-    const initialMessage: Message = {
-      id: uuidv4(),
-      role: "tutor",
-      content: socraticPromptEngine.buildInitialMessage(problem),
-      timestamp: Date.now(),
-    };
-
-    contextManager.addMessage(session.id, initialMessage);
-
+    // Note: Initial message is now generated via OpenAI API in generateInitialMessage()
+    // This method just creates the session
     return session;
+  }
+
+  /**
+   * Generate initial tutor message using OpenAI API
+   */
+  async generateInitialMessage(
+    sessionId: string,
+    problem: ParsedProblem,
+    difficultyMode: "elementary" | "middle" | "high" | "advanced" = "middle",
+    clientApiKey?: string
+  ): Promise<Message> {
+    // Verify session exists
+    const session = contextManager.getSession(sessionId);
+    if (!session) {
+      throw new Error(`Session ${sessionId} not found`);
+    }
+
+    const prompt = socraticPromptEngine.buildInitialPrompt(problem);
+
+    try {
+      // Use client-provided API key if available, otherwise use default
+      const client = clientApiKey 
+        ? createOpenAIClient(clientApiKey)
+        : openai;
+
+      // Log which API key source we're using
+      logger.debug("Generating initial message with OpenAI", {
+        hasClientApiKey: !!clientApiKey,
+        hasEnvApiKey: !!process.env.OPENAI_API_KEY,
+      });
+
+      // Call OpenAI API
+      let response;
+      try {
+        response = await client.chat.completions.create({
+          model: "gpt-4o",
+          messages: [
+            {
+              role: "system",
+              content: socraticPromptEngine.generateSystemPrompt(difficultyMode),
+            },
+            {
+              role: "user",
+              content: prompt,
+            },
+          ],
+          temperature: 0.7,
+          max_tokens: 200,
+        });
+      } catch (openaiError: any) {
+        // Catch OpenAI SDK errors specifically
+        logger.error("OpenAI API call failed for initial message", {
+          status: openaiError?.status,
+          message: openaiError?.message,
+          hasClientApiKey: !!clientApiKey,
+          hasEnvApiKey: !!process.env.OPENAI_API_KEY,
+        });
+        
+        if (openaiError?.status === 401 || openaiError?.message?.includes("401") || openaiError?.message?.includes("unauthorized")) {
+          throw new Error("Invalid API key. Please check your OpenAI API key in Settings. The key may be incorrect, expired, or revoked.");
+        }
+        if (openaiError?.status === 429 || openaiError?.message?.includes("429") || openaiError?.message?.includes("rate limit")) {
+          throw new Error("Rate limit exceeded. Please wait a moment and try again.");
+        }
+        if (openaiError?.message?.includes("insufficient_quota") || openaiError?.message?.includes("quota")) {
+          throw new Error("OpenAI account quota exceeded. Please check your OpenAI account credits.");
+        }
+        // Re-throw with more context
+        throw new Error(`OpenAI API error: ${openaiError?.message || String(openaiError)}`);
+      }
+
+      const tutorResponse = response.choices[0]?.message?.content?.trim();
+
+      if (!tutorResponse) {
+        throw new Error("Received empty response from OpenAI. Please try again.");
+      }
+
+      // Create tutor message
+      const tutorMessage: Message = {
+        id: Date.now().toString(),
+        role: "tutor",
+        content: tutorResponse,
+        timestamp: Date.now(),
+      };
+
+      // Add message to session
+      contextManager.addMessage(sessionId, tutorMessage);
+
+      return tutorMessage;
+    } catch (error) {
+      logger.error("Error generating initial message", {
+        error: error instanceof Error ? error.message : String(error),
+        sessionId,
+      });
+      throw error;
+    }
   }
 
   /**
@@ -83,21 +170,44 @@ export class DialogueManager {
       });
 
       // Call OpenAI API
-      const response = await client.chat.completions.create({
-        model: "gpt-4o",
-        messages: [
-          {
-            role: "system",
-            content: socraticPromptEngine.generateSystemPrompt(difficultyMode),
-          },
-          {
-            role: "user",
-            content: prompt,
-          },
-        ],
-        temperature,
-        max_tokens: 250, // Slightly shorter for more focused responses
-      });
+      let response;
+      try {
+        response = await client.chat.completions.create({
+          model: "gpt-4o",
+          messages: [
+            {
+              role: "system",
+              content: socraticPromptEngine.generateSystemPrompt(difficultyMode),
+            },
+            {
+              role: "user",
+              content: prompt,
+            },
+          ],
+          temperature,
+          max_tokens: 250, // Slightly shorter for more focused responses
+        });
+      } catch (openaiError: any) {
+        // Catch OpenAI SDK errors specifically
+        logger.error("OpenAI API call failed", {
+          status: openaiError?.status,
+          message: openaiError?.message,
+          hasClientApiKey: !!clientApiKey,
+          hasEnvApiKey: !!process.env.OPENAI_API_KEY,
+        });
+        
+        if (openaiError?.status === 401 || openaiError?.message?.includes("401") || openaiError?.message?.includes("unauthorized")) {
+          throw new Error("Invalid API key. Please check your OpenAI API key in Settings. The key may be incorrect, expired, or revoked.");
+        }
+        if (openaiError?.status === 429 || openaiError?.message?.includes("429") || openaiError?.message?.includes("rate limit")) {
+          throw new Error("Rate limit exceeded. Please wait a moment and try again.");
+        }
+        if (openaiError?.message?.includes("insufficient_quota") || openaiError?.message?.includes("quota")) {
+          throw new Error("OpenAI account quota exceeded. Please check your OpenAI account credits.");
+        }
+        // Re-throw with more context
+        throw new Error(`OpenAI API error: ${openaiError?.message || String(openaiError)}`);
+      }
 
       const tutorResponse = response.choices[0]?.message?.content?.trim();
 

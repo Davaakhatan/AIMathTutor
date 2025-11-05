@@ -5,13 +5,14 @@ import { ProblemType, ParsedProblem } from "@/types";
 
 interface PracticeModeProps {
   onStartPractice: (problem: ParsedProblem) => void;
+  apiKey?: string;
 }
 
 /**
  * Quick practice mode - generates a random problem instantly
  * Different from ProblemGenerator which lets you choose the type
  */
-export default function PracticeMode({ onStartPractice }: PracticeModeProps) {
+export default function PracticeMode({ onStartPractice, apiKey }: PracticeModeProps) {
   const [isGenerating, setIsGenerating] = useState(false);
 
   const problemTypes: ProblemType[] = [
@@ -75,6 +76,10 @@ export default function PracticeMode({ onStartPractice }: PracticeModeProps) {
       // Pick a random type
       const randomType = problemTypes[Math.floor(Math.random() * problemTypes.length)];
       
+      // Randomly select difficulty level
+      const difficulties = ["elementary", "middle school", "high school", "advanced"];
+      const randomDifficulty = difficulties[Math.floor(Math.random() * difficulties.length)];
+      
       // Try AI generation first, fallback to templates
       try {
         const response = await fetch("/api/generate-problem", {
@@ -82,7 +87,8 @@ export default function PracticeMode({ onStartPractice }: PracticeModeProps) {
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({
             type: randomType,
-            difficulty: "middle school",
+            difficulty: randomDifficulty,
+            ...(apiKey && { apiKey }), // Include API key if provided
           }),
         });
 
@@ -95,7 +101,8 @@ export default function PracticeMode({ onStartPractice }: PracticeModeProps) {
           }
         }
       } catch (aiError) {
-        // Fallback to templates
+        console.error("AI generation failed:", aiError);
+        console.log("Falling back to templates");
       }
 
       // Fallback to templates
@@ -120,7 +127,8 @@ export default function PracticeMode({ onStartPractice }: PracticeModeProps) {
     <button
       onClick={generateRandomProblem}
       disabled={isGenerating}
-      className="fixed bottom-52 right-4 z-40 bg-blue-600 text-white rounded-full p-3 shadow-lg hover:bg-blue-700 disabled:bg-blue-400 disabled:cursor-not-allowed transition-colors focus:outline-none focus:ring-2 focus:ring-blue-400 focus:ring-offset-2"
+      className="fixed right-4 z-40 bg-blue-600 text-white rounded-full p-3 shadow-lg hover:bg-blue-700 disabled:bg-blue-400 disabled:cursor-not-allowed transition-colors focus:outline-none focus:ring-2 focus:ring-blue-400 focus:ring-offset-2"
+      style={{ bottom: "9rem" }}
       aria-label="Generate random practice problem"
       title="Quick Practice - Random Problem"
     >
