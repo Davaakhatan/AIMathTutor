@@ -27,7 +27,8 @@ export default function ProblemInput({ onProblemParsed, apiKey }: ProblemInputPr
       // Convert file to base64
       const reader = new FileReader();
       reader.onload = async () => {
-        const base64 = (reader.result as string).split(",")[1];
+        const dataUrl = reader.result as string; // Full data URL (e.g., "data:image/png;base64,...")
+        const base64 = dataUrl.split(",")[1]; // Just the base64 part
 
         // Create abort controller for timeout
         const controller = new AbortController();
@@ -60,8 +61,13 @@ export default function ProblemInput({ onProblemParsed, apiKey }: ProblemInputPr
           const result = await response.json();
 
           if (result.success && result.problem) {
-            setParsedProblem(result.problem);
-            onProblemParsed(result.problem);
+            // Include the image URL in the parsed problem
+            const problemWithImage = {
+              ...result.problem,
+              imageUrl: dataUrl, // Store full data URL for display
+            };
+            setParsedProblem(problemWithImage);
+            onProblemParsed(problemWithImage);
           } else {
             setError(result.error || "Failed to parse image. Please try again or enter the problem as text.");
           }
@@ -218,6 +224,17 @@ export default function ProblemInput({ onProblemParsed, apiKey }: ProblemInputPr
                 <p className="text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wide mb-2 transition-colors">
                   Problem recognized
                 </p>
+                {/* Show image if available */}
+                {parsedProblem.imageUrl && (
+                  <div className="mb-3">
+                    <img
+                      src={parsedProblem.imageUrl}
+                      alt="Problem diagram"
+                      className="max-w-full h-auto rounded-lg border border-gray-200 dark:border-gray-600 shadow-sm"
+                      style={{ maxHeight: "300px" }}
+                    />
+                  </div>
+                )}
                 <p className="text-gray-900 dark:text-gray-100 leading-relaxed transition-colors">{parsedProblem.text}</p>
                 {parsedProblem.type && (
                   <span className="inline-block mt-3 text-xs text-gray-400 dark:text-gray-500 font-medium uppercase tracking-wide transition-colors">

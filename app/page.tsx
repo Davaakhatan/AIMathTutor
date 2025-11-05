@@ -401,6 +401,17 @@ export default function Home() {
                     </button>
                   </div>
                 </div>
+                {/* Display uploaded image if available (especially for geometry problems) */}
+                {currentProblem.imageUrl && (
+                  <div className="mb-4">
+                    <img
+                      src={currentProblem.imageUrl}
+                      alt="Problem diagram"
+                      className="max-w-full h-auto rounded-lg border border-gray-200 dark:border-gray-700 shadow-sm"
+                      style={{ maxHeight: "400px" }}
+                    />
+                  </div>
+                )}
                 <div className="text-gray-900 dark:text-gray-100 text-base sm:text-lg leading-relaxed break-words whitespace-pre-wrap transition-colors">
                   {normalizeProblemText(currentProblem.text)}
                 </div>

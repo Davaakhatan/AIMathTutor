@@ -41,6 +41,7 @@ export default function ProgressHub({
   const [isOpen, setIsOpen] = useState(false);
   const [activeTab, setActiveTab] = useState<"stats" | "goals" | "timer" | "streak">("stats");
   const panelRef = useRef<HTMLDivElement>(null);
+  const [isMounted, setIsMounted] = useState(false);
 
   // Stats
   const [xpData] = useLocalStorage<any>("aitutor-xp", { totalXP: 0, level: 1 });
@@ -67,11 +68,17 @@ export default function ProgressHub({
   const startTimeRef = useRef<number | null>(null);
   const [problemsSolvedThisSession, setProblemsSolvedThisSession] = useState(0);
 
+  // Set mounted state after hydration
+  useEffect(() => {
+    setIsMounted(true);
+  }, []);
+
+  // Only use localStorage values after mount to avoid hydration mismatch
   const stats = {
-    level: xpData.level || 1,
-    xp: xpData.totalXP || 0,
-    streak: streakData.currentStreak || 0,
-    problemsSolved: savedProblems.length || 0,
+    level: isMounted ? (xpData.level || 1) : 1,
+    xp: isMounted ? (xpData.totalXP || 0) : 0,
+    streak: isMounted ? (streakData.currentStreak || 0) : 0,
+    problemsSolved: isMounted ? (savedProblems.length || 0) : 0,
   };
 
   // Reset goals if it's a new day

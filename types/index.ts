@@ -3,6 +3,7 @@ export interface ParsedProblem {
   text: string;
   type?: ProblemType;
   confidence: number;
+  imageUrl?: string; // Data URL of uploaded image (for geometry problems with visuals)
 }
 
 export enum ProblemType {

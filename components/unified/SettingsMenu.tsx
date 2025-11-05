@@ -18,10 +18,18 @@ export default function SettingsMenu({ onXPDataChange }: SettingsMenuProps) {
   const [isOpen, setIsOpen] = useState(false);
   const [activeTab, setActiveTab] = useState<"settings" | "notifications" | "xp" | "reminders">("settings");
   const panelRef = useRef<HTMLDivElement>(null);
+  const [isMounted, setIsMounted] = useState(false);
   const [xpData] = useLocalStorage<any>("aitutor-xp", { totalXP: 0, level: 1, problemsSolved: 0 });
   const [notifications] = useLocalStorage<any[]>("aitutor-notifications", []);
   
-  const unreadCount = notifications.filter((n: any) => !n.read).length;
+  // Only calculate after mount to avoid hydration mismatch
+  const unreadCount = isMounted ? notifications.filter((n: any) => !n.read).length : 0;
+  const showBadge = isMounted && (unreadCount > 0 || (xpData && xpData.level > 1));
+
+  // Set mounted state after hydration
+  useEffect(() => {
+    setIsMounted(true);
+  }, []);
 
   // Close on outside click
   useEffect(() => {
@@ -66,7 +74,7 @@ export default function SettingsMenu({ onXPDataChange }: SettingsMenuProps) {
           />
           <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
         </svg>
-        {(unreadCount > 0 || (xpData && xpData.level > 1)) && (
+        {showBadge && (
           <span className="absolute -top-1 -right-1 bg-red-500 text-white text-xs font-bold rounded-full w-5 h-5 flex items-center justify-center">
             {unreadCount > 0 ? unreadCount : "!"}
           </span>
