@@ -204,6 +204,12 @@ const ChatUI = memo(function ChatUI({
     handleSendMessage("Here's my drawing/work:", imageDataUrl);
   }, [handleSendMessage]);
 
+  // Handle whiteboard drawing review (feedback without sending)
+  const handleReviewWhiteboard = useCallback((imageDataUrl: string) => {
+    // Request review feedback on the drawing
+    handleSendMessage("Can you review my drawing and give me feedback?", imageDataUrl);
+  }, [handleSendMessage]);
+
       return (
         <div className="flex flex-col gap-4">
           {/* Whiteboard - Always visible when enabled */}
@@ -211,6 +217,7 @@ const ChatUI = memo(function ChatUI({
             <Whiteboard
               isEnabled={true}
               onSendDrawing={handleSendWhiteboard}
+              onReviewDrawing={handleReviewWhiteboard}
               compact={false}
             />
           )}
