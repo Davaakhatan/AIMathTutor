@@ -44,7 +44,10 @@ export default function BookmarkedProblems({ onSelectProblem }: BookmarkedProble
     if (sortBy === "recent") {
       return b.bookmarkedAt - a.bookmarkedAt; // Newest first
     } else {
-      return a.type.localeCompare(b.type); // By type
+      // Handle undefined types
+      const typeA = a.type || "";
+      const typeB = b.type || "";
+      return typeA.localeCompare(typeB); // By type
     }
   });
 
@@ -162,9 +165,11 @@ export default function BookmarkedProblems({ onSelectProblem }: BookmarkedProble
                   <div className="flex items-start justify-between gap-2">
                     <div className="flex-1 min-w-0">
                       <div className="flex items-center gap-2 mb-1">
-                        <span className="text-xs px-2 py-0.5 bg-blue-100 text-blue-700 rounded font-medium">
-                          {bookmark.type.replace("_", " ").toUpperCase()}
-                        </span>
+                        {bookmark.type && (
+                          <span className="text-xs px-2 py-0.5 bg-blue-100 text-blue-700 rounded font-medium">
+                            {bookmark.type.replace("_", " ").toUpperCase()}
+                          </span>
+                        )}
                         <span className="text-xs text-gray-400">
                           {new Date(bookmark.bookmarkedAt).toLocaleDateString()}
                         </span>
