@@ -94,8 +94,8 @@ const AdaptiveProblemSuggestions = memo(function AdaptiveProblemSuggestions({
 
     // Generate problem based on concept type
     const problems = PROBLEM_TEMPLATES[concept.id] || PROBLEM_TEMPLATES.default;
-    const template = problems[difficulty] || problems.middle;
-    const problem = typeof template === "function" ? template() : template;
+    const template = problems[difficulty] || problems.middle || problems.elementary || PROBLEM_TEMPLATES.default.middle;
+    const problem: string = typeof template === "function" ? template() : (template || "Solve for x: 2x + 5 = 13");
 
     const reason =
       mastery < 30

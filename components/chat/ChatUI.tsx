@@ -134,8 +134,25 @@ const ChatUI = memo(function ChatUI({
 
           // Add whiteboard image if provided (convert data URL to base64)
           if (whiteboardImage) {
-            const base64Data = whiteboardImage.split(",")[1]; // Remove data URL prefix
+            // Check if it's already a data URL or just base64
+            let base64Data: string;
+            if (whiteboardImage.startsWith('data:image')) {
+              base64Data = whiteboardImage.split(",")[1]; // Remove data URL prefix
+            } else {
+              base64Data = whiteboardImage; // Already base64
+            }
+            
+            // Log for debugging
+            console.log("Sending whiteboard image:", {
+              hasImage: true,
+              originalLength: whiteboardImage.length,
+              base64Length: base64Data.length,
+              startsWith: whiteboardImage.substring(0, 30),
+            });
+            
             requestBody.whiteboardImage = base64Data;
+          } else {
+            console.log("No whiteboard image to send");
           }
 
           const response = await fetch("/api/chat", {

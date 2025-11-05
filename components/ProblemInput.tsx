@@ -2,6 +2,7 @@
 
 import { useState, useCallback } from "react";
 import ImageUpload from "./upload/ImageUpload";
+import Whiteboard from "./stretch/Whiteboard";
 import { ParsedProblem } from "@/types";
 import { validateProblemText, formatErrorMessage } from "@/lib/utils";
 
@@ -17,6 +18,70 @@ export default function ProblemInput({ onProblemParsed, apiKey }: ProblemInputPr
   const [parsedProblem, setParsedProblem] = useState<ParsedProblem | null>(
     null
   );
+  const [showWhiteboard, setShowWhiteboard] = useState(false);
+
+  const handleWhiteboardDrawing = useCallback(async (imageDataUrl: string) => {
+    // Convert data URL to File-like object for processing
+    setIsProcessing(true);
+    setError(null);
+    setParsedProblem(null);
+
+    try {
+      // Extract base64 from data URL
+      const base64 = imageDataUrl.split(",")[1];
+
+      // Create abort controller for timeout
+      const controller = new AbortController();
+      const timeoutId = setTimeout(() => controller.abort(), 30000); // 30s timeout
+
+      try {
+        const response = await fetch("/api/parse-problem", {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({
+            type: "image",
+            data: base64,
+            apiKey: apiKey,
+          }),
+          signal: controller.signal,
+        });
+
+        clearTimeout(timeoutId);
+
+        if (!response.ok) {
+          const errorData = await response.json().catch(() => ({}));
+          throw new Error(
+            errorData.error || 
+            `Failed to parse drawing: ${response.status} ${response.statusText}`
+          );
+        }
+
+        const result = await response.json();
+
+        if (result.success && result.problem) {
+          // Include the image URL in the parsed problem
+          const problemWithImage = {
+            ...result.problem,
+            imageUrl: imageDataUrl, // Store full data URL for display
+          };
+          setParsedProblem(problemWithImage);
+          onProblemParsed(problemWithImage);
+          setShowWhiteboard(false); // Hide whiteboard after submission
+        } else {
+          setError(result.error || "Failed to parse drawing. Please try again or enter the problem as text.");
+        }
+      } catch (fetchError) {
+        setError(formatErrorMessage(fetchError) || "Failed to process drawing. Please try again.");
+      } finally {
+        setIsProcessing(false);
+      }
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Failed to process drawing");
+      setIsProcessing(false);
+    }
+  }, [onProblemParsed, apiKey]);
 
   const handleImageUpload = useCallback(async (file: File) => {
     setIsProcessing(true);
@@ -188,6 +253,42 @@ export default function ProblemInput({ onProblemParsed, apiKey }: ProblemInputPr
             </button>
           </div>
         </form>
+
+        {/* Divider */}
+        <div className="relative mb-8">
+          <div className="absolute inset-0 flex items-center">
+            <div className="w-full border-t border-gray-200 dark:border-gray-700"></div>
+          </div>
+          <div className="relative flex justify-center">
+            <span className="px-4 bg-white dark:bg-gray-900 text-xs text-gray-400 dark:text-gray-500 uppercase tracking-wide font-medium transition-colors">
+              or
+            </span>
+          </div>
+        </div>
+
+        {/* Whiteboard Option */}
+        <div className="mb-8">
+          <div className="flex items-center justify-between mb-3">
+            <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 transition-colors">
+              Draw problem
+            </label>
+            <button
+              onClick={() => setShowWhiteboard(!showWhiteboard)}
+              className="text-sm text-indigo-600 dark:text-indigo-400 hover:text-indigo-700 dark:hover:text-indigo-300 transition-colors"
+            >
+              {showWhiteboard ? "Hide" : "Show"} whiteboard
+            </button>
+          </div>
+          {showWhiteboard && (
+            <div className="border border-gray-200 dark:border-gray-700 rounded-lg p-4 bg-white dark:bg-gray-900">
+              <Whiteboard
+                isEnabled={true}
+                onSendDrawing={handleWhiteboardDrawing}
+                compact={false}
+              />
+            </div>
+          )}
+        </div>
 
         {/* Divider */}
         <div className="relative mb-8">

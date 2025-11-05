@@ -4,6 +4,7 @@ import { memo } from "react";
 import { Message as MessageType } from "@/types";
 import EnhancedMessageRenderer from "./EnhancedMessageRenderer";
 import MessageActions from "../MessageActions";
+import ExampleDrawing from "./ExampleDrawing";
 
 interface MessageProps {
   message: MessageType;
@@ -26,6 +27,7 @@ function Message({ message }: MessageProps) {
         <div className="flex items-start justify-between gap-2">
           <div className="flex-1 text-sm leading-relaxed font-light">
             <EnhancedMessageRenderer content={message.content} isUser={isUser} />
+            {!isUser && <ExampleDrawing message={message.content} />}
           </div>
           <MessageActions content={message.content} />
         </div>

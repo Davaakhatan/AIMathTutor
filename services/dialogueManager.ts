@@ -24,7 +24,8 @@ export class DialogueManager {
     sessionId: string,
     problem: ParsedProblem,
     difficultyMode: "elementary" | "middle" | "high" | "advanced" = "middle",
-    clientApiKey?: string
+    clientApiKey?: string,
+    whiteboardImage?: string // Optional: Base64 whiteboard image
   ): Promise<Message> {
     // Verify session exists
     const session = contextManager.getSession(sessionId);
@@ -49,16 +50,85 @@ export class DialogueManager {
       // Call OpenAI API
       let response;
       try {
+        // Build user message content
+        const userContent: any[] = [
+          {
+            type: "text",
+            text: prompt,
+          },
+        ];
+
+        // Add whiteboard image if provided
+        if (whiteboardImage) {
+          // Handle both data URLs and base64 strings
+          let imageUrl = whiteboardImage;
+          if (whiteboardImage.startsWith('data:image')) {
+            // Already a data URL, use as-is
+            imageUrl = whiteboardImage;
+          } else {
+            // Plain base64, add data URL prefix
+            imageUrl = `data:image/png;base64,${whiteboardImage}`;
+          }
+          
+          logger.debug("Adding whiteboard image to initial message", {
+            hasImage: true,
+            imageUrlLength: imageUrl.length,
+          });
+          
+          userContent.push({
+            type: "image_url",
+            image_url: {
+              url: imageUrl,
+              detail: "high", // Use high detail for better text/shape recognition
+            },
+          });
+        }
+
         response = await client.chat.completions.create({
           model: "gpt-4o",
           messages: [
             {
               role: "system",
-              content: socraticPromptEngine.generateSystemPrompt(difficultyMode),
+              content: socraticPromptEngine.generateSystemPrompt(difficultyMode) +
+                (whiteboardImage ? "\n\n" +
+                  "═══════════════════════════════════════════════════════════════\n" +
+                  "🚨 CRITICAL: WHITEBOARD DRAWING IS PRESENT WITH THIS PROBLEM 🚨\n" +
+                  "═══════════════════════════════════════════════════════════════\n\n" +
+                  "**YOU MUST ANALYZE THE WHITEBOARD DRAWING BEFORE RESPONDING TO ANYTHING ELSE.**\n\n" +
+                  "**STEP 1: IMMEDIATE VISUAL ANALYSIS**\n" +
+                  "Look at the whiteboard drawing image NOW. You MUST identify:\n" +
+                  "- ALL geometric shapes (triangles, rectangles, circles, lines, angles)\n" +
+                  "- ALL text labels, numbers, letters, variables (like x, y, z)\n" +
+                  "- ALL vertex labels (A, B, C, D, etc.) if present\n" +
+                  "- ALL measurements, dimensions, arrows, annotations\n" +
+                  "- Spatial relationships and arrangement\n\n" +
+                  "**STEP 2: YOUR RESPONSE MUST START WITH ACKNOWLEDGING THE DRAWING**\n" +
+                  "Your FIRST sentence MUST acknowledge exactly what you see in the drawing. Describe:\n" +
+                  "- The shapes you see (triangle, rectangle, circle, etc.)\n" +
+                  "- ALL labels, numbers, and variables visible in the drawing\n" +
+                  "- The exact measurements and variables as they appear\n" +
+                  "- Example format: 'I can see your drawing! You've drawn a [shape] with [describe what you see].'\n\n" +
+                  "**STEP 3: WORK WITH WHAT THEY ACTUALLY DREW**\n" +
+                  "Analyze the drawing and work with the ACTUAL elements visible:\n" +
+                  "- If it's a triangle, identify which sides/angles are labeled and with what values/variables\n" +
+                  "- Use appropriate mathematical principles (Pythagorean theorem, trigonometry, etc.) based on what's shown\n" +
+                  "- Reference the SPECIFIC labels, numbers, and variables as they appear in the drawing\n" +
+                  "- Make the drawing the PRIMARY focus of your response\n\n" +
+                  "**STEP 4: IF PROBLEM TEXT SEEMS UNRELATED**\n" +
+                  "If the problem text mentions something different than what's in the drawing:\n" +
+                  "- Acknowledge what you see in the drawing first\n" +
+                  "- State that you'll work with what they drew, not the unrelated problem text\n" +
+                  "- Focus entirely on the drawing\n\n" +
+                  "═══════════════════════════════════════════════════════════════\n" +
+                  "**CRITICAL RULE: IF THE PROBLEM TEXT DOESN'T MATCH THE DRAWING, IGNORE THE PROBLEM TEXT.**\n" +
+                  "**WORK ONLY WITH WHAT IS VISIBLE IN THE DRAWING. THE DRAWING IS THE REAL PROBLEM.**\n" +
+                  "**DO NOT mention calculations about elements that don't appear in the drawing (circles, arcs, angles, shaded areas, etc.).**\n" +
+                  "**ANALYZE THE DRAWING DYNAMICALLY - work with whatever shapes, labels, numbers, and variables are actually visible.**\n" +
+                  "═══════════════════════════════════════════════════════════════\n" : ""),
             },
             {
               role: "user",
-              content: prompt,
+              content: userContent,
             },
           ],
           temperature: 0.7,
@@ -140,12 +210,36 @@ export class DialogueManager {
     }
 
     // Build prompt with context
-    const prompt = socraticPromptEngine.buildContext(
+    let prompt = socraticPromptEngine.buildContext(
       context.problem,
       context.messages,
       context.stuckCount,
       difficultyMode
     );
+    
+    // If whiteboard image is present, REPLACE the problem context with drawing-focused instructions
+    if (whiteboardImage) {
+      // Completely replace the prompt to focus ONLY on the drawing
+      // DO NOT include the original problem text at all
+      const recentMessages = context.messages.slice(-2); // Only last 2 messages to avoid confusion
+      prompt = "🚨 CRITICAL: The student has shared a whiteboard drawing. " +
+        "COMPLETELY IGNORE any problem text, equations, or algebra mentioned anywhere in the conversation. " +
+        "The ONLY thing that matters is what you see in the whiteboard drawing image.\n\n" +
+        "Look at the drawing image and identify:\n" +
+        "- What shapes are drawn (triangle, rectangle, circle, etc.)\n" +
+        "- What labels, numbers, and variables are written on it\n" +
+        "- Any text written on the drawing (like 'Find x')\n\n" +
+        "Work ONLY with what's in the drawing. If the student drew a triangle with side 3 and wrote 'Find x', " +
+        "help them find x in that triangle using geometry (Pythagorean theorem, trigonometry, etc.) - NOT algebra.\n\n" +
+        (recentMessages.length > 0 ? "Recent messages (for context only - ignore any math problems mentioned):\n" +
+        recentMessages.map(msg => {
+          const role = msg.role === "user" ? "Student" : "Tutor";
+          const content = msg.content.length > 150 
+            ? msg.content.substring(0, 150) + "..." 
+            : msg.content;
+          return `${role}: ${content}`;
+        }).join("\n") : "");
+    }
 
     try {
       // Validate student response first
@@ -183,12 +277,39 @@ export class DialogueManager {
 
         // Add whiteboard image if provided
         if (whiteboardImage) {
+          // Handle both data URLs and base64 strings
+          let imageUrl = whiteboardImage;
+          if (whiteboardImage.startsWith('data:image')) {
+            // Already a data URL, use as-is
+            imageUrl = whiteboardImage;
+          } else {
+            // Plain base64, add data URL prefix
+            imageUrl = `data:image/png;base64,${whiteboardImage}`;
+          }
+          
+          // Log for debugging (truncated) - Use console.log for immediate visibility
+          console.log("🔍 WHITEBOARD IMAGE DETECTED:", {
+            hasImage: true,
+            imageUrlLength: imageUrl.length,
+            imageUrlPrefix: imageUrl.substring(0, 50),
+            willBeSentToAI: true,
+          });
+          logger.debug("Adding whiteboard image to API request", {
+            hasImage: true,
+            imageUrlLength: imageUrl.length,
+            imageUrlPrefix: imageUrl.substring(0, 50),
+          });
+          
           userContent.push({
             type: "image_url",
             image_url: {
-              url: `data:image/png;base64,${whiteboardImage}`,
+              url: imageUrl,
+              detail: "high", // Use high detail for better text/shape recognition
             },
           });
+        } else {
+          console.log("⚠️ NO WHITEBOARD IMAGE in request - AI will NOT see any drawing");
+          logger.debug("No whiteboard image in request");
         }
 
         response = await client.chat.completions.create({
@@ -197,17 +318,50 @@ export class DialogueManager {
             {
               role: "system",
               content: socraticPromptEngine.generateSystemPrompt(difficultyMode) + 
-                (whiteboardImage ? "\n\nIMPORTANT: The student has shared a whiteboard drawing. Analyze it carefully and:\n" +
-                "1. Reference specific parts of their drawing (e.g., 'I see you drew a triangle with...')\n" +
-                "2. Provide visual feedback on their work (e.g., 'The angle looks good, but...')\n" +
-                "3. **MISTAKE DETECTION**: If you notice calculation errors, wrong formulas, or incorrect steps in their drawing or written work, point them out constructively:\n" +
-                "   - 'I notice you calculated 5 + 3 = 9, but let's check: 5 + 3 = ?'\n" +
-                "   - 'The formula you used looks correct, but the calculation might have an error. Can you double-check?'\n" +
-                "   - 'I see you labeled angle A, but make sure it matches the problem statement'\n" +
-                "4. Suggest visual improvements if needed (e.g., 'Try drawing a perpendicular line here')\n" +
-                "5. Acknowledge what they got right visually\n" +
-                "6. Guide them with visual suggestions (e.g., 'Let's add labels to make it clearer')\n" +
-                "Use the drawing to enhance your guidance, detect mistakes, and make it more interactive and visual." : ""),
+                (whiteboardImage ? "\n\n" +
+                  "═══════════════════════════════════════════════════════════════\n" +
+                  "🚨 CRITICAL: WHITEBOARD DRAWING IS PRESENT IN THIS MESSAGE 🚨\n" +
+                  "═══════════════════════════════════════════════════════════════\n\n" +
+                  "**YOU MUST ANALYZE THE WHITEBOARD DRAWING BEFORE RESPONDING TO ANYTHING ELSE.**\n\n" +
+                  "**STEP 1: IMMEDIATE VISUAL ANALYSIS**\n" +
+                  "Look at the whiteboard drawing image NOW. You MUST identify:\n" +
+                  "- ALL geometric shapes (triangles, rectangles, circles, lines, angles)\n" +
+                  "- ALL text labels, numbers, letters, variables (like x, y, z)\n" +
+                  "- ALL vertex labels (A, B, C, D, etc.) if present\n" +
+                  "- ALL measurements, dimensions, arrows, annotations\n" +
+                  "- Spatial relationships and arrangement\n\n" +
+                  "**STEP 2: YOUR RESPONSE MUST START WITH ACKNOWLEDGING THE DRAWING**\n" +
+                  "Your FIRST sentence MUST acknowledge exactly what you see in the drawing. Describe:\n" +
+                  "- The shapes you see (triangle, rectangle, circle, etc.)\n" +
+                  "- ALL labels, numbers, and variables visible in the drawing\n" +
+                  "- The exact measurements and variables as they appear\n" +
+                  "- Example format: 'I can see your drawing! You've drawn a [shape] with [describe what you see].'\n\n" +
+                  "**STEP 3: WORK WITH WHAT THEY ACTUALLY DREW**\n" +
+                  "Analyze the drawing and work with the ACTUAL elements visible:\n" +
+                  "- If it's a triangle, identify which sides/angles are labeled and with what values/variables\n" +
+                  "- Use appropriate mathematical principles (Pythagorean theorem, trigonometry, etc.) based on what's shown\n" +
+                  "- Reference the SPECIFIC labels, numbers, and variables as they appear in the drawing\n" +
+                  "- Make the drawing the PRIMARY focus of your response\n\n" +
+                  "**STEP 4: IF PROBLEM TEXT SEEMS UNRELATED**\n" +
+                  "If the problem text mentions something different than what's in the drawing:\n" +
+                  "- Acknowledge what you see in the drawing first\n" +
+                  "- State that you'll work with what they drew, not the unrelated problem text\n" +
+                  "- Focus entirely on the drawing\n\n" +
+                  "**STEP 5: REFERENCE SPECIFIC ELEMENTS FROM THE DRAWING**\n" +
+                  "Throughout your response, constantly reference the actual elements from the drawing:\n" +
+                  "- Use the exact labels, numbers, and variables as they appear\n" +
+                  "- Reference specific parts: 'The side you labeled as...', 'The variable x you wrote...', etc.\n\n" +
+                  "═══════════════════════════════════════════════════════════════\n" +
+                  "**🚨 CRITICAL RULES WHEN DRAWING IS PRESENT:**\n" +
+                  "1. **IGNORE ALL PROBLEM TEXT** - If the problem text mentions algebra equations, fractions, or anything else that's NOT in the drawing, COMPLETELY IGNORE IT.\n" +
+                  "2. **THE DRAWING IS THE ONLY SOURCE OF TRUTH** - Work ONLY with what you see in the drawing image.\n" +
+                  "3. **DO NOT mention algebra, equations, fractions, or any math concepts** unless they appear in the drawing itself.\n" +
+                  "4. **If they drew a triangle with side 3 and 'Find x' written on it, help them find x in that triangle** - NOT in any algebra equation.\n" +
+                  "5. **ANALYZE THE DRAWING DYNAMICALLY** - Work with whatever shapes, labels, numbers, and variables are actually visible in the drawing.\n" +
+                  "═══════════════════════════════════════════════════════════════\n" : "") +
+                "\n\n**EXAMPLE DRAWINGS**: If the student is stuck or would benefit from a visual example, you can provide a drawing example. " +
+                "When suggesting an example, you can describe it clearly (e.g., 'Here's how to set up this problem: draw a right triangle with base 5 and height 3'). " +
+                "For geometry problems, visual examples are especially helpful.",
             },
             {
               role: "user",

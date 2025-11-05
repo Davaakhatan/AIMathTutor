@@ -73,7 +73,8 @@ export async function POST(request: NextRequest) {
             session.id,
             body.problem,
             difficultyMode as "elementary" | "middle" | "high" | "advanced",
-            clientApiKey
+            clientApiKey,
+            body.whiteboardImage // Pass whiteboard image if provided
           );
         } catch (generateError) {
           // If initial message generation fails, clean up the session

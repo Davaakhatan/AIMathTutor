@@ -135,7 +135,12 @@ export default function Whiteboard({
           ctx.stroke();
           break;
         case "text":
-          ctx.font = `${shape.lineWidth * 8}px Arial`;
+          // lineWidth is stored as pixel size (already calculated)
+          const fontSize = Math.max(12, shape.lineWidth);
+          ctx.font = `${fontSize}px Arial`;
+          ctx.fillStyle = shape.color;
+          ctx.textAlign = "left";
+          ctx.textBaseline = "alphabetic";
           ctx.fillText(shape.text || "", shape.x, shape.y);
           break;
       }
@@ -231,10 +236,10 @@ export default function Whiteboard({
     };
   }, [redrawCanvas]);
 
-  // Redraw when shapes or paths change (but not during render)
+  // Redraw when shapes or paths change
   useEffect(() => {
     redrawCanvas();
-  }, [redrawCanvas]);
+  }, [shapes, freehandPaths, selectedShapeId, redrawCanvas]);
 
   const getMousePos = useCallback((e: React.MouseEvent<HTMLCanvasElement> | React.TouchEvent<HTMLCanvasElement>) => {
     const canvas = canvasRef.current;
@@ -328,7 +333,26 @@ export default function Whiteboard({
       }
       
       if (drawingMode === "text") {
-        setTextInput({ x: pos.x, y: pos.y, text: "" });
+        // Prevent any canvas drawing when in text mode
+        e.preventDefault?.();
+        e.stopPropagation?.();
+        
+        // Set text input at click position
+        setTextInput({ 
+          x: pos.x, 
+          y: pos.y, 
+          text: "" 
+        });
+        
+        // Force focus on the input after it renders
+        setTimeout(() => {
+          const input = document.querySelector('.whiteboard-text-input') as HTMLInputElement;
+          if (input) {
+            input.focus();
+            input.select();
+          }
+        }, 10);
+        
         return;
       }
 
@@ -354,7 +378,10 @@ export default function Whiteboard({
   const draw = useCallback(
     (e: React.MouseEvent<HTMLCanvasElement> | React.TouchEvent<HTMLCanvasElement>) => {
       if (!isEnabled) return;
-
+      
+      // Don't draw if in text mode (waiting for text input)
+      if (drawingMode === "text" || textInput) return;
+      
       const pos = getMousePos(e);
 
       // Handle dragging
@@ -390,7 +417,7 @@ export default function Whiteboard({
         setEndPos(pos);
       }
     },
-    [isEnabled, isDrawing, startPos, drawingMode, getMousePos, isDragging, selectedShapeId, dragOffset]
+    [isEnabled, isDrawing, startPos, drawingMode, getMousePos, isDragging, selectedShapeId, dragOffset, textInput]
   );
 
   const stopDrawing = useCallback((e?: React.MouseEvent<HTMLCanvasElement> | React.TouchEvent<HTMLCanvasElement>) => {
@@ -483,20 +510,28 @@ export default function Whiteboard({
     const canvas = canvasRef.current;
     if (!canvas || !hasContent || !onSendDrawing) return;
 
-    const dataURL = canvas.toDataURL("image/png");
+    // Redraw to ensure all shapes are rendered before capturing
+    redrawCanvas();
+    
+    // Use higher quality settings for better AI detection
+    const dataURL = canvas.toDataURL("image/png", 1.0);
     onSendDrawing(dataURL);
     // Clear canvas after sending (optional - user can keep drawing if they want)
     // Uncomment below if you want to auto-clear after send:
     // clearCanvas();
-  }, [hasContent, onSendDrawing]);
+  }, [hasContent, onSendDrawing, redrawCanvas]);
 
   const reviewDrawing = useCallback(() => {
     const canvas = canvasRef.current;
     if (!canvas || !hasContent || !onReviewDrawing) return;
 
-    const dataURL = canvas.toDataURL("image/png");
+    // Redraw to ensure all shapes are rendered before capturing
+    redrawCanvas();
+    
+    // Use higher quality settings for better AI detection
+    const dataURL = canvas.toDataURL("image/png", 1.0);
     onReviewDrawing(dataURL);
-  }, [hasContent, onReviewDrawing]);
+  }, [hasContent, onReviewDrawing, redrawCanvas]);
 
   if (!isEnabled) {
     return null;
@@ -775,7 +810,7 @@ export default function Whiteboard({
       )}
 
       {/* Canvas */}
-      <div className="border border-gray-200 dark:border-gray-700 rounded-lg overflow-hidden bg-white dark:bg-gray-800 transition-colors relative">
+      <div className="border border-gray-200 dark:border-gray-700 rounded-lg overflow-visible bg-white dark:bg-gray-800 transition-colors relative">
         <canvas
           ref={canvasRef}
           onMouseDown={startDrawing}
@@ -799,10 +834,12 @@ export default function Whiteboard({
             type="text"
             value={textInput.text}
             onChange={(e) => {
-              setTextInput({ ...textInput, text: e.target.value });
+              const value = e.target.value;
+              setTextInput({ ...textInput, text: value });
             }}
-            onBlur={() => {
-              if (textInput.text) {
+            onBlur={(e) => {
+              const text = e.target.value.trim();
+              if (text) {
                 // Create text shape object
                 const shapeId = `shape-${Date.now()}-${Math.random()}`;
                 const newShape: Shape = {
@@ -811,8 +848,8 @@ export default function Whiteboard({
                   x: textInput.x,
                   y: textInput.y,
                   color,
-                  lineWidth,
-                  text: textInput.text,
+                  lineWidth: Math.max(16, lineWidth * 8), // Ensure readable size (min 16px)
+                  text: text,
                 };
                 setShapes(prev => [...prev, newShape]);
                 setHasContent(true);
@@ -822,17 +859,26 @@ export default function Whiteboard({
             }}
             onKeyDown={(e) => {
               if (e.key === "Enter") {
+                e.preventDefault();
                 e.currentTarget.blur();
               } else if (e.key === "Escape") {
                 setTextInput(null);
               }
+              // Prevent event bubbling
+              e.stopPropagation();
             }}
+            onMouseDown={(e) => e.stopPropagation()}
+            onClick={(e) => e.stopPropagation()}
+            onFocus={(e) => e.stopPropagation()}
             autoFocus
-            className="absolute border-2 border-blue-500 px-2 py-1 text-sm bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100 rounded"
+            className="whiteboard-text-input absolute border-2 border-blue-500 px-3 py-2 text-base bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100 rounded shadow-xl z-[100] min-w-[100px] outline-none focus:ring-2 focus:ring-blue-400"
             style={{
               left: `${textInput.x}px`,
               top: `${textInput.y}px`,
+              transform: 'translate(-50%, -100%)', // Position above click point
+              pointerEvents: 'auto',
             }}
+            placeholder="Type text..."
           />
         )}
       </div>
