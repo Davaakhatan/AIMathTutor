@@ -180,13 +180,13 @@ export default function ProblemSuggestions({ onSelectProblem }: ProblemSuggestio
   return (
     <div 
       ref={panelRef}
-      className="fixed bottom-4 right-4 z-50 bg-white border border-gray-200 rounded-lg shadow-xl w-96 max-w-[calc(100vw-2rem)] max-h-[80vh] flex flex-col"
+      className="fixed bottom-4 right-4 z-50 bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-700 rounded-lg shadow-xl w-96 max-w-[calc(100vw-2rem)] max-h-[80vh] flex flex-col transition-colors"
     >
-      <div className="flex items-center justify-between p-4 border-b border-gray-200">
-        <h3 className="text-sm font-medium text-gray-900">Problem Suggestions</h3>
+      <div className="flex items-center justify-between p-4 border-b border-gray-200 dark:border-gray-700">
+        <h3 className="text-sm font-medium text-gray-900 dark:text-gray-100 transition-colors">Problem Suggestions</h3>
         <button
           onClick={() => setIsOpen(false)}
-          className="text-gray-400 hover:text-gray-600 transition-colors p-1 hover:bg-gray-100 rounded focus:outline-none focus:ring-2 focus:ring-gray-400"
+          className="text-gray-400 dark:text-gray-500 hover:text-gray-600 dark:hover:text-gray-300 transition-colors p-1 hover:bg-gray-100 dark:hover:bg-gray-800 rounded focus:outline-none focus:ring-2 focus:ring-gray-400 dark:focus:ring-gray-500"
           aria-label="Close suggestions"
           type="button"
         >
@@ -203,14 +203,14 @@ export default function ProblemSuggestions({ onSelectProblem }: ProblemSuggestio
 
       <div className="flex-1 overflow-y-auto p-4 space-y-3">
         {savedProblems.length === 0 ? (
-          <div className="text-center py-8 text-gray-400">
+          <div className="text-center py-8 text-gray-400 dark:text-gray-500 transition-colors">
             <p className="text-sm mb-2">Start practicing to get personalized suggestions!</p>
             <p className="text-xs">We&apos;ll suggest problem types based on your practice history.</p>
           </div>
         ) : (
           <>
-            <div className="text-xs text-gray-600 mb-3">
-              <p className="font-medium text-gray-900 mb-1">Based on your practice:</p>
+            <div className="text-xs text-gray-600 dark:text-gray-400 mb-3 transition-colors">
+              <p className="font-medium text-gray-900 dark:text-gray-100 mb-1 transition-colors">Based on your practice:</p>
               <p>We suggest focusing on these problem types to build a well-rounded foundation.</p>
             </div>
             {suggestions.map((type) => (
@@ -218,14 +218,14 @@ export default function ProblemSuggestions({ onSelectProblem }: ProblemSuggestio
                 key={type}
                 onClick={() => generateProblem(type)}
                 disabled={isGenerating}
-                className="w-full p-3 bg-indigo-50 border border-indigo-200 rounded-lg hover:bg-indigo-100 transition-colors text-left disabled:opacity-50 disabled:cursor-not-allowed"
+                className="w-full p-3 bg-indigo-50 dark:bg-indigo-900/20 border border-indigo-200 dark:border-indigo-800 rounded-lg hover:bg-indigo-100 dark:hover:bg-indigo-900/30 transition-colors text-left disabled:opacity-50 disabled:cursor-not-allowed"
               >
                 <div className="flex items-center justify-between">
                   <div>
-                    <p className="text-sm font-medium text-gray-900">
+                    <p className="text-sm font-medium text-gray-900 dark:text-gray-100 transition-colors">
                       {typeLabels[type] || type}
                     </p>
-                    <p className="text-xs text-gray-600 mt-0.5">
+                    <p className="text-xs text-gray-600 dark:text-gray-400 mt-0.5 transition-colors">
                       {savedProblems.filter((p) => p.type === type).length === 0
                         ? "Not practiced yet"
                         : `${savedProblems.filter((p) => p.type === type).length} problem${savedProblems.filter((p) => p.type === type).length === 1 ? "" : "s"} solved`}

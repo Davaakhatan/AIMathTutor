@@ -5,7 +5,6 @@ import ProblemInput from "@/components/ProblemInput";
 import ChatUI from "@/components/chat/ChatUI";
 import Whiteboard from "@/components/stretch/Whiteboard";
 import DifficultyModeSelector from "@/components/stretch/DifficultyModeSelector";
-import KeyboardShortcutsHelp from "@/components/KeyboardShortcutsHelp";
 import ConversationExport from "@/components/ConversationExport";
 import ProblemGenerator from "@/components/ProblemGenerator";
 import Toast from "@/components/Toast";
@@ -49,12 +48,17 @@ export default function Home() {
     if (typeof window !== "undefined") {
       try {
         const saved = localStorage.getItem("aitutor-settings");
-        return saved ? JSON.parse(saved) : { showStats: true, voiceEnabled: true };
+        const parsed = saved ? JSON.parse(saved) : { showStats: true, voiceEnabled: true, darkMode: false };
+        // Apply dark mode immediately on mount
+        if (parsed.darkMode) {
+          document.documentElement.classList.add("dark");
+        }
+        return parsed;
       } catch {
-        return { showStats: true, voiceEnabled: true };
+        return { showStats: true, voiceEnabled: true, darkMode: false };
       }
     }
-    return { showStats: true, voiceEnabled: true };
+    return { showStats: true, voiceEnabled: true, darkMode: false };
   });
 
   // Listen for settings changes
@@ -241,17 +245,17 @@ export default function Home() {
       <SkipLink />
       <OfflineIndicator />
       <SessionResume onResume={handleResumeSession} />
-      <main id="main-content" className="flex min-h-screen flex-col items-center p-4 sm:p-6 md:p-12 bg-[#fafafa]">
+      <main id="main-content" className="flex min-h-screen flex-col items-center p-4 sm:p-6 md:p-12 bg-[#fafafa] dark:bg-[#0a0a0a] transition-colors">
         <div className="w-full max-w-5xl overflow-visible">
         <div className="text-center mb-8 sm:mb-12">
-          <h1 className="text-2xl sm:text-3xl md:text-4xl font-light mb-2 sm:mb-3 text-gray-900 tracking-tight">
+          <h1 className="text-2xl sm:text-3xl md:text-4xl font-light mb-2 sm:mb-3 text-gray-900 dark:text-gray-100 tracking-tight transition-colors">
             AI Math Tutor
           </h1>
-          <p className="text-gray-500 text-sm sm:text-base font-light">
+          <p className="text-gray-500 dark:text-gray-400 text-sm sm:text-base font-light transition-colors">
             Discover solutions through guided questions
           </p>
-          <p className="text-gray-400 text-xs mt-2 font-light">
-            Press <kbd className="px-1.5 py-0.5 bg-gray-100 rounded text-xs">Enter</kbd> to send messages
+          <p className="text-gray-400 dark:text-gray-500 text-xs mt-2 font-light transition-colors">
+            Press <kbd className="px-1.5 py-0.5 bg-gray-100 dark:bg-gray-800 dark:text-gray-300 rounded text-xs transition-colors">Enter</kbd> to send messages
           </p>
         </div>
 
@@ -266,28 +270,28 @@ export default function Home() {
         ) : (
           <div className="space-y-6">
             {/* Problem Display */}
-            <div className="bg-white border border-gray-200 rounded-lg p-6">
+            <div className="bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-700 rounded-lg p-6 transition-colors">
               <div className="flex flex-col gap-4">
                 <div className="flex justify-between items-start gap-4">
-                  <h2 className="text-sm font-medium text-gray-500 uppercase tracking-wide">
+                  <h2 className="text-sm font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wide transition-colors">
                     Problem
                   </h2>
                   <div className="flex items-center gap-2 flex-shrink-0">
                     <BookmarkButton problem={currentProblem} />
                     <button
                       onClick={handleChangeProblem}
-                      className="text-sm text-gray-500 hover:text-gray-700 transition-colors whitespace-nowrap"
+                      className="text-sm text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-300 transition-colors whitespace-nowrap"
                     >
                       Change
                     </button>
                   </div>
                 </div>
-                <div className="text-gray-900 text-base sm:text-lg leading-relaxed break-words whitespace-pre-wrap">
+                <div className="text-gray-900 dark:text-gray-100 text-base sm:text-lg leading-relaxed break-words whitespace-pre-wrap transition-colors">
                   {normalizeProblemText(currentProblem.text)}
                 </div>
-                <div className="flex items-center gap-3 flex-wrap pt-2 border-t border-gray-100">
+                <div className="flex items-center gap-3 flex-wrap pt-2 border-t border-gray-100 dark:border-gray-800 transition-colors">
                   {currentProblem.type && (
-                    <span className="inline-block text-xs text-gray-400 font-medium uppercase tracking-wide">
+                    <span className="inline-block text-xs text-gray-400 dark:text-gray-500 font-medium uppercase tracking-wide transition-colors">
                       {currentProblem.type.replace("_", " ")}
                     </span>
                   )}
@@ -301,12 +305,12 @@ export default function Home() {
 
             {/* Chat Interface */}
             {isInitializing ? (
-              <div className="bg-white border border-gray-200 rounded-lg p-12 text-center">
-                <div className="flex flex-col items-center justify-center gap-4 text-gray-400">
-                  <div className="w-6 h-6 border-2 border-gray-300 border-t-gray-600 rounded-full animate-spin" />
+              <div className="bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-700 rounded-lg p-12 text-center transition-colors">
+                <div className="flex flex-col items-center justify-center gap-4 text-gray-400 dark:text-gray-500 transition-colors">
+                  <div className="w-6 h-6 border-2 border-gray-300 dark:border-gray-600 border-t-gray-600 dark:border-t-gray-400 rounded-full animate-spin transition-colors" />
                   <div>
-                    <p className="text-sm font-light">Initializing conversation</p>
-                    <p className="text-xs font-light text-gray-300 mt-1">Preparing your tutor...</p>
+                    <p className="text-sm font-light transition-colors">Initializing conversation</p>
+                    <p className="text-xs font-light text-gray-300 dark:text-gray-400 mt-1 transition-colors">Preparing your tutor...</p>
                   </div>
                 </div>
               </div>
@@ -322,7 +326,7 @@ export default function Home() {
                 <div className="flex justify-end">
                   <button
                     onClick={() => setShowWhiteboard(!showWhiteboard)}
-                    className="text-xs text-gray-500 hover:text-gray-700 transition-colors font-light px-3 py-1.5 border border-gray-200 rounded-lg hover:bg-gray-50"
+                    className="text-xs text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-300 transition-colors font-light px-3 py-1.5 border border-gray-200 dark:border-gray-700 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-800 bg-white dark:bg-gray-900"
                     aria-label={showWhiteboard ? "Hide whiteboard" : "Show whiteboard"}
                   >
                     {showWhiteboard ? "Hide" : "Show"} Whiteboard
@@ -415,7 +419,6 @@ export default function Home() {
       </div>
       
           {/* Keyboard Shortcuts Help */}
-          <KeyboardShortcutsHelp />
 
           {/* Toast Notifications */}
           {toasts.map((toast) => (

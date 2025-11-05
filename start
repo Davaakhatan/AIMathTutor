@@ -15,6 +15,15 @@ sleep 1
 
 echo "✅ Server stopped"
 echo ""
+
+# Clean build cache if .next exists (fixes webpack module errors)
+if [ -d ".next" ]; then
+  echo "🧹 Cleaning build cache..."
+  rm -rf .next
+  echo "✅ Cache cleaned"
+  echo ""
+fi
+
 echo "🚀 Starting Next.js dev server on port $PORT..."
 echo ""
 

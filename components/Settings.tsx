@@ -8,6 +8,7 @@ interface Settings {
   voiceEnabled: boolean;
   showStats: boolean;
   fontSize: "small" | "medium" | "large";
+  darkMode: boolean;
   apiKey?: string; // Optional: For display/validation only (server-side still uses env var)
 }
 
@@ -18,6 +19,7 @@ export default function Settings() {
     voiceEnabled: true,
     showStats: true,
     fontSize: "medium",
+    darkMode: false,
   });
   const panelRef = useRef<HTMLDivElement>(null);
 
@@ -42,6 +44,27 @@ export default function Settings() {
       root.style.fontSize = settings.fontSize === "small" ? "14px" : settings.fontSize === "large" ? "18px" : "16px";
     }
   }, [settings.fontSize]);
+
+  // Apply dark mode to document
+  useEffect(() => {
+    if (typeof document !== "undefined") {
+      const root = document.documentElement;
+      if (settings.darkMode) {
+        root.classList.add("dark");
+      } else {
+        root.classList.remove("dark");
+      }
+    }
+  }, [settings.darkMode]);
+
+  // Initialize dark mode on mount (check system preference)
+  useEffect(() => {
+    if (typeof window !== "undefined" && !settings.darkMode && window.matchMedia("(prefers-color-scheme: dark)").matches) {
+      // Optional: auto-detect system preference on first load
+      // Uncomment if you want auto dark mode based on system
+      // setSettings({ ...settings, darkMode: true });
+    }
+  }, []);
   
   // Notify parent component of voice setting changes
   useEffect(() => {
@@ -79,11 +102,11 @@ export default function Settings() {
   return (
     <div
       ref={panelRef}
-      className="fixed top-4 z-50 bg-white border border-gray-200 rounded-lg shadow-xl w-80 max-w-[calc(100vw-2rem)] max-h-[80vh] flex flex-col transition-all duration-200"
+      className="fixed top-4 z-50 bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-700 rounded-lg shadow-xl w-80 max-w-[calc(100vw-2rem)] max-h-[80vh] flex flex-col transition-all duration-200"
       style={{ right: "5rem" }}
     >
-      <div className="flex items-center justify-between p-4 border-b border-gray-200">
-        <h3 className="text-sm font-medium text-gray-900">Settings</h3>
+      <div className="flex items-center justify-between p-4 border-b border-gray-200 dark:border-gray-700">
+        <h3 className="text-sm font-medium text-gray-900 dark:text-gray-100">Settings</h3>
         <button
           onClick={(e) => {
             e.stopPropagation();
@@ -104,12 +127,12 @@ export default function Settings() {
         </button>
       </div>
 
-      <div className="flex-1 overflow-y-auto p-4 space-y-4">
+      <div className="flex-1 overflow-y-auto p-4 space-y-4 bg-white dark:bg-gray-900">
         {/* Auto-save */}
         <div className="flex items-center justify-between">
           <div>
-            <label className="text-sm font-medium text-gray-900">Auto-save Problems</label>
-            <p className="text-xs text-gray-500 mt-0.5">Automatically save problems to history</p>
+            <label className="text-sm font-medium text-gray-900 dark:text-gray-100">Auto-save Problems</label>
+            <p className="text-xs text-gray-500 dark:text-gray-400 mt-0.5">Automatically save problems to history</p>
           </div>
           <label className="relative inline-flex items-center cursor-pointer">
             <input
@@ -132,8 +155,8 @@ export default function Settings() {
         {/* Voice */}
         <div className="flex items-center justify-between">
           <div>
-            <label className="text-sm font-medium text-gray-900">Voice Responses</label>
-            <p className="text-xs text-gray-500 mt-0.5">Read tutor responses aloud</p>
+            <label className="text-sm font-medium text-gray-900 dark:text-gray-100">Voice Responses</label>
+            <p className="text-xs text-gray-500 dark:text-gray-400 mt-0.5">Read tutor responses aloud</p>
           </div>
           <label className="relative inline-flex items-center cursor-pointer">
             <input
@@ -156,8 +179,8 @@ export default function Settings() {
         {/* Show Stats */}
         <div className="flex items-center justify-between">
           <div>
-            <label className="text-sm font-medium text-gray-900">Show Statistics</label>
-            <p className="text-xs text-gray-500 mt-0.5">Display conversation stats</p>
+            <label className="text-sm font-medium text-gray-900 dark:text-gray-100">Show Statistics</label>
+            <p className="text-xs text-gray-500 dark:text-gray-400 mt-0.5">Display conversation stats</p>
           </div>
           <label className="relative inline-flex items-center cursor-pointer">
             <input
@@ -177,9 +200,33 @@ export default function Settings() {
           </label>
         </div>
 
+        {/* Dark Mode */}
+        <div className="flex items-center justify-between">
+          <div>
+            <label className="text-sm font-medium text-gray-900 dark:text-gray-100">Dark Mode</label>
+            <p className="text-xs text-gray-500 dark:text-gray-400 mt-0.5">Use dark theme</p>
+          </div>
+          <label className="relative inline-flex items-center cursor-pointer">
+            <input
+              type="checkbox"
+              checked={settings.darkMode}
+              onChange={(e) => setSettings({ ...settings, darkMode: e.target.checked })}
+              className="sr-only peer"
+              style={{ appearance: "none", WebkitAppearance: "none", MozAppearance: "none" }}
+            />
+            <div className={`w-11 h-6 rounded-full transition-colors relative ${
+              settings.darkMode ? "bg-gray-900 dark:bg-gray-700" : "bg-gray-200"
+            }`}>
+              <div className={`absolute top-[2px] left-[2px] bg-white border border-gray-300 rounded-full h-5 w-5 transition-transform ${
+                settings.darkMode ? "translate-x-5" : "translate-x-0"
+              }`}></div>
+            </div>
+          </label>
+        </div>
+
         {/* Font Size */}
         <div>
-          <label className="text-sm font-medium text-gray-900 mb-2 block">Font Size</label>
+          <label className="text-sm font-medium text-gray-900 dark:text-gray-100 mb-2 block">Font Size</label>
           <div className="flex gap-2">
             {(["small", "medium", "large"] as const).map((size) => (
               <button
@@ -187,8 +234,8 @@ export default function Settings() {
                 onClick={() => setSettings({ ...settings, fontSize: size })}
                 className={`flex-1 px-3 py-2 text-xs font-medium rounded-lg transition-colors ${
                   settings.fontSize === size
-                    ? "bg-gray-900 text-white"
-                    : "bg-gray-100 text-gray-700 hover:bg-gray-200"
+                    ? "bg-gray-900 text-white dark:bg-gray-700"
+                    : "bg-gray-100 text-gray-700 hover:bg-gray-200 dark:bg-gray-800 dark:text-gray-300 dark:hover:bg-gray-700"
                 }`}
               >
                 {size.charAt(0).toUpperCase() + size.slice(1)}
@@ -198,14 +245,14 @@ export default function Settings() {
         </div>
 
         {/* API Key Info */}
-        <div className="pt-3 border-t border-gray-200">
-          <label className="text-sm font-medium text-gray-900 mb-2 block">OpenAI API Key</label>
-          <div className="bg-blue-50 border border-blue-200 rounded-lg p-3">
-            <p className="text-xs text-blue-900 mb-2">
-              <strong>Note:</strong> For production, set <code className="bg-blue-100 px-1 rounded">OPENAI_API_KEY</code> in AWS Amplify environment variables. Or enter your key here as a fallback.
+        <div className="pt-3 border-t border-gray-200 dark:border-gray-700">
+          <label className="text-sm font-medium text-gray-900 dark:text-gray-100 mb-2 block transition-colors">OpenAI API Key</label>
+          <div className="bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 rounded-lg p-3 transition-colors">
+            <p className="text-xs text-blue-900 dark:text-blue-200 mb-2 transition-colors">
+              <strong>Note:</strong> For production, set <code className="bg-blue-100 dark:bg-blue-800 px-1 rounded">OPENAI_API_KEY</code> in AWS Amplify environment variables. Or enter your key here as a fallback.
             </p>
-            <p className="text-xs text-blue-700">
-              For Amplify: Go to App Settings → Environment Variables → Add <code className="bg-blue-100 px-1 rounded">OPENAI_API_KEY</code>
+            <p className="text-xs text-blue-700 dark:text-blue-300 transition-colors">
+              For Amplify: Go to App Settings → Environment Variables → Add <code className="bg-blue-100 dark:bg-blue-800 px-1 rounded">OPENAI_API_KEY</code>
             </p>
           </div>
           <div className="mt-2">
@@ -214,17 +261,17 @@ export default function Settings() {
               placeholder="Enter API key (fallback if env var not working)"
               value={settings.apiKey || ""}
               onChange={(e) => setSettings({ ...settings, apiKey: e.target.value })}
-              className="w-full px-3 py-2 text-xs border border-gray-300 rounded-lg focus:outline-none focus:ring-1 focus:ring-gray-400"
+              className="w-full px-3 py-2 text-xs border border-gray-300 dark:border-gray-600 rounded-lg focus:outline-none focus:ring-1 focus:ring-gray-400 dark:focus:ring-gray-500 bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100 transition-colors"
               title="Enter your OpenAI API key as a fallback if environment variable isn't working"
             />
-            <p className="text-xs text-gray-500 mt-1">
+            <p className="text-xs text-gray-500 dark:text-gray-400 mt-1 transition-colors">
               This will be used as a fallback if the environment variable isn&apos;t available. Your key is stored locally in your browser.
             </p>
           </div>
         </div>
 
         {/* Reset */}
-        <div className="pt-3 border-t border-gray-200">
+        <div className="pt-3 border-t border-gray-200 dark:border-gray-700">
           <button
             onClick={() => {
               if (confirm("Reset all settings to default?")) {
@@ -233,10 +280,11 @@ export default function Settings() {
                   voiceEnabled: true,
                   showStats: true,
                   fontSize: "medium",
+                  darkMode: false,
                 });
               }
             }}
-            className="w-full px-4 py-2 text-sm text-gray-600 hover:text-gray-900 hover:bg-gray-100 rounded-lg transition-colors"
+            className="w-full px-4 py-2 text-sm text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-gray-100 hover:bg-gray-100 dark:hover:bg-gray-800 rounded-lg transition-colors"
           >
             Reset to Defaults
           </button>

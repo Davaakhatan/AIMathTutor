@@ -19,8 +19,8 @@ function Message({ message }: MessageProps) {
       <div
         className={`max-w-[85%] sm:max-w-[75%] rounded-lg px-3 py-2 sm:px-4 sm:py-3 transition-all relative ${
           isUser
-            ? "bg-gray-900 text-white"
-            : "bg-gray-50 text-gray-900 border border-gray-200"
+            ? "bg-gray-900 dark:bg-gray-800 text-white"
+            : "bg-gray-50 dark:bg-gray-800 text-gray-900 dark:text-gray-100 border border-gray-200 dark:border-gray-700"
         }`}
       >
         <div className="flex items-start justify-between gap-2">
@@ -32,7 +32,7 @@ function Message({ message }: MessageProps) {
         {message.timestamp && (
           <div
             className={`text-xs mt-2 font-light ${
-              isUser ? "text-gray-400" : "text-gray-400"
+              isUser ? "text-gray-400 dark:text-gray-500" : "text-gray-400 dark:text-gray-500"
             }`}
           >
             {new Date(message.timestamp).toLocaleTimeString([], {

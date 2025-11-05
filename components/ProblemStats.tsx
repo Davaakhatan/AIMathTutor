@@ -26,7 +26,7 @@ export default function ProblemStats({ messages, problemText }: ProblemStatsProp
   if (messages.length === 0) return null;
 
   return (
-    <div className="bg-white border border-gray-200 rounded-lg p-3 text-xs text-gray-500">
+    <div className="bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-700 rounded-lg p-3 text-xs text-gray-500 dark:text-gray-400 transition-colors">
       <div className="flex items-center justify-between gap-4 flex-wrap">
         <div className="flex items-center gap-1">
           <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">

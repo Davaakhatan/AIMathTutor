@@ -118,7 +118,7 @@ export default function VoiceInterface({
         className={`p-2 rounded-lg transition-colors focus:outline-none focus:ring-2 focus:ring-gray-400 focus:ring-offset-2 ${
           isListening
             ? "bg-red-100 text-red-600 hover:bg-red-200"
-            : "bg-gray-100 text-gray-600 hover:bg-gray-200"
+            : "bg-gray-100 dark:bg-gray-800 text-gray-600 dark:text-gray-400 hover:bg-gray-200 dark:hover:bg-gray-700"
         } disabled:opacity-50 disabled:cursor-not-allowed`}
         aria-label={isListening ? "Stop listening" : "Start voice input"}
         title={isListening ? "Stop listening" : "Start voice input"}

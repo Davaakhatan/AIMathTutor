@@ -88,18 +88,18 @@ export default function ImageUpload({
             transition-all duration-200
             ${
               isDragActive
-                ? "border-gray-400 bg-gray-50"
-                : "border-gray-300 hover:border-gray-400 hover:bg-gray-50"
+                ? "border-gray-400 dark:border-gray-600 bg-gray-50 dark:bg-gray-800"
+                : "border-gray-300 dark:border-gray-700 hover:border-gray-400 dark:hover:border-gray-600 hover:bg-gray-50 dark:hover:bg-gray-800"
             }
-            ${error ? "border-red-300 bg-red-50" : ""}
+            ${error ? "border-red-300 dark:border-red-700 bg-red-50 dark:bg-red-900/20" : ""}
             focus-within:ring-2 focus-within:ring-gray-400 focus-within:ring-offset-2
           `}
         >
           <input {...getInputProps()} />
           <div className="flex flex-col items-center gap-4">
-            <div className="w-10 h-10 border-2 border-gray-300 rounded-lg flex items-center justify-center">
+            <div className="w-10 h-10 border-2 border-gray-300 dark:border-gray-600 rounded-lg flex items-center justify-center transition-colors">
               <svg
-                className="w-5 h-5 text-gray-400"
+                className="w-5 h-5 text-gray-400 dark:text-gray-500 transition-colors"
                 fill="none"
                 stroke="currentColor"
                 viewBox="0 0 24 24"
@@ -113,12 +113,12 @@ export default function ImageUpload({
               </svg>
             </div>
             <div>
-              <p className="text-sm text-gray-700 font-light">
+              <p className="text-sm text-gray-700 dark:text-gray-300 font-light transition-colors">
                 {isDragActive
                   ? "Drop image here"
                   : "Drag image here or click to select"}
               </p>
-              <p className="text-xs text-gray-400 mt-2 font-light">
+              <p className="text-xs text-gray-400 dark:text-gray-500 mt-2 font-light transition-colors">
                 JPG, PNG up to {maxSize / (1024 * 1024)}MB
               </p>
             </div>
@@ -130,7 +130,7 @@ export default function ImageUpload({
           <img
             src={preview}
             alt="Upload preview"
-            className="w-full max-h-64 object-contain rounded-lg border border-gray-200"
+            className="w-full max-h-64 object-contain rounded-lg border border-gray-200 dark:border-gray-700 transition-colors"
           />
           <button
             onClick={handleRemove}
@@ -140,12 +140,12 @@ export default function ImageUpload({
                 handleRemove();
               }
             }}
-            className="absolute top-3 right-3 bg-white border border-gray-300 rounded-lg p-2 hover:bg-gray-50 transition-colors opacity-0 group-hover:opacity-100 focus:opacity-100 focus:outline-none focus:ring-2 focus:ring-gray-400 focus:ring-offset-2"
+            className="absolute top-3 right-3 bg-white dark:bg-gray-900 border border-gray-300 dark:border-gray-600 rounded-lg p-2 hover:bg-gray-50 dark:hover:bg-gray-800 transition-colors opacity-0 group-hover:opacity-100 focus:opacity-100 focus:outline-none focus:ring-2 focus:ring-gray-400 dark:focus:ring-gray-500 focus:ring-offset-2"
             aria-label="Remove image"
             tabIndex={0}
           >
             <svg
-              className="w-4 h-4 text-gray-600"
+              className="w-4 h-4 text-gray-600 dark:text-gray-400 transition-colors"
               fill="none"
               stroke="currentColor"
               viewBox="0 0 24 24"

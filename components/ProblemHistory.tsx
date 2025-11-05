@@ -159,18 +159,18 @@ export default function ProblemHistory({ onSelectProblem }: ProblemHistoryProps)
   return (
     <div 
       ref={panelRef}
-      className="fixed bottom-4 right-4 z-50 bg-white border border-gray-200 rounded-lg shadow-xl w-96 max-w-[calc(100vw-2rem)] max-h-[80vh] flex flex-col"
+      className="fixed bottom-4 right-4 z-50 bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-700 rounded-lg shadow-xl w-96 max-w-[calc(100vw-2rem)] max-h-[80vh] flex flex-col transition-colors"
     >
-      <div className="flex items-center justify-between p-4 border-b border-gray-200">
-        <h3 className="text-sm font-medium text-gray-900">Problem History</h3>
+      <div className="flex items-center justify-between p-4 border-b border-gray-200 dark:border-gray-700">
+        <h3 className="text-sm font-medium text-gray-900 dark:text-gray-100">Problem History</h3>
         <div className="flex items-center gap-2">
           {viewMode === "bookmarked" && bookmarks.length > 0 && (
-            <span className="text-xs text-gray-500">
+            <span className="text-xs text-gray-500 dark:text-gray-400">
               {bookmarks.length} {bookmarks.length === 1 ? "bookmark" : "bookmarked"}
             </span>
           )}
           {viewMode === "all" && savedProblems.length > 0 && (
-            <span className="text-xs text-gray-500">
+            <span className="text-xs text-gray-500 dark:text-gray-400">
               {savedProblems.length} {savedProblems.length === 1 ? "problem" : "problems"}
             </span>
           )}
@@ -188,7 +188,7 @@ export default function ProblemHistory({ onSelectProblem }: ProblemHistoryProps)
                   }
                 }
               }}
-              className="text-xs text-gray-400 hover:text-red-600 transition-colors"
+              className="text-xs text-gray-400 dark:text-gray-500 hover:text-red-600 dark:hover:text-red-500 transition-colors"
               title="Clear all"
             >
               Clear
@@ -199,7 +199,7 @@ export default function ProblemHistory({ onSelectProblem }: ProblemHistoryProps)
               e.stopPropagation();
               setIsOpen(false);
             }}
-            className="text-gray-400 hover:text-gray-600 transition-colors p-1 hover:bg-gray-100 rounded focus:outline-none focus:ring-2 focus:ring-gray-400"
+            className="text-gray-400 dark:text-gray-500 hover:text-gray-600 dark:hover:text-gray-300 transition-colors p-1 hover:bg-gray-100 dark:hover:bg-gray-800 rounded focus:outline-none focus:ring-2 focus:ring-gray-400 dark:focus:ring-gray-500"
             aria-label="Close history"
             type="button"
             title="Close (X)"
@@ -246,19 +246,19 @@ export default function ProblemHistory({ onSelectProblem }: ProblemHistoryProps)
       </div>
 
       {filteredProblems.length > 0 && (
-        <div className="px-4 pt-3 pb-2 border-b border-gray-200 space-y-2">
+        <div className="px-4 pt-3 pb-2 border-b border-gray-200 dark:border-gray-700 space-y-2">
           <input
             type="text"
             placeholder="Search problems..."
             value={filter}
             onChange={(e) => setFilter(e.target.value)}
-            className="w-full px-3 py-1.5 text-xs border border-gray-300 rounded-lg focus:outline-none focus:ring-1 focus:ring-gray-400"
+            className="w-full px-3 py-1.5 text-xs border border-gray-300 dark:border-gray-600 rounded-lg focus:outline-none focus:ring-1 focus:ring-gray-400 dark:focus:ring-gray-500 bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100 placeholder-gray-400 dark:placeholder-gray-500 transition-colors"
           />
           <div className="flex items-center gap-2">
             <select
               value={filterType}
               onChange={(e) => setFilterType(e.target.value as FilterType)}
-              className="flex-1 px-2 py-1 text-xs border border-gray-300 rounded-lg focus:outline-none focus:ring-1 focus:ring-gray-400"
+              className="flex-1 px-2 py-1 text-xs border border-gray-300 dark:border-gray-600 rounded-lg focus:outline-none focus:ring-1 focus:ring-gray-400 dark:focus:ring-gray-500 bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100 transition-colors"
             >
               <option value="all">All Types</option>
               <option value={ProblemType.ARITHMETIC}>Arithmetic</option>
@@ -271,7 +271,7 @@ export default function ProblemHistory({ onSelectProblem }: ProblemHistoryProps)
             <select
               value={sortBy}
               onChange={(e) => setSortBy(e.target.value as SortOption)}
-              className="flex-1 px-2 py-1 text-xs border border-gray-300 rounded-lg focus:outline-none focus:ring-1 focus:ring-gray-400"
+              className="flex-1 px-2 py-1 text-xs border border-gray-300 dark:border-gray-600 rounded-lg focus:outline-none focus:ring-1 focus:ring-gray-400 dark:focus:ring-gray-500 bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100 transition-colors"
             >
               <option value="recent">Recent</option>
               <option value="oldest">Oldest</option>
@@ -284,11 +284,11 @@ export default function ProblemHistory({ onSelectProblem }: ProblemHistoryProps)
 
       <div className="flex-1 overflow-y-auto p-4 space-y-2">
         {filteredProblems.length === 0 ? (
-          <div className="text-center py-8 text-gray-400">
-            <p className="text-sm">
+          <div className="text-center py-8 text-gray-400 dark:text-gray-500">
+            <p className="text-sm transition-colors">
               {viewMode === "bookmarked" ? "No bookmarked problems yet" : "No saved problems yet"}
             </p>
-            <p className="text-xs mt-1">
+            <p className="text-xs mt-1 transition-colors">
               {viewMode === "bookmarked" 
                 ? "Click the bookmark icon on problems to save them here"
                 : "Problems you work on will be saved here"}
@@ -298,22 +298,22 @@ export default function ProblemHistory({ onSelectProblem }: ProblemHistoryProps)
           filteredProblems.map((problem) => (
             <div
               key={problem.id}
-              className="group p-3 bg-gray-50 border border-gray-200 rounded-lg hover:bg-gray-100 transition-colors"
+              className="group p-3 bg-gray-50 dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors"
             >
               <div className="flex items-start justify-between gap-2">
                 <div className="flex-1 min-w-0">
                   <div className="flex items-center gap-2 mb-1">
-                    <p className="text-xs text-gray-900 font-medium line-clamp-2 flex-1">
+                    <p className="text-xs text-gray-900 dark:text-gray-100 font-medium line-clamp-2 flex-1 transition-colors">
                       {problem.text}
                     </p>
                   </div>
                   <div className="flex items-center gap-2">
                     {problem.type && (
-                      <span className="text-xs text-gray-400 uppercase">
+                      <span className="text-xs text-gray-400 dark:text-gray-500 uppercase transition-colors">
                         {problem.type.replace("_", " ")}
                       </span>
                     )}
-                    <span className="text-xs text-gray-400">
+                    <span className="text-xs text-gray-400 dark:text-gray-500 transition-colors">
                       {new Date(problem.savedAt).toLocaleDateString()}
                     </span>
                   </div>
@@ -323,8 +323,8 @@ export default function ProblemHistory({ onSelectProblem }: ProblemHistoryProps)
                     onClick={(e) => handleToggleBookmark(problem, e)}
                     className={`p-1.5 rounded transition-colors ${
                       (problem as any).isBookmarked
-                        ? "text-yellow-500 hover:text-yellow-600 hover:bg-yellow-50"
-                        : "text-gray-400 hover:text-yellow-500 hover:bg-gray-200"
+                        ? "text-yellow-500 dark:text-yellow-400 hover:text-yellow-600 dark:hover:text-yellow-500 hover:bg-yellow-50 dark:hover:bg-yellow-900/20"
+                        : "text-gray-400 dark:text-gray-500 hover:text-yellow-500 dark:hover:text-yellow-400 hover:bg-gray-200 dark:hover:bg-gray-700"
                     }`}
                     aria-label={(problem as any).isBookmarked ? "Remove bookmark" : "Bookmark problem"}
                     title={(problem as any).isBookmarked ? "Remove bookmark" : "Bookmark this problem"}
@@ -340,7 +340,7 @@ export default function ProblemHistory({ onSelectProblem }: ProblemHistoryProps)
                   </button>
                   <button
                     onClick={() => handleSelect(problem)}
-                    className="p-1.5 text-gray-600 hover:text-gray-900 hover:bg-gray-200 rounded transition-colors"
+                    className="p-1.5 text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-gray-100 hover:bg-gray-200 dark:hover:bg-gray-700 rounded transition-colors"
                     aria-label="Select problem"
                     title="Use this problem"
                   >
@@ -355,7 +355,7 @@ export default function ProblemHistory({ onSelectProblem }: ProblemHistoryProps)
                   </button>
                   <button
                     onClick={() => handleDelete(problem.id)}
-                    className="p-1.5 text-red-600 hover:text-red-800 hover:bg-red-50 rounded transition-colors"
+                    className="p-1.5 text-red-600 dark:text-red-400 hover:text-red-800 dark:hover:text-red-300 hover:bg-red-50 dark:hover:bg-red-900/20 rounded transition-colors"
                     aria-label="Delete problem"
                     title="Delete"
                   >

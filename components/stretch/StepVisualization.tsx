@@ -183,17 +183,17 @@ const StepVisualization = memo(function StepVisualization({
   }
 
   return (
-    <div className="border border-gray-200 rounded-lg bg-gray-50 p-4 mb-4">
+    <div className="border border-gray-200 dark:border-gray-700 rounded-lg bg-gray-50 dark:bg-gray-800 p-4 mb-4 transition-colors">
       <button
         onClick={() => setIsExpanded(!isExpanded)}
         className="w-full flex items-center justify-between mb-2 text-left"
         aria-label={isExpanded ? "Collapse steps" : "Expand steps"}
       >
-        <h3 className="text-sm font-medium text-gray-900">
+        <h3 className="text-sm font-medium text-gray-900 dark:text-gray-100 transition-colors">
           Solution Steps
         </h3>
         <svg
-          className={`w-4 h-4 text-gray-500 transition-transform ${
+          className={`w-4 h-4 text-gray-500 dark:text-gray-400 transition-transform transition-colors ${
             isExpanded ? "rotate-180" : ""
           }`}
           fill="none"
@@ -216,10 +216,10 @@ const StepVisualization = memo(function StepVisualization({
               key={step.id}
               className={`flex items-start gap-3 p-3 rounded-lg transition-all duration-300 ${
                 step.status === "current"
-                  ? "bg-blue-50 border border-blue-200"
+                  ? "bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800"
                   : step.status === "completed"
-                  ? "bg-white border border-gray-200"
-                  : "bg-gray-100 border border-gray-200 opacity-60"
+                  ? "bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700"
+                  : "bg-gray-100 dark:bg-gray-900 border border-gray-200 dark:border-gray-700 opacity-60"
               }`}
             >
               {/* Step Number */}
@@ -229,7 +229,7 @@ const StepVisualization = memo(function StepVisualization({
                     ? "bg-blue-500 text-white animate-pulse"
                     : step.status === "completed"
                     ? "bg-green-500 text-white"
-                    : "bg-gray-300 text-gray-600"
+                    : "bg-gray-300 dark:bg-gray-600 text-gray-600 dark:text-gray-300"
                 }`}
               >
                 {step.status === "completed" ? "✓" : index + 1}
@@ -237,7 +237,7 @@ const StepVisualization = memo(function StepVisualization({
 
               {/* Step Content */}
               <div className="flex-1 min-w-0">
-                <p className="text-sm font-medium text-gray-900">
+                <p className="text-sm font-medium text-gray-900 dark:text-gray-100 transition-colors">
                   {step.description}
                 </p>
                 {step.math && (

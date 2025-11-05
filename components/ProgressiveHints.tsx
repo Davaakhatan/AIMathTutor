@@ -62,7 +62,7 @@ export default function ProgressiveHints({
 
   if (hintLevel >= 4) {
     return (
-      <div className="text-xs text-gray-500 text-center py-2">
+      <div className="text-xs text-gray-500 dark:text-gray-400 text-center py-2 transition-colors">
         <p>You&apos;ve used all available hints. Try working through the problem step by step!</p>
       </div>
     );
@@ -71,7 +71,7 @@ export default function ProgressiveHints({
   return (
     <button
       onClick={generateHint}
-      className="text-xs text-blue-600 hover:text-blue-800 transition-colors font-medium flex items-center gap-1"
+      className="text-xs text-blue-600 dark:text-blue-400 hover:text-blue-800 dark:hover:text-blue-300 transition-colors font-medium flex items-center gap-1"
       title="Get a hint (progressive - gets more detailed)"
     >
       <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">

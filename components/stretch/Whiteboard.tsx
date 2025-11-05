@@ -141,22 +141,22 @@ export default function Whiteboard({
   }
 
   return (
-    <div className="border border-gray-200 rounded-lg bg-white p-4">
+    <div className="border border-gray-200 dark:border-gray-700 rounded-lg bg-white dark:bg-gray-900 p-4 transition-colors">
       <div className="flex items-center justify-between mb-3">
         <div className="flex items-center gap-2">
-          <h3 className="text-sm font-medium text-gray-900">Whiteboard</h3>
+          <h3 className="text-sm font-medium text-gray-900 dark:text-gray-100 transition-colors">Whiteboard</h3>
           {hasContent && (
-            <span className="text-xs text-gray-400">•</span>
+            <span className="text-xs text-gray-400 dark:text-gray-500 transition-colors">•</span>
           )}
           {hasContent && (
-            <span className="text-xs text-gray-500">Drawing active</span>
+            <span className="text-xs text-gray-500 dark:text-gray-400 transition-colors">Drawing active</span>
           )}
         </div>
         <div className="flex items-center gap-2">
           <button
             onClick={clearCanvas}
             disabled={!hasContent}
-            className="px-3 py-1.5 text-xs text-gray-600 hover:text-gray-900 hover:bg-gray-100 rounded-lg transition-colors disabled:opacity-50 disabled:cursor-not-allowed focus:outline-none focus:ring-2 focus:ring-gray-400 flex items-center gap-1.5"
+            className="px-3 py-1.5 text-xs text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-gray-100 hover:bg-gray-100 dark:hover:bg-gray-800 rounded-lg transition-colors disabled:opacity-50 disabled:cursor-not-allowed focus:outline-none focus:ring-2 focus:ring-gray-400 dark:focus:ring-gray-500 flex items-center gap-1.5"
             aria-label="Clear whiteboard"
           >
             <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -172,7 +172,7 @@ export default function Whiteboard({
           <button
             onClick={exportAsImage}
             disabled={!hasContent}
-            className="px-3 py-1.5 text-xs text-gray-600 hover:text-gray-900 hover:bg-gray-100 rounded-lg transition-colors disabled:opacity-50 disabled:cursor-not-allowed focus:outline-none focus:ring-2 focus:ring-gray-400 flex items-center gap-1.5"
+            className="px-3 py-1.5 text-xs text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-gray-100 hover:bg-gray-100 dark:hover:bg-gray-800 rounded-lg transition-colors disabled:opacity-50 disabled:cursor-not-allowed focus:outline-none focus:ring-2 focus:ring-gray-400 dark:focus:ring-gray-500 flex items-center gap-1.5"
             aria-label="Download as image"
           >
             <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -190,7 +190,7 @@ export default function Whiteboard({
 
       {/* Color Picker */}
       <div className="flex items-center gap-2 mb-3">
-        <span className="text-xs text-gray-600">Color:</span>
+        <span className="text-xs text-gray-600 dark:text-gray-400 transition-colors">Color:</span>
         <div className="flex gap-1">
           {colors.map((c) => (
             <button
@@ -198,8 +198,8 @@ export default function Whiteboard({
               onClick={() => setColor(c)}
               className={`w-6 h-6 rounded-full border-2 transition-all ${
                 color === c
-                  ? "border-gray-900 scale-110"
-                  : "border-gray-300 hover:border-gray-500"
+                  ? "border-gray-900 dark:border-gray-200 scale-110"
+                  : "border-gray-300 dark:border-gray-600 hover:border-gray-500 dark:hover:border-gray-400"
               }`}
               style={{ backgroundColor: c }}
               aria-label={`Select color ${c}`}
@@ -207,7 +207,7 @@ export default function Whiteboard({
           ))}
         </div>
         <div className="flex items-center gap-2 ml-auto">
-          <span className="text-xs text-gray-600">Size:</span>
+          <span className="text-xs text-gray-600 dark:text-gray-400 transition-colors">Size:</span>
           <input
             type="range"
             min="1"
@@ -221,7 +221,7 @@ export default function Whiteboard({
       </div>
 
       {/* Canvas */}
-      <div className="border border-gray-200 rounded-lg overflow-hidden bg-white">
+      <div className="border border-gray-200 dark:border-gray-700 rounded-lg overflow-hidden bg-white dark:bg-gray-800 transition-colors">
         <canvas
           ref={canvasRef}
           onMouseDown={startDrawing}
@@ -236,7 +236,7 @@ export default function Whiteboard({
         />
       </div>
 
-      <p className="text-xs text-gray-500 mt-2">
+      <p className="text-xs text-gray-500 dark:text-gray-400 mt-2 transition-colors">
         Draw diagrams, equations, or visual explanations to help understand the problem.
       </p>
     </div>

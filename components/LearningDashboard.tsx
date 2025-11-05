@@ -103,17 +103,17 @@ export default function LearningDashboard() {
   return (
     <div 
       ref={panelRef}
-      className="fixed bottom-4 right-4 z-50 bg-white border border-gray-200 rounded-lg shadow-xl w-96 max-w-[calc(100vw-2rem)] max-h-[80vh] flex flex-col"
+      className="fixed bottom-4 right-4 z-50 bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-700 rounded-lg shadow-xl w-96 max-w-[calc(100vw-2rem)] max-h-[80vh] flex flex-col transition-colors"
     >
-      <div className="flex items-center justify-between p-4 border-b border-gray-200">
-        <h3 className="text-sm font-medium text-gray-900">Learning Dashboard</h3>
+      <div className="flex items-center justify-between p-4 border-b border-gray-200 dark:border-gray-700">
+        <h3 className="text-sm font-medium text-gray-900 dark:text-gray-100">Learning Dashboard</h3>
         <div className="flex items-center gap-2">
           <button
             onClick={(e) => {
               e.stopPropagation();
               setIsOpen(false);
             }}
-            className="text-gray-400 hover:text-gray-600 transition-colors p-1 hover:bg-gray-100 rounded focus:outline-none focus:ring-2 focus:ring-gray-400"
+            className="text-gray-400 dark:text-gray-500 hover:text-gray-600 dark:hover:text-gray-300 transition-colors p-1 hover:bg-gray-100 dark:hover:bg-gray-800 rounded focus:outline-none focus:ring-2 focus:ring-gray-400 dark:focus:ring-gray-500"
             aria-label="Close dashboard"
             type="button"
             title="Close (X)"
@@ -150,7 +150,7 @@ export default function LearningDashboard() {
                 document.body.removeChild(a);
                 URL.revokeObjectURL(url);
               }}
-              className="text-xs text-gray-600 hover:text-gray-900 transition-colors p-1.5 hover:bg-gray-100 rounded focus:outline-none focus:ring-2 focus:ring-gray-400"
+              className="text-xs text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-gray-100 transition-colors p-1.5 hover:bg-gray-100 dark:hover:bg-gray-800 rounded focus:outline-none focus:ring-2 focus:ring-gray-400 dark:focus:ring-gray-500"
               title="Export learning data"
               aria-label="Export learning data"
             >
@@ -166,7 +166,7 @@ export default function LearningDashboard() {
           )}
           <button
             onClick={() => setIsOpen(false)}
-            className="text-gray-400 hover:text-gray-600 transition-colors p-1 hover:bg-gray-100 rounded focus:outline-none focus:ring-2 focus:ring-gray-400"
+            className="text-gray-400 dark:text-gray-500 hover:text-gray-600 dark:hover:text-gray-300 transition-colors p-1 hover:bg-gray-100 dark:hover:bg-gray-800 rounded focus:outline-none focus:ring-2 focus:ring-gray-400 dark:focus:ring-gray-500"
             aria-label="Close dashboard"
             type="button"
           >
@@ -184,9 +184,9 @@ export default function LearningDashboard() {
 
       <div className="flex-1 overflow-y-auto p-4 space-y-4">
         {!stats || stats.totalProblems === 0 ? (
-          <div className="text-center py-8 text-gray-400">
-            <p className="text-sm">No learning data yet</p>
-            <p className="text-xs mt-1">Start solving problems to see your progress</p>
+          <div className="text-center py-8 text-gray-400 dark:text-gray-500">
+            <p className="text-sm transition-colors">No learning data yet</p>
+            <p className="text-xs mt-1 transition-colors">Start solving problems to see your progress</p>
           </div>
         ) : (
           <>
@@ -204,7 +204,7 @@ export default function LearningDashboard() {
 
             {/* Problems by Type */}
             <div>
-              <h4 className="text-xs font-medium text-gray-700 mb-2 uppercase tracking-wide">
+              <h4 className="text-xs font-medium text-gray-700 dark:text-gray-300 mb-2 uppercase tracking-wide transition-colors">
                 Problems by Type
               </h4>
               <div className="space-y-2">
@@ -212,19 +212,19 @@ export default function LearningDashboard() {
                   .sort(([, a], [, b]) => b - a)
                   .map(([type, count]) => (
                     <div key={type} className="flex items-center justify-between">
-                      <span className="text-sm text-gray-600">
+                      <span className="text-sm text-gray-600 dark:text-gray-300 transition-colors">
                         {typeLabels[type] || type}
                       </span>
                       <div className="flex items-center gap-2">
-                        <div className="w-24 h-2 bg-gray-200 rounded-full overflow-hidden">
+                        <div className="w-24 h-2 bg-gray-200 dark:bg-gray-700 rounded-full overflow-hidden transition-colors">
                           <div
-                            className="h-full bg-gray-900 rounded-full transition-all"
+                            className="h-full bg-gray-900 dark:bg-gray-600 rounded-full transition-all"
                             style={{
                               width: `${(count / stats.totalProblems) * 100}%`,
                             }}
                           />
                         </div>
-                        <span className="text-xs text-gray-500 w-8 text-right">{count}</span>
+                        <span className="text-xs text-gray-500 dark:text-gray-400 w-8 text-right transition-colors">{count}</span>
                       </div>
                     </div>
                   ))}
@@ -232,15 +232,15 @@ export default function LearningDashboard() {
             </div>
 
             {/* Insights */}
-            <div className="pt-3 border-t border-gray-200">
-              <h4 className="text-xs font-medium text-gray-700 mb-2 uppercase tracking-wide">
+            <div className="pt-3 border-t border-gray-200 dark:border-gray-700">
+              <h4 className="text-xs font-medium text-gray-700 dark:text-gray-300 mb-2 uppercase tracking-wide transition-colors">
                 Insights
               </h4>
-              <div className="space-y-2 text-xs text-gray-600">
+              <div className="space-y-2 text-xs text-gray-600 dark:text-gray-400 transition-colors">
                 {Object.entries(stats.problemsByType).length > 0 && (
                   <p>
                     You&apos;ve practiced{" "}
-                    <span className="font-medium text-gray-900">
+                    <span className="font-medium text-gray-900 dark:text-gray-100 transition-colors">
                       {Object.keys(stats.problemsByType).length} different types
                     </span>{" "}
                     of problems.
@@ -249,7 +249,7 @@ export default function LearningDashboard() {
                 {Object.entries(stats.problemsByType).length > 0 && (
                   <p>
                     Most practiced:{" "}
-                    <span className="font-medium text-gray-900">
+                    <span className="font-medium text-gray-900 dark:text-gray-100 transition-colors">
                       {typeLabels[
                         Object.entries(stats.problemsByType).sort(
                           ([, a], [, b]) => b - a
@@ -261,7 +261,7 @@ export default function LearningDashboard() {
                 {stats.totalProblems >= 5 && (
                   <p>
                     Average time per problem:{" "}
-                    <span className="font-medium text-gray-900">
+                    <span className="font-medium text-gray-900 dark:text-gray-100 transition-colors">
                       {Math.round(stats.totalTime / stats.totalProblems)} minutes
                     </span>
                   </p>
@@ -284,7 +284,7 @@ export default function LearningDashboard() {
                   {Object.keys(stats.problemsByType).length < 4 && (
                     <p>
                       Consider practicing{" "}
-                      <span className="font-medium text-gray-900">
+                      <span className="font-medium text-gray-900 dark:text-gray-100 transition-colors">
                         {["ARITHMETIC", "ALGEBRA", "GEOMETRY", "WORD_PROBLEM"]
                           .filter((type) => !stats.problemsByType[type])
                           .map((type) => typeLabels[type])

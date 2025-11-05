@@ -7,6 +7,11 @@
   --foreground: #1a1a1a;
 }
 
+:root.dark {
+  --background: #0a0a0a;
+  --foreground: #fafafa;
+}
+
 body {
   color: var(--foreground);
   background: var(--background);
@@ -38,6 +43,15 @@ body {
 
 ::-webkit-scrollbar-thumb:hover {
   background: #9ca3af;
+}
+
+/* Dark mode scrollbar */
+.dark ::-webkit-scrollbar-thumb {
+  background: #4b5563;
+}
+
+.dark ::-webkit-scrollbar-thumb:hover {
+  background: #6b7280;
 }
 
 /* Hide checkbox default styling completely */

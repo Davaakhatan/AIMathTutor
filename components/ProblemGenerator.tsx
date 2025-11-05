@@ -135,14 +135,14 @@ export default function ProblemGenerator({
   ];
 
   return (
-    <div className="bg-white border border-gray-200 rounded-lg p-4">
+    <div className="bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-700 rounded-lg p-4 transition-colors">
       <div className="flex items-center justify-between mb-3">
-        <h3 className="text-sm font-medium text-gray-900">Generate Practice Problem</h3>
+        <h3 className="text-sm font-medium text-gray-900 dark:text-gray-100 transition-colors">Generate Practice Problem</h3>
       </div>
       
       {/* Difficulty Selector */}
       <div className="mb-3">
-        <label className="text-xs font-medium text-gray-700 mb-1.5 block">Difficulty Level</label>
+        <label className="text-xs font-medium text-gray-700 dark:text-gray-300 mb-1.5 block transition-colors">Difficulty Level</label>
         <div className="flex gap-2 flex-wrap">
           {[
             { value: "random" as const, label: "🎲 Random" },
@@ -157,8 +157,8 @@ export default function ProblemGenerator({
               disabled={isGenerating}
               className={`px-3 py-1.5 rounded-lg text-xs font-medium transition-colors whitespace-nowrap ${
                 selectedDifficulty === diff.value
-                  ? "bg-gray-900 text-white"
-                  : "bg-gray-100 text-gray-700 hover:bg-gray-200"
+                  ? "bg-gray-900 dark:bg-gray-700 text-white"
+                  : "bg-gray-100 dark:bg-gray-800 text-gray-700 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-700"
               } disabled:opacity-50 disabled:cursor-not-allowed`}
               aria-label={`Select ${diff.label} difficulty`}
             >
@@ -177,8 +177,8 @@ export default function ProblemGenerator({
               disabled={isGenerating}
               className={`px-3 py-2 rounded-lg text-xs font-medium transition-colors whitespace-nowrap flex items-center gap-1.5 ${
                 selectedType === type.value
-                  ? "bg-gray-900 text-white"
-                  : "bg-gray-100 text-gray-700 hover:bg-gray-200"
+                  ? "bg-gray-900 dark:bg-gray-700 text-white"
+                  : "bg-gray-100 dark:bg-gray-800 text-gray-700 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-700"
               } disabled:opacity-50 disabled:cursor-not-allowed`}
               aria-label={`Select ${type.label}`}
             >
@@ -190,7 +190,7 @@ export default function ProblemGenerator({
         <button
           onClick={handleGenerate}
           disabled={isGenerating}
-          className="px-4 py-2 bg-gray-900 text-white rounded-lg hover:bg-gray-800 disabled:bg-gray-300 disabled:text-gray-500 disabled:cursor-not-allowed transition-colors font-medium text-sm whitespace-nowrap flex items-center gap-2"
+          className="px-4 py-2 bg-gray-900 dark:bg-gray-700 text-white rounded-lg hover:bg-gray-800 dark:hover:bg-gray-600 disabled:bg-gray-300 dark:disabled:bg-gray-800 disabled:text-gray-500 dark:disabled:text-gray-400 disabled:cursor-not-allowed transition-colors font-medium text-sm whitespace-nowrap flex items-center gap-2"
           aria-label="Generate problem"
         >
           {isGenerating ? (
@@ -213,11 +213,11 @@ export default function ProblemGenerator({
           )}
         </button>
       </div>
-      <p className="text-xs text-gray-500 mt-2">
+      <p className="text-xs text-gray-500 dark:text-gray-400 mt-2 transition-colors">
         Generate a random practice problem of the selected type. Problems are generated using AI for variety.
       </p>
       {isGenerating && (
-        <div className="mt-3 text-xs text-gray-400 animate-pulse">
+        <div className="mt-3 text-xs text-gray-400 dark:text-gray-500 animate-pulse transition-colors">
           Generating problem...
         </div>
       )}

@@ -188,7 +188,7 @@ const ChatUI = memo(function ChatUI({
       return (
         <div 
           ref={chatContainerRef}
-          className="flex flex-col h-full max-h-[500px] sm:max-h-[600px] bg-white border border-gray-200 rounded-lg overflow-hidden"
+          className="flex flex-col h-full max-h-[500px] sm:max-h-[600px] bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-700 rounded-lg overflow-hidden transition-colors"
           role="log"
           aria-label="Conversation with math tutor"
           aria-live="polite"
@@ -196,7 +196,7 @@ const ChatUI = memo(function ChatUI({
         >
       {/* Header with restart button and voice toggle */}
       {(onRestart || enableStretchFeatures) && messages.length > 0 && (
-        <div className="border-b border-gray-200 px-4 py-2 flex justify-between items-center">
+        <div className="border-b border-gray-200 dark:border-gray-700 px-4 py-2 flex justify-between items-center transition-colors">
           <div className="flex items-center gap-2">
             {enableStretchFeatures && (
               <>
@@ -205,7 +205,7 @@ const ChatUI = memo(function ChatUI({
                   onSpeak={() => {}}
                   isEnabled={voiceEnabled}
                 />
-                <span className="text-xs text-gray-400 hidden sm:inline">
+                <span className="text-xs text-gray-400 dark:text-gray-500 hidden sm:inline transition-colors">
                   Voice input
                 </span>
               </>
@@ -215,7 +215,7 @@ const ChatUI = memo(function ChatUI({
             {enableStretchFeatures && (
               <button
                 onClick={() => setVoiceEnabled(!voiceEnabled)}
-                className="text-xs text-gray-500 hover:text-gray-700 transition-colors font-light px-2 py-1"
+                className="text-xs text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-300 transition-colors font-light px-2 py-1"
                 aria-label={voiceEnabled ? "Disable voice" : "Enable voice"}
                 title={voiceEnabled ? "Disable voice" : "Enable voice"}
               >
@@ -231,7 +231,7 @@ const ChatUI = memo(function ChatUI({
                     onRestart();
                   }
                 }}
-                className="text-xs text-gray-500 hover:text-gray-700 transition-colors font-light focus:outline-none focus:ring-2 focus:ring-gray-400 focus:ring-offset-1 rounded px-2 py-1"
+                className="text-xs text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-300 transition-colors font-light focus:outline-none focus:ring-2 focus:ring-gray-400 dark:focus:ring-gray-500 focus:ring-offset-1 rounded px-2 py-1"
                 aria-label="Restart conversation"
               >
                 Restart conversation
@@ -244,9 +244,9 @@ const ChatUI = memo(function ChatUI({
       {/* Messages Area */}
       <div className="flex-1 overflow-y-auto p-4 sm:p-6 space-y-4 sm:space-y-6">
         {messages.length === 0 ? (
-          <div className="text-center text-gray-400 py-8 sm:py-12">
+          <div className="text-center text-gray-400 dark:text-gray-500 py-8 sm:py-12 transition-colors">
             <p className="text-sm font-light mb-2">Start the conversation</p>
-            <p className="text-xs font-light text-gray-300">
+            <p className="text-xs font-light text-gray-300 dark:text-gray-400 transition-colors">
               {enableStretchFeatures && "Try using voice input or type your response"}
             </p>
           </div>
@@ -272,16 +272,16 @@ const ChatUI = memo(function ChatUI({
         )}
 
         {isLoading && (
-          <div className="flex flex-col gap-3 text-gray-400 animate-in fade-in">
+          <div className="flex flex-col gap-3 text-gray-400 dark:text-gray-500 animate-in fade-in transition-colors">
             <div className="flex items-center gap-3">
-              <div className="w-4 h-4 border-2 border-gray-300 border-t-gray-600 rounded-full animate-spin" />
+              <div className="w-4 h-4 border-2 border-gray-300 dark:border-gray-600 border-t-gray-600 dark:border-t-gray-400 rounded-full animate-spin transition-colors" />
               <span className="text-sm font-light">Tutor is thinking...</span>
             </div>
             {/* Loading skeleton for upcoming message */}
             <div className="flex justify-start animate-pulse">
-              <div className="max-w-[75%] bg-gray-100 rounded-lg px-4 py-3 space-y-2">
-                <div className="h-3 bg-gray-200 rounded w-3/4" />
-                <div className="h-3 bg-gray-200 rounded w-1/2" />
+              <div className="max-w-[75%] bg-gray-100 dark:bg-gray-800 rounded-lg px-4 py-3 space-y-2 transition-colors">
+                <div className="h-3 bg-gray-200 dark:bg-gray-700 rounded w-3/4 transition-colors" />
+                <div className="h-3 bg-gray-200 dark:bg-gray-700 rounded w-1/2 transition-colors" />
               </div>
             </div>
           </div>
@@ -289,7 +289,7 @@ const ChatUI = memo(function ChatUI({
 
         {/* Progressive Hints */}
         {enableStretchFeatures && problem && messages.length > 0 && !isLoading && (
-          <div className="px-4 py-2 border-t border-gray-100">
+          <div className="px-4 py-2 border-t border-gray-100 dark:border-gray-800 transition-colors">
             <ProgressiveHints
               problem={problem}
               sessionMessages={messages}

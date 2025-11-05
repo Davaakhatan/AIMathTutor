@@ -74,13 +74,13 @@ export default function AchievementBadge() {
     <>
       {/* New Achievement Toast */}
       {newAchievement && (
-        <div className="fixed top-20 left-1/2 transform -translate-x-1/2 z-50 bg-white border-2 border-yellow-400 rounded-lg shadow-xl p-4 animate-in fade-in slide-in-from-bottom-2">
+        <div className="fixed top-20 left-1/2 transform -translate-x-1/2 z-50 bg-white dark:bg-gray-900 border-2 border-yellow-400 dark:border-yellow-500 rounded-lg shadow-xl p-4 animate-in fade-in slide-in-from-bottom-2 transition-colors">
           <div className="flex items-center gap-3">
             <span className="text-4xl">{newAchievement.icon}</span>
             <div>
-              <p className="font-bold text-gray-900">Achievement Unlocked!</p>
-              <p className="text-sm text-gray-600">{newAchievement.name}</p>
-              <p className="text-xs text-gray-500">{newAchievement.description}</p>
+              <p className="font-bold text-gray-900 dark:text-gray-100 transition-colors">Achievement Unlocked!</p>
+              <p className="text-sm text-gray-600 dark:text-gray-300 transition-colors">{newAchievement.name}</p>
+              <p className="text-xs text-gray-500 dark:text-gray-400 transition-colors">{newAchievement.description}</p>
             </div>
           </div>
         </div>
@@ -114,13 +114,13 @@ export default function AchievementBadge() {
         <div className="fixed inset-0 z-50 bg-black bg-opacity-50 flex items-center justify-center p-4">
           <div 
             ref={panelRef}
-            className="bg-white rounded-lg shadow-xl w-full max-w-2xl max-h-[80vh] overflow-y-auto"
+            className="bg-white dark:bg-gray-900 rounded-lg shadow-xl w-full max-w-2xl max-h-[80vh] overflow-y-auto transition-colors"
           >
-            <div className="sticky top-0 bg-white border-b border-gray-200 p-4 flex items-center justify-between">
-              <h3 className="text-lg font-bold text-gray-900">Achievements</h3>
+            <div className="sticky top-0 bg-white dark:bg-gray-900 border-b border-gray-200 dark:border-gray-700 p-4 flex items-center justify-between transition-colors">
+              <h3 className="text-lg font-bold text-gray-900 dark:text-gray-100 transition-colors">Achievements</h3>
               <button
                 onClick={() => setIsOpen(false)}
-                className="text-gray-400 hover:text-gray-600"
+                className="text-gray-400 dark:text-gray-500 hover:text-gray-600 dark:hover:text-gray-300 transition-colors"
               >
                 <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
@@ -130,12 +130,12 @@ export default function AchievementBadge() {
 
             <div className="p-6">
               <div className="mb-6">
-                <p className="text-sm text-gray-600">
+                <p className="text-sm text-gray-600 dark:text-gray-400 transition-colors">
                   Progress: {unlocked.length} / {allAchievements.length} unlocked
                 </p>
-                <div className="mt-2 h-2 bg-gray-200 rounded-full overflow-hidden">
+                <div className="mt-2 h-2 bg-gray-200 dark:bg-gray-700 rounded-full overflow-hidden transition-colors">
                   <div
-                    className="h-full bg-purple-600 transition-all duration-300"
+                    className="h-full bg-purple-600 dark:bg-purple-500 transition-all duration-300"
                     style={{ width: `${(unlocked.length / allAchievements.length) * 100}%` }}
                   />
                 </div>
@@ -143,16 +143,16 @@ export default function AchievementBadge() {
 
               <div className="space-y-4">
                 <div>
-                  <h4 className="text-sm font-medium text-gray-700 mb-2">Unlocked ({unlocked.length})</h4>
+                  <h4 className="text-sm font-medium text-gray-700 dark:text-gray-300 mb-2 transition-colors">Unlocked ({unlocked.length})</h4>
                   <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
                     {unlocked.map((achievement) => (
                       <div
                         key={achievement.id}
-                        className="p-3 bg-yellow-50 border-2 border-yellow-400 rounded-lg text-center"
+                        className="p-3 bg-yellow-50 dark:bg-yellow-900/20 border-2 border-yellow-400 dark:border-yellow-500 rounded-lg text-center transition-colors"
                       >
                         <div className="text-2xl mb-1">{achievement.icon}</div>
-                        <div className="text-xs font-medium text-gray-900">{achievement.name}</div>
-                        <div className="text-xs text-gray-600 mt-0.5">{achievement.description}</div>
+                        <div className="text-xs font-medium text-gray-900 dark:text-gray-100 transition-colors">{achievement.name}</div>
+                        <div className="text-xs text-gray-600 dark:text-gray-400 mt-0.5 transition-colors">{achievement.description}</div>
                       </div>
                     ))}
                   </div>
@@ -160,15 +160,15 @@ export default function AchievementBadge() {
 
                 {locked.length > 0 && (
                   <div>
-                    <h4 className="text-sm font-medium text-gray-700 mb-2">Locked ({locked.length})</h4>
+                    <h4 className="text-sm font-medium text-gray-700 dark:text-gray-300 mb-2 transition-colors">Locked ({locked.length})</h4>
                     <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
                       {locked.map((achievement) => (
                         <div
                           key={achievement.id}
-                          className="p-3 bg-gray-100 border border-gray-300 rounded-lg text-center opacity-60"
+                          className="p-3 bg-gray-100 dark:bg-gray-800 border border-gray-300 dark:border-gray-700 rounded-lg text-center opacity-60 transition-colors"
                         >
                           <div className="text-2xl mb-1 grayscale">{achievement.icon}</div>
-                          <div className="text-xs font-medium text-gray-600">???</div>
+                          <div className="text-xs font-medium text-gray-600 dark:text-gray-400 transition-colors">???</div>
                         </div>
                       ))}
                     </div>

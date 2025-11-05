@@ -106,18 +106,18 @@ export default function StudyReminder() {
   return (
     <div 
       ref={panelRef}
-      className="fixed right-4 z-50 bg-white border border-gray-200 rounded-lg shadow-xl w-80 max-w-[calc(100vw-2rem)]"
+      className="fixed right-4 z-50 bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-700 rounded-lg shadow-xl w-80 max-w-[calc(100vw-2rem)] transition-colors"
       style={{ bottom: "21rem" }}
     >
       <div className="p-4">
         <div className="flex items-center justify-between mb-4">
-          <h3 className="text-sm font-medium text-gray-900">Study Reminders</h3>
+          <h3 className="text-sm font-medium text-gray-900 dark:text-gray-100 transition-colors">Study Reminders</h3>
           <button
             onClick={() => {
               setIsOpen(false);
               setShowReminder(false);
             }}
-            className="text-gray-400 hover:text-gray-600"
+            className="text-gray-400 dark:text-gray-500 hover:text-gray-600 dark:hover:text-gray-300 transition-colors"
             aria-label="Close"
           >
             <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -127,15 +127,15 @@ export default function StudyReminder() {
         </div>
 
         {showReminder && (
-          <div className="mb-4 p-3 bg-blue-50 border border-blue-200 rounded-lg">
-            <p className="text-sm text-blue-900 font-medium mb-1">Time to Study! 📚</p>
-            <p className="text-xs text-blue-700">Keep your streak going with some practice today!</p>
+          <div className="mb-4 p-3 bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 rounded-lg transition-colors">
+            <p className="text-sm text-blue-900 dark:text-blue-100 font-medium mb-1 transition-colors">Time to Study! 📚</p>
+            <p className="text-xs text-blue-700 dark:text-blue-300 transition-colors">Keep your streak going with some practice today!</p>
           </div>
         )}
 
         <div className="space-y-3">
           <label className="flex items-center justify-between">
-            <span className="text-sm text-gray-700">Enable Reminders</span>
+            <span className="text-sm text-gray-700 dark:text-gray-300 transition-colors">Enable Reminders</span>
             <input
               type="checkbox"
               checked={settings.enabled}
@@ -151,7 +151,7 @@ export default function StudyReminder() {
             <div className={`w-11 h-6 rounded-full transition-colors relative ${
               settings.enabled ? "bg-gray-900" : "bg-gray-200"
             }`}>
-              <div className={`absolute top-[2px] left-[2px] bg-white border border-gray-300 rounded-full h-5 w-5 transition-transform ${
+              <div className={`absolute top-[2px] left-[2px] bg-white dark:bg-gray-200 border border-gray-300 dark:border-gray-600 rounded-full h-5 w-5 transition-transform ${
                 settings.enabled ? "translate-x-5" : "translate-x-0"
               }`}></div>
             </div>
@@ -160,21 +160,21 @@ export default function StudyReminder() {
           {settings.enabled && (
             <>
               <div>
-                <label className="text-xs text-gray-600 mb-1 block">Reminder Time</label>
+                <label className="text-xs text-gray-600 dark:text-gray-400 mb-1 block transition-colors">Reminder Time</label>
                 <input
                   type="time"
                   value={settings.time}
                   onChange={(e) => setSettings({ ...settings, time: e.target.value })}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm"
+                  className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg text-sm bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100 transition-colors"
                 />
               </div>
 
               <div>
-                <label className="text-xs text-gray-600 mb-1 block">Frequency</label>
+                <label className="text-xs text-gray-600 dark:text-gray-400 mb-1 block transition-colors">Frequency</label>
                 <select
                   value={settings.frequency}
                   onChange={(e) => setSettings({ ...settings, frequency: e.target.value as "daily" | "weekly" })}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm"
+                  className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg text-sm bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100 transition-colors"
                 >
                   <option value="daily">Daily</option>
                   <option value="weekly">Weekly</option>

@@ -37,7 +37,7 @@ export default function MessageInput({
   return (
     <form
       onSubmit={handleSubmit}
-      className="border-t border-gray-200 p-3 sm:p-4 bg-white"
+      className="border-t border-gray-200 dark:border-gray-700 p-3 sm:p-4 bg-white dark:bg-gray-900 transition-colors"
     >
       <div className="flex gap-2 sm:gap-3">
         <textarea
@@ -54,28 +54,28 @@ export default function MessageInput({
           disabled={disabled}
           rows={2}
           maxLength={1000}
-          className="flex-1 px-3 py-2 sm:px-4 sm:py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-1 focus:ring-gray-400 focus:border-gray-400 disabled:bg-gray-50 disabled:cursor-not-allowed disabled:text-gray-400 resize-none text-gray-900 placeholder-gray-400 font-light text-sm"
+          className="flex-1 px-3 py-2 sm:px-4 sm:py-3 border border-gray-300 dark:border-gray-600 rounded-lg focus:outline-none focus:ring-1 focus:ring-gray-400 dark:focus:ring-gray-500 focus:border-gray-400 dark:focus:border-gray-500 disabled:bg-gray-50 dark:disabled:bg-gray-800 disabled:cursor-not-allowed disabled:text-gray-400 dark:disabled:text-gray-500 resize-none text-gray-900 dark:text-gray-100 placeholder-gray-400 dark:placeholder-gray-500 font-light text-sm bg-white dark:bg-gray-800 transition-colors"
           aria-label="Message input"
           aria-describedby="char-count"
         />
         <button
           type="submit"
           disabled={disabled || !message.trim()}
-          className="px-4 py-2 sm:px-6 sm:py-3 bg-gray-900 text-white rounded-lg hover:bg-gray-800 disabled:bg-gray-200 disabled:text-gray-400 disabled:cursor-not-allowed transition-colors whitespace-nowrap font-medium text-sm"
+          className="px-4 py-2 sm:px-6 sm:py-3 bg-gray-900 dark:bg-gray-700 text-white rounded-lg hover:bg-gray-800 dark:hover:bg-gray-600 disabled:bg-gray-200 dark:disabled:bg-gray-800 disabled:text-gray-400 dark:disabled:text-gray-500 disabled:cursor-not-allowed transition-colors whitespace-nowrap font-medium text-sm"
           aria-label="Send message"
         >
           Send
         </button>
       </div>
       <div className="flex justify-between items-center mt-2">
-        <p className="text-xs text-gray-400 font-light hidden sm:block">
+        <p className="text-xs text-gray-400 dark:text-gray-500 font-light hidden sm:block transition-colors">
           Press Enter to send
         </p>
         {message.length > 0 && (
           <p 
             id="char-count"
-            className={`text-xs font-light ${
-              message.length > 900 ? "text-orange-500" : "text-gray-400"
+            className={`text-xs font-light transition-colors ${
+              message.length > 900 ? "text-orange-500 dark:text-orange-400" : "text-gray-400 dark:text-gray-500"
             }`}
           >
             {message.length}/1000

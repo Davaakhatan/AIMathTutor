@@ -73,30 +73,30 @@ export default function SessionResume({ onResume }: SessionResumeProps) {
 
   return (
     <div className="fixed inset-0 z-50 bg-black bg-opacity-50 flex items-center justify-center p-4">
-      <div className="bg-white rounded-lg shadow-xl max-w-md w-full p-6">
-        <h3 className="text-lg font-medium text-gray-900 mb-2">
+      <div className="bg-white dark:bg-gray-900 rounded-lg shadow-xl max-w-md w-full p-6 transition-colors">
+        <h3 className="text-lg font-medium text-gray-900 dark:text-gray-100 mb-2 transition-colors">
           Resume Previous Session?
         </h3>
-        <p className="text-sm text-gray-600 mb-4">
+        <p className="text-sm text-gray-600 dark:text-gray-300 mb-4 transition-colors">
           We found a previous conversation from {sessionAge} minute{sessionAge !== 1 ? "s" : ""} ago with{" "}
           {savedMessages.length} message{savedMessages.length !== 1 ? "s" : ""}. Would you like to continue where you left off?
         </p>
-        <div className="bg-gray-50 border border-gray-200 rounded-lg p-3 mb-4">
-          <p className="text-xs text-gray-500 mb-1">Problem:</p>
-          <p className="text-sm text-gray-900 line-clamp-2">
+        <div className="bg-gray-50 dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg p-3 mb-4 transition-colors">
+          <p className="text-xs text-gray-500 dark:text-gray-400 mb-1 transition-colors">Problem:</p>
+          <p className="text-sm text-gray-900 dark:text-gray-100 line-clamp-2 transition-colors">
             {savedProblem.text}
           </p>
         </div>
         <div className="flex gap-3">
           <button
             onClick={handleResume}
-            className="flex-1 px-4 py-2 bg-gray-900 text-white rounded-lg hover:bg-gray-800 transition-colors font-medium text-sm"
+            className="flex-1 px-4 py-2 bg-gray-900 dark:bg-gray-700 text-white rounded-lg hover:bg-gray-800 dark:hover:bg-gray-600 transition-colors font-medium text-sm"
           >
             Resume Session
           </button>
           <button
             onClick={handleDismiss}
-            className="flex-1 px-4 py-2 bg-gray-100 text-gray-700 rounded-lg hover:bg-gray-200 transition-colors font-medium text-sm"
+            className="flex-1 px-4 py-2 bg-gray-100 dark:bg-gray-800 text-gray-700 dark:text-gray-300 rounded-lg hover:bg-gray-200 dark:hover:bg-gray-700 transition-colors font-medium text-sm"
           >
             Start New
           </button>

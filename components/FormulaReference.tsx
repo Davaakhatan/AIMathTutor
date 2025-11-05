@@ -109,16 +109,16 @@ export default function FormulaReference() {
   return (
     <div
       ref={panelRef}
-      className="fixed bottom-4 right-4 z-50 bg-white border border-gray-200 rounded-lg shadow-xl w-96 max-w-[calc(100vw-2rem)] max-h-[80vh] flex flex-col"
+      className="fixed bottom-4 right-4 z-50 bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-700 rounded-lg shadow-xl w-96 max-w-[calc(100vw-2rem)] max-h-[80vh] flex flex-col transition-colors"
     >
-      <div className="flex items-center justify-between p-4 border-b border-gray-200">
-        <h3 className="text-sm font-medium text-gray-900">Formula Reference</h3>
+      <div className="flex items-center justify-between p-4 border-b border-gray-200 dark:border-gray-700">
+        <h3 className="text-sm font-medium text-gray-900 dark:text-gray-100">Formula Reference</h3>
         <button
           onClick={(e) => {
             e.stopPropagation();
             setIsOpen(false);
           }}
-          className="text-gray-400 hover:text-gray-600 transition-colors p-1 hover:bg-gray-100 rounded focus:outline-none focus:ring-2 focus:ring-gray-400"
+          className="text-gray-400 dark:text-gray-500 hover:text-gray-600 dark:hover:text-gray-300 transition-colors p-1 hover:bg-gray-100 dark:hover:bg-gray-800 rounded focus:outline-none focus:ring-2 focus:ring-gray-400 dark:focus:ring-gray-500"
           aria-label="Close formula reference"
           type="button"
         >
@@ -133,7 +133,7 @@ export default function FormulaReference() {
         </button>
       </div>
 
-      <div className="px-4 pt-3 pb-2 border-b border-gray-200">
+      <div className="px-4 pt-3 pb-2 border-b border-gray-200 dark:border-gray-700">
         <div className="flex gap-2 overflow-x-auto">
           {categories.map((cat) => (
             <button
@@ -141,8 +141,8 @@ export default function FormulaReference() {
               onClick={() => setSelectedCategory(cat)}
               className={`px-3 py-1.5 text-xs font-medium rounded-lg whitespace-nowrap transition-colors ${
                 selectedCategory === cat
-                  ? "bg-gray-900 text-white"
-                  : "bg-gray-100 text-gray-700 hover:bg-gray-200"
+                  ? "bg-gray-900 dark:bg-gray-700 text-white"
+                  : "bg-gray-100 dark:bg-gray-800 text-gray-700 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-700"
               }`}
             >
               {cat}
@@ -155,16 +155,16 @@ export default function FormulaReference() {
         {filteredFormulas.map((formula, index) => (
           <div
             key={index}
-            className="p-3 bg-gray-50 border border-gray-200 rounded-lg"
+            className="p-3 bg-gray-50 dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg transition-colors"
           >
             <div className="flex items-start justify-between gap-2 mb-2">
               <div>
-                <h4 className="text-sm font-medium text-gray-900">{formula.name}</h4>
-                <p className="text-xs text-gray-500 mt-0.5">{formula.description}</p>
+                <h4 className="text-sm font-medium text-gray-900 dark:text-gray-100 transition-colors">{formula.name}</h4>
+                <p className="text-xs text-gray-500 dark:text-gray-400 mt-0.5 transition-colors">{formula.description}</p>
               </div>
-              <span className="text-xs text-gray-400 uppercase">{formula.category}</span>
+              <span className="text-xs text-gray-400 dark:text-gray-500 uppercase transition-colors">{formula.category}</span>
             </div>
-            <div className="mt-2 p-2 bg-white border border-gray-200 rounded font-mono text-sm text-gray-900">
+            <div className="mt-2 p-2 bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-700 rounded font-mono text-sm text-gray-900 dark:text-gray-100 transition-colors">
               {formula.formula}
             </div>
           </div>

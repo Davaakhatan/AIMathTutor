@@ -121,19 +121,19 @@ export default function ProblemProgress({ messages, problem }: ProblemProgressPr
   if (messages.length === 0) return null;
 
   return (
-    <div className="bg-white border border-gray-200 rounded-lg p-4">
+    <div className="bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-700 rounded-lg p-4 transition-colors">
       <div className="flex items-center justify-between mb-3">
         <div className="flex items-center gap-2">
-          <h4 className="text-xs font-medium text-gray-700 uppercase tracking-wide">
+          <h4 className="text-xs font-medium text-gray-700 dark:text-gray-300 uppercase tracking-wide transition-colors">
             Progress
           </h4>
-          <span className="text-xs text-gray-500">
+          <span className="text-xs text-gray-500 dark:text-gray-400 transition-colors">
             {getStage()}
           </span>
         </div>
         <button
           onClick={() => setShowDetails(!showDetails)}
-          className="text-xs text-gray-400 hover:text-gray-600 transition-colors"
+          className="text-xs text-gray-400 dark:text-gray-500 hover:text-gray-600 dark:hover:text-gray-300 transition-colors"
           aria-label={showDetails ? "Hide details" : "Show details"}
         >
           <svg 
@@ -153,32 +153,32 @@ export default function ProblemProgress({ messages, problem }: ProblemProgressPr
       </div>
 
       {/* Progress Bar */}
-      <div className="w-full h-2 bg-gray-200 rounded-full overflow-hidden mb-3">
+      <div className="w-full h-2 bg-gray-200 dark:bg-gray-700 rounded-full overflow-hidden mb-3 transition-colors">
         <div
           className={`h-full rounded-full transition-all duration-500 ${
-            isSolved ? "bg-green-600" : "bg-gray-900"
+            isSolved ? "bg-green-600 dark:bg-green-500" : "bg-gray-900 dark:bg-gray-600"
           }`}
           style={{ width: `${progress}%` }}
         />
       </div>
 
       {showDetails && (
-        <div className="pt-3 border-t border-gray-100 space-y-2">
+        <div className="pt-3 border-t border-gray-100 dark:border-gray-800 space-y-2 transition-colors">
           <div className="grid grid-cols-3 gap-3 text-xs">
             <div>
-              <p className="text-gray-500 mb-1">Exchanges</p>
-              <p className="text-gray-900 font-medium">{totalExchanges}</p>
+              <p className="text-gray-500 dark:text-gray-400 mb-1 transition-colors">Exchanges</p>
+              <p className="text-gray-900 dark:text-gray-100 font-medium transition-colors">{totalExchanges}</p>
             </div>
             <div>
-              <p className="text-gray-500 mb-1">Hints Used</p>
-              <p className="text-gray-900 font-medium">{hintsUsed}</p>
+              <p className="text-gray-500 dark:text-gray-400 mb-1 transition-colors">Hints Used</p>
+              <p className="text-gray-900 dark:text-gray-100 font-medium transition-colors">{hintsUsed}</p>
             </div>
             <div>
-              <p className="text-gray-500 mb-1">Progress</p>
-              <p className="text-gray-900 font-medium">{Math.round(progress)}%</p>
+              <p className="text-gray-500 dark:text-gray-400 mb-1 transition-colors">Progress</p>
+              <p className="text-gray-900 dark:text-gray-100 font-medium transition-colors">{Math.round(progress)}%</p>
             </div>
           </div>
-          <p className="text-xs text-gray-400 pt-2">
+          <p className="text-xs text-gray-400 dark:text-gray-500 pt-2 transition-colors">
             {isSolved 
               ? "🎉 Congratulations! You solved this problem!" 
               : "Keep going! You&apos;re making progress through this problem."}

@@ -101,29 +101,29 @@ export default function StudyStreak() {
     <div className="fixed top-4 left-4 z-40">
       <button
         onClick={() => setShowDetails(!showDetails)}
-        className="bg-white border border-gray-200 rounded-lg shadow-lg px-3 py-2 flex items-center gap-2 hover:bg-gray-50 transition-colors"
+        className="bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-700 rounded-lg shadow-lg px-3 py-2 flex items-center gap-2 hover:bg-gray-50 dark:hover:bg-gray-800 transition-colors"
         aria-label="Study streak"
       >
         <svg className="w-5 h-5 text-orange-500" fill="currentColor" viewBox="0 0 24 24">
           <path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z" />
         </svg>
-        <span className="text-sm font-medium text-gray-900">
+        <span className="text-sm font-medium text-gray-900 dark:text-gray-100 transition-colors">
           {streakData.currentStreak} day{streakData.currentStreak !== 1 ? "s" : ""}
         </span>
       </button>
 
       {showDetails && (
-        <div className="absolute top-full left-0 mt-2 bg-white border border-gray-200 rounded-lg shadow-xl p-4 w-64">
+        <div className="absolute top-full left-0 mt-2 bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-700 rounded-lg shadow-xl p-4 w-64 transition-colors">
           <div className="space-y-3">
             <div>
-              <p className="text-xs text-gray-500 mb-1">Current Streak</p>
-              <p className="text-2xl font-light text-gray-900">{streakData.currentStreak} days</p>
+              <p className="text-xs text-gray-500 dark:text-gray-400 mb-1 transition-colors">Current Streak</p>
+              <p className="text-2xl font-light text-gray-900 dark:text-gray-100 transition-colors">{streakData.currentStreak} days</p>
             </div>
             <div>
-              <p className="text-xs text-gray-500 mb-1">Longest Streak</p>
-              <p className="text-xl font-light text-gray-900">{streakData.longestStreak} days</p>
+              <p className="text-xs text-gray-500 dark:text-gray-400 mb-1 transition-colors">Longest Streak</p>
+              <p className="text-xl font-light text-gray-900 dark:text-gray-100 transition-colors">{streakData.longestStreak} days</p>
             </div>
-            <p className="text-xs text-gray-400 pt-2 border-t border-gray-200">
+            <p className="text-xs text-gray-400 dark:text-gray-500 pt-2 border-t border-gray-200 dark:border-gray-700 transition-colors">
               Keep practicing daily to maintain your streak!
             </p>
           </div>

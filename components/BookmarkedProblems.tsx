@@ -90,24 +90,24 @@ export default function BookmarkedProblems({ onSelectProblem }: BookmarkedProble
       {/* Panel */}
       <div
         ref={panelRef}
-        className="fixed bottom-4 right-4 z-50 w-full max-w-md max-h-[80vh] bg-white rounded-lg shadow-2xl border border-gray-200 flex flex-col"
+        className="fixed bottom-4 right-4 z-50 w-full max-w-md max-h-[80vh] bg-white dark:bg-gray-900 rounded-lg shadow-2xl border border-gray-200 dark:border-gray-700 flex flex-col transition-colors"
       >
         {/* Header */}
-        <div className="flex items-center justify-between p-4 border-b border-gray-200">
+        <div className="flex items-center justify-between p-4 border-b border-gray-200 dark:border-gray-700">
           <div className="flex items-center gap-2">
-            <svg className="w-5 h-5 text-yellow-500" fill="currentColor" viewBox="0 0 24 24">
+            <svg className="w-5 h-5 text-yellow-500 dark:text-yellow-400" fill="currentColor" viewBox="0 0 24 24">
               <path d="M5 5a2 2 0 012-2h10a2 2 0 012 2v16l-7-3.5L5 21V5z" />
             </svg>
-            <h3 className="text-lg font-semibold text-gray-900">
+            <h3 className="text-lg font-semibold text-gray-900 dark:text-gray-100 transition-colors">
               Bookmarked Problems
             </h3>
             {bookmarks.length > 0 && (
-              <span className="text-sm text-gray-500">({bookmarks.length})</span>
+              <span className="text-sm text-gray-500 dark:text-gray-400 transition-colors">({bookmarks.length})</span>
             )}
           </div>
           <button
             onClick={() => setIsOpen(false)}
-            className="text-gray-400 hover:text-gray-600 transition-colors"
+            className="text-gray-400 dark:text-gray-500 hover:text-gray-600 dark:hover:text-gray-300 transition-colors"
             aria-label="Close"
             type="button"
           >
@@ -119,14 +119,14 @@ export default function BookmarkedProblems({ onSelectProblem }: BookmarkedProble
 
         {/* Sort Controls */}
         {bookmarks.length > 0 && (
-          <div className="px-4 py-2 border-b border-gray-200 flex items-center gap-2">
-            <span className="text-xs text-gray-500">Sort by:</span>
+          <div className="px-4 py-2 border-b border-gray-200 dark:border-gray-700 flex items-center gap-2">
+            <span className="text-xs text-gray-500 dark:text-gray-400 transition-colors">Sort by:</span>
             <button
               onClick={() => setSortBy("recent")}
               className={`text-xs px-2 py-1 rounded transition-colors ${
                 sortBy === "recent"
-                  ? "bg-yellow-100 text-yellow-700 font-medium"
-                  : "text-gray-600 hover:bg-gray-100"
+                  ? "bg-yellow-100 dark:bg-yellow-900/20 text-yellow-700 dark:text-yellow-300 font-medium"
+                  : "text-gray-600 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-800"
               }`}
             >
               Recent
@@ -135,8 +135,8 @@ export default function BookmarkedProblems({ onSelectProblem }: BookmarkedProble
               onClick={() => setSortBy("type")}
               className={`text-xs px-2 py-1 rounded transition-colors ${
                 sortBy === "type"
-                  ? "bg-yellow-100 text-yellow-700 font-medium"
-                  : "text-gray-600 hover:bg-gray-100"
+                  ? "bg-yellow-100 dark:bg-yellow-900/20 text-yellow-700 dark:text-yellow-300 font-medium"
+                  : "text-gray-600 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-800"
               }`}
             >
               Type
@@ -147,8 +147,8 @@ export default function BookmarkedProblems({ onSelectProblem }: BookmarkedProble
         {/* Content */}
         <div className="flex-1 overflow-y-auto p-4">
           {bookmarks.length === 0 ? (
-            <div className="text-center py-8 text-gray-400">
-              <svg className="w-12 h-12 mx-auto mb-3 text-gray-300" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <div className="text-center py-8 text-gray-400 dark:text-gray-500">
+              <svg className="w-12 h-12 mx-auto mb-3 text-gray-300 dark:text-gray-600 transition-colors" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 5a2 2 0 012-2h10a2 2 0 012 2v16l-7-3.5L5 21V5z" />
               </svg>
               <p className="text-sm font-medium">No bookmarks yet</p>
@@ -160,7 +160,7 @@ export default function BookmarkedProblems({ onSelectProblem }: BookmarkedProble
                 <div
                   key={bookmark.id}
                   onClick={() => handleSelectProblem(bookmark)}
-                  className="group p-3 bg-gray-50 hover:bg-yellow-50 border border-gray-200 hover:border-yellow-300 rounded-lg cursor-pointer transition-all"
+                  className="group p-3 bg-gray-50 dark:bg-gray-800 hover:bg-yellow-50 dark:hover:bg-yellow-900/20 border border-gray-200 dark:border-gray-700 hover:border-yellow-300 dark:hover:border-yellow-600 rounded-lg cursor-pointer transition-all"
                 >
                   <div className="flex items-start justify-between gap-2">
                     <div className="flex-1 min-w-0">
@@ -170,17 +170,17 @@ export default function BookmarkedProblems({ onSelectProblem }: BookmarkedProble
                             {bookmark.type.replace("_", " ").toUpperCase()}
                           </span>
                         )}
-                        <span className="text-xs text-gray-400">
+                        <span className="text-xs text-gray-400 dark:text-gray-500 transition-colors">
                           {new Date(bookmark.bookmarkedAt).toLocaleDateString()}
                         </span>
                       </div>
-                      <p className="text-sm text-gray-900 line-clamp-2 group-hover:text-yellow-900">
+                      <p className="text-sm text-gray-900 dark:text-gray-100 line-clamp-2 group-hover:text-yellow-900 dark:group-hover:text-yellow-200 transition-colors">
                         {bookmark.text}
                       </p>
                     </div>
                     <button
                       onClick={(e) => handleRemoveBookmark(bookmark.id, e)}
-                      className="flex-shrink-0 text-gray-400 hover:text-red-500 transition-colors opacity-0 group-hover:opacity-100"
+                      className="flex-shrink-0 text-gray-400 dark:text-gray-500 hover:text-red-500 dark:hover:text-red-400 transition-colors opacity-0 group-hover:opacity-100"
                       aria-label="Remove bookmark"
                       title="Remove bookmark"
                       type="button"
@@ -198,7 +198,7 @@ export default function BookmarkedProblems({ onSelectProblem }: BookmarkedProble
 
         {/* Footer */}
         {bookmarks.length > 0 && (
-          <div className="px-4 py-3 border-t border-gray-200">
+          <div className="px-4 py-3 border-t border-gray-200 dark:border-gray-700">
             <button
               onClick={() => {
                 if (confirm("Are you sure you want to remove all bookmarks?")) {

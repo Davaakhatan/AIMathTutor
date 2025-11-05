@@ -82,19 +82,19 @@ export default function ProblemDifficultyIndicator({
       </button>
 
       {showDetails && (
-        <div className="absolute top-full left-0 mt-2 bg-white border border-gray-200 rounded-lg shadow-lg p-3 w-64 z-50">
-          <p className="text-xs text-gray-600 mb-2">
+        <div className="absolute top-full left-0 mt-2 bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-700 rounded-lg shadow-lg p-3 w-64 z-50 transition-colors">
+          <p className="text-xs text-gray-600 dark:text-gray-400 mb-2 transition-colors">
             Based on your past performance with {problemType.replace("_", " ")} problems:
           </p>
           <div className="space-y-1 text-xs">
             <div className="flex justify-between">
-              <span className="text-gray-500">Problems solved:</span>
+              <span className="text-gray-500 dark:text-gray-400 transition-colors">Problems solved:</span>
               <span className="font-medium">
                 {performanceHistory.filter(p => p.type === problemType && p.completed).length}
               </span>
             </div>
             <div className="flex justify-between">
-              <span className="text-gray-500">Avg. attempts:</span>
+              <span className="text-gray-500 dark:text-gray-400 transition-colors">Avg. attempts:</span>
               <span className="font-medium">
                 {performanceHistory.filter(p => p.type === problemType).length > 0
                   ? (performanceHistory.filter(p => p.type === problemType).reduce((sum, p) => sum + p.attempts, 0) / 
