@@ -679,18 +679,24 @@ export default function Whiteboard({
               <button
                 key={symbol}
                 onClick={() => {
-                  // Insert symbol as text
+                  // Insert symbol as text shape
                   const canvas = canvasRef.current;
                   if (!canvas) return;
-                  const ctx = canvas.getContext("2d");
-                  if (!ctx) return;
                   
                   const x = canvas.width / 2;
                   const y = canvas.height / 2;
                   
-                  ctx.fillStyle = color;
-                  ctx.font = `${lineWidth * 8}px Arial`;
-                  ctx.fillText(symbol, x, y);
+                  const shapeId = `shape-${Date.now()}-${Math.random()}`;
+                  const newShape: Shape = {
+                    id: shapeId,
+                    type: "text",
+                    x,
+                    y,
+                    color,
+                    lineWidth,
+                    text: symbol,
+                  };
+                  setShapes(prev => [...prev, newShape]);
                   setHasContent(true);
                   onDrawingChange?.(true);
                 }}
