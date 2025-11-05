@@ -264,17 +264,17 @@ Based on the feedback to "increase how much the whiteboard is integrated into th
 - Add text labels for diagrams
 - Add measurement tools (protractor, ruler visual guides)
 
-### 16. **Chat Message Enhancements**
-- Show AI's visual suggestions inline in chat
-- Render LaTeX equations better
-- Add collapsible sections for long explanations
-- Highlight key concepts in responses
+### 16. **Chat Message Enhancements** ✅ (DONE)
+- ✅ Render LaTeX equations better (via MathRenderer)
+- ✅ Add collapsible sections for long explanations (auto-collapse messages > 200 chars)
+- ✅ Enhanced message renderer with better structure
+- ⏳ Highlight key concepts in responses (can be added later via CSS)
 
-### 17. **Progress Visualization**
-- Show conceptual understanding as a skill tree
-- Visual progress bars for each concept
-- Heatmap of problem types practiced
-- Timeline of learning journey
+### 17. **Progress Visualization** ✅ (DONE)
+- ✅ Show conceptual understanding as a skill tree (categorized by math domains)
+- ✅ Visual progress bars for each concept (color-coded by mastery level)
+- ✅ Heatmap of problem types practiced (intensity-based visualization)
+- ✅ Timeline of learning journey (last 30 days with activity bars)
 
 ---
 
@@ -282,15 +282,15 @@ Based on the feedback to "increase how much the whiteboard is integrated into th
 
 ### Phase 1 (Quick Wins - 1-2 days each):
 1. ✅ Whiteboard integration (DONE)
-2. Conceptual understanding tracking
-3. Enhanced whiteboard toolbar
-4. Mistake detection improvements
+2. ✅ Conceptual understanding tracking (DONE)
+3. ✅ Enhanced whiteboard toolbar (DONE)
+4. ✅ Mistake detection improvements (DONE)
 
 ### Phase 2 (Medium effort - 3-5 days each):
-5. AI-generated visual suggestions
-6. Multi-step problem breakdown
-7. Adaptive problem selection
-8. Conceptual connections
+5. ✅ AI-generated visual suggestions (DONE)
+6. ✅ Multi-step problem breakdown (DONE)
+7. ✅ Adaptive problem selection (DONE)
+8. ✅ Conceptual connections (DONE)
 
 ### Phase 3 (Advanced features - 1-2 weeks each):
 9. Real-time collaborative drawing

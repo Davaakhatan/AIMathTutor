@@ -5,6 +5,7 @@ import { Message, ParsedProblem } from "@/types";
 import MessageComponent from "./Message";
 import MessageInput, { MessageInputRef } from "./MessageInput";
 import StepVisualization from "../stretch/StepVisualization";
+import ConceptualConnections from "../ConceptualConnections";
 import VoiceInterface, { speakText } from "../stretch/VoiceInterface";
 import ProgressiveHints from "../ProgressiveHints";
 import Whiteboard from "../stretch/Whiteboard";
@@ -306,6 +307,13 @@ const ChatUI = memo(function ChatUI({
           </div>
         ) : (
           <>
+            {/* Conceptual Connections */}
+            {enableStretchFeatures && problem && messages.length > 0 && (
+              <div className="animate-in fade-in slide-in-from-bottom-2 duration-300">
+                <ConceptualConnections problem={problem} compact={false} />
+              </div>
+            )}
+            
             {/* Step Visualization */}
             {enableStretchFeatures && problem && messages.length > 1 && (
               <div className="animate-in fade-in slide-in-from-bottom-2 duration-300">

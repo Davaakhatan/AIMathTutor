@@ -51,21 +51,28 @@ export default function ProblemProgress({ messages, problem }: ProblemProgressPr
       "answer is correct",
       "that's the correct answer",
       "that is the correct answer",
+      "the correct solution",
       "you got it right",
+      "you've got it",
+      "you got it",
       "you found the answer",
       "you found the solution",
       "congratulations! you solved",
       "congratulations! it looks like you've reached",
       "congratulations! you've reached an answer",
+      "congratulations on solving",
       "you've reached an answer",
       "you've reached the answer",
       "you reached an answer",
       "well done! you solved",
+      "well done on solving",
       "excellent! you solved",
       "perfect! you solved",
       "you've completed",
       "problem solved",
       "correctly solved",
+      "keep up the great work", // Often appears at the end of congratulations
+      "keep up the good work",
       "congratulations!",
       // Check if congratulations is followed by completion indicators
     ];
@@ -86,16 +93,33 @@ export default function ProblemProgress({ messages, problem }: ProblemProgressPr
        content.includes("completed"))
     );
     
+    // Check for phrases like "That's right!" or "Great work!" followed by confirmation
+    const positiveConfirmation = (
+      (content.includes("that's right") || 
+       content.includes("that is right") ||
+       content.includes("great work") ||
+       content.includes("great job") ||
+       content.includes("good work") ||
+       content.includes("excellent work")) &&
+      (content.includes("correct") || 
+       content.includes("solution") ||
+       content.includes("answer") ||
+       content.includes("solved"))
+    );
+    
     // Also check if tutor confirms a final numerical answer
-    // Look for patterns like "yes, x = 4" or "the answer is 4" in tutor's response
+    // Look for patterns like "yes, x = 4" or "x = 4 is correct" or "the answer is 4" in tutor's response
     const confirmsFinalAnswer = (
       /(yes|correct|right|exactly),?\s+(x|the answer|the solution|it)\s*=\s*\d+/.test(content) ||
+      /(x|the answer|the solution|it)\s*=\s*\d+.*correct/i.test(content) ||
+      /(the answer|the solution|it)\s+is\s+(the\s+)?correct/i.test(content) ||
       /(the answer|the solution|it)\s+is\s+\d+/.test(content) ||
       /you're right.*\d+/.test(content) ||
-      /correct.*answer.*\d+/.test(content)
+      /correct.*answer.*\d+/.test(content) ||
+      /(x|the answer|the solution)\s*=\s*\d+.*is\s+(the\s+)?correct/i.test(content)
     ) && !content.includes("?") && !content.includes("what"); // Exclude questions
     
-    return hasDefinitiveCompletion || congratulationsWithCompletion || confirmsFinalAnswer;
+    return hasDefinitiveCompletion || congratulationsWithCompletion || positiveConfirmation || confirmsFinalAnswer;
   });
   
   // Track concept mastery when problem is solved

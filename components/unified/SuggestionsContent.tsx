@@ -3,6 +3,7 @@
 import { useState, useEffect } from "react";
 import { ProblemType, ParsedProblem } from "@/types";
 import { useLocalStorage } from "@/hooks/useLocalStorage";
+import AdaptiveProblemSuggestions from "../AdaptiveProblemSuggestions";
 
 interface SavedProblem {
   id: string;
@@ -137,19 +138,55 @@ export default function SuggestionsContent({ onSelectProblem }: SuggestionsConte
     }
   };
 
+  const handleAdaptiveProblemSelect = (problemText: string, conceptId: string) => {
+    // Try to infer problem type from concept
+    const conceptToType: Record<string, ProblemType> = {
+      linear_equations: ProblemType.ALGEBRA,
+      quadratic_equations: ProblemType.ALGEBRA,
+      factoring: ProblemType.ALGEBRA,
+      pythagorean_theorem: ProblemType.GEOMETRY,
+      area_circle: ProblemType.GEOMETRY,
+      area_triangle: ProblemType.GEOMETRY,
+      area_rectangle: ProblemType.GEOMETRY,
+      perimeter: ProblemType.GEOMETRY,
+      angles: ProblemType.GEOMETRY,
+      fractions: ProblemType.ARITHMETIC,
+      decimals: ProblemType.ARITHMETIC,
+      percentages: ProblemType.ARITHMETIC,
+      ratios: ProblemType.ARITHMETIC,
+    };
+    
+    const problem: ParsedProblem = {
+      text: problemText,
+      type: conceptToType[conceptId] || ProblemType.UNKNOWN,
+      confidence: 0.9,
+    };
+    
+    onSelectProblem(problem);
+  };
+
   return (
     <div className="flex-1 overflow-y-auto p-4">
-      {savedProblems.length === 0 ? (
-        <div className="text-center py-8 text-gray-400 dark:text-gray-500 transition-colors">
-          <p className="text-sm mb-2">Start practicing to get personalized suggestions!</p>
-          <p className="text-xs">We&apos;ll suggest problem types based on your practice history.</p>
+      {/* Adaptive Problem Suggestions based on concept mastery */}
+      <AdaptiveProblemSuggestions
+        onSelectProblem={handleAdaptiveProblemSelect}
+        compact={false}
+      />
+      
+      {/* Problem Type Suggestions */}
+      <div className="mt-4 pt-4 border-t border-gray-200 dark:border-gray-700">
+        <div className="text-xs text-gray-600 dark:text-gray-400 mb-3 transition-colors">
+          <p className="font-medium text-gray-900 dark:text-gray-100 mb-1 transition-colors">
+            Or try different problem types:
+          </p>
+          <p>Explore different categories to build a well-rounded foundation.</p>
         </div>
-      ) : (
-        <>
-          <div className="text-xs text-gray-600 dark:text-gray-400 mb-3 transition-colors">
-            <p className="font-medium text-gray-900 dark:text-gray-100 mb-1 transition-colors">Based on your practice:</p>
-            <p>We suggest focusing on these problem types to build a well-rounded foundation.</p>
+        
+        {savedProblems.length === 0 ? (
+          <div className="text-center py-4 text-gray-400 dark:text-gray-500 transition-colors">
+            <p className="text-xs">Start practicing to see personalized type suggestions!</p>
           </div>
+        ) : (
           <div className="space-y-3">
             {suggestions.map((type) => (
               <button
@@ -185,8 +222,8 @@ export default function SuggestionsContent({ onSelectProblem }: SuggestionsConte
               </button>
             ))}
           </div>
-        </>
-      )}
+        )}
+      </div>
     </div>
   );
 }

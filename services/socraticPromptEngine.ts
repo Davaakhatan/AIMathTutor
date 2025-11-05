@@ -25,31 +25,36 @@ Core Principles:
 9. NEVER show complete factorizations, derivations, or calculations - guide them to do it
 
 Guidelines:
-- Start with broad questions: "What are we trying to find?" or "What information do we have?"
-- Guide to method selection: "What method might help here?" or "What operation should we use?"
-- Break down steps: "What should we do first?" or "Can we simplify this in any way?"
-- When student provides an answer: "Great! Let's verify: [show verification steps]" or "Perfect! So the answer is [confirm their answer]. Well done!"
-- When student shows they understand the method: "Excellent! Now let's finish solving: [guide final steps]"
+- Start with broad questions to help them understand the problem
+- Guide to method selection with leading questions
+- Break down steps into manageable parts
+- When student provides an answer: Verify it, congratulate them, confirm their answer, then STOP
+- When student shows they understand the method: Guide them to finish the calculation, then confirm and stop
 - If stuck: Provide a hint that points in the right direction without giving the answer
 - Keep it focused: Don't ask unrelated questions or go off-topic
 
-Completion Detection:
-- If student says "x = 4" or "the answer is 4" → Help verify and confirm completion
-- If student shows they understand the method → Guide them to finish the calculation
+Completion Detection & STOP Rules:
+- If student says "x = 4" or "the answer is 4" → Verify it's correct, then congratulate them, confirm their answer, and STOP asking questions
+- If student shows they understand the method and provides the answer → Confirm it's correct, congratulate them, and STOP asking questions
 - If conversation has been going on for 5+ exchanges → Start helping finalize the solution
-- Don't ask more questions after they've solved it - celebrate and confirm their work
+- **CRITICAL**: Once you confirm the solution is correct, you MUST STOP asking questions. Do NOT ask "What would you like to do next?" or any follow-up questions. The problem is solved.
+- **CRITICAL**: If you've already confirmed the solution, DO NOT ask more questions even if the student messages again. Give a brief acknowledgment and stop. The problem is complete.
 
 Example Interactions:
 
 Example 1 - Student reaches answer:
 Student: "So x = 4?"
-Tutor: "Excellent! Yes, x = 4. Let's verify: 2(4) + 5 = 8 + 5 = 13. Perfect! You solved it correctly!"
+Tutor: [Generate a response that: verifies the answer, congratulates them, confirms x = 4, and ENDS the conversation. Do NOT include any instruction text or markers in your response - just the natural congratulatory message.]
+
+Example 1b - Student messages after confirmation:
+Student: "Thanks!"
+Tutor: [Generate a brief, friendly acknowledgment - 1-2 sentences max, then STOP. Do NOT ask what they want to do next.]
 
 Example 2 - Student needs to finish:
 Student: "I subtract 5 from both sides, so 2x = 8"
 Tutor: "Perfect! Now what's the final step to get x by itself?"
 Student: "Divide by 2, so x = 4"
-Tutor: "Exactly! x = 4. Well done! You solved it step by step."
+Tutor: [Generate a response that: confirms x = 4 is correct, congratulates them, and ENDS the conversation. Do NOT include any instruction text or markers in your response - just the natural congratulatory message.]
 
 Example 3 - Student stuck:
 Student: "I don't know what to do"
@@ -57,7 +62,12 @@ Tutor: "Let's break it down. What information do we have in the problem?"
 Student: "We have 2x + 5 = 13"
 Tutor: "Good! What's our goal? What are we solving for?"
 
-Remember: Your role is to guide students to discover solutions, but also recognize when they've solved it and help them complete and verify their work. Don't keep asking questions after they've found the answer. Stay focused on solving the problem at hand.`;
+Remember: 
+- Your role is to guide students to discover solutions
+- When they solve it, CONFIRM and CONGRATULATE, then STOP asking questions
+- Do NOT ask "What would you like to do next?" after solving - the problem is complete
+- If you've already confirmed the solution, DO NOT ask more questions even if they message again
+- The problem ends when you confirm it's solved - that's your final message for that problem`;
   }
 
   /**
@@ -116,6 +126,24 @@ Remember: Your role is to guide students to discover solutions, but also recogni
     // Check if student has provided an answer in recent messages
     const lastStudentMessage = recentMessages.filter(m => m.role === "user").pop();
     const hasAnswer = lastStudentMessage && this.detectsAnswer(lastStudentMessage.content);
+    
+    // Check if tutor has already confirmed the solution (check last few tutor messages)
+    const tutorMessages = history.filter(m => m.role === "tutor").slice(-3);
+    const alreadyConfirmed = tutorMessages.some(msg => {
+      const content = msg.content.toLowerCase();
+      return (
+        content.includes("you've solved it") ||
+        content.includes("you solved it") ||
+        content.includes("solution is correct") ||
+        content.includes("answer is correct") ||
+        content.includes("congratulations") ||
+        content.includes("well done") ||
+        content.includes("excellent") ||
+        content.includes("perfect") ||
+        /(yes|correct|right),?\s+(x|the answer|the solution|it)\s*=\s*\d+/.test(content) ||
+        /(the answer|the solution|it)\s+is\s+\d+/.test(content)
+      );
+    });
 
     let prompt = `Problem: ${problemContext}\n\n`;
 
@@ -135,13 +163,36 @@ Remember: Your role is to guide students to discover solutions, but also recogni
 
     prompt += `\n${adaptation}\n\n`;
     
-    if (hasAnswer) {
-      prompt += "IMPORTANT: The student appears to have provided an answer. Help them verify and confirm their solution. Don't ask more questions - celebrate their success and verify their work.\n\n";
+    // CRITICAL: If already confirmed, STOP asking questions
+    if (alreadyConfirmed) {
+      prompt += "🚨 CRITICAL: The problem has ALREADY been solved and confirmed! You have already congratulated the student. " +
+        "DO NOT ask any more questions. DO NOT ask what they want to do next. " +
+        "If the student messages again after you've confirmed, give a VERY brief, friendly acknowledgment (1-2 sentences max) and then STOP. " +
+        "Do NOT ask questions. Do NOT include any instruction text, markers, or meta-commentary in your response. " +
+        "The problem is complete. Your previous confirmation was sufficient.\n\n";
+    } else if (hasAnswer) {
+      prompt += "🚨 CRITICAL: The student has provided an answer. You MUST:\n" +
+        "1. Verify the answer is correct (if it is)\n" +
+        "2. Congratulate them and celebrate their success\n" +
+        "3. Confirm the answer they provided\n" +
+        "4. STOP asking questions - the problem is solved\n" +
+        "DO NOT ask 'What would you like to do next?' or any other questions. " +
+        "DO NOT include any instruction text, markers like [STOP], or meta-commentary in your response. " +
+        "Generate ONLY a natural, congratulatory response that confirms their answer and ends the conversation for this problem.\n\n";
     } else if (history.length >= 8) {
       prompt += "NOTE: The conversation has been going on for a while. Help the student finalize the solution rather than asking more questions. If they're close, guide them to complete it.\n\n";
     }
     
-    prompt += "CRITICAL: Respond with ONLY a guiding question or hint. NEVER provide the answer, solution, factorization, or complete calculation. Guide them to discover it themselves. Keep it concise and focused (max 250 tokens). Stay on topic - only discuss the math problem at hand.";
+    // Only add the "guiding question" instruction if NOT already solved
+    if (!alreadyConfirmed && !hasAnswer) {
+      prompt += "CRITICAL: Respond with ONLY a guiding question or hint. NEVER provide the answer, solution, factorization, or complete calculation. Guide them to discover it themselves. Keep it concise and focused (max 250 tokens). Stay on topic - only discuss the math problem at hand.\n\n";
+    }
+    
+    prompt += "MISTAKE DETECTION: If the student's response contains a clear calculation error, wrong formula, or incorrect step, point it out constructively:\n" +
+    "- 'I notice you calculated X, but let's check that calculation together'\n" +
+    "- 'That's a good approach, but there might be an error in the calculation. Can you double-check?'\n" +
+    "- 'The formula looks right, but the result seems off. What do you get when you calculate...?'\n" +
+    "- Always guide them to discover the mistake themselves rather than just telling them it's wrong.\n";
 
     // Log prompt length for monitoring
     const promptLength = prompt.length;
@@ -156,17 +207,35 @@ Remember: Your role is to guide students to discover solutions, but also recogni
    * Detect if student message contains an answer
    */
   private detectsAnswer(message: string): boolean {
-    const normalized = message.toLowerCase();
+    const normalized = message.toLowerCase().trim();
     const answerPatterns = [
-      /(x\s*=\s*[-]?\d+)/,
-      /(answer\s*(is|:)?\s*[-]?\d+)/,
-      /(the\s+answer\s+is)/,
-      /(equals?\s+[-]?\d+)/,
-      /(solution\s*(is|:)?\s*[-]?\d+)/,
-      /^[-]?\d+$/, // Just a number
+      /(x\s*=\s*[-]?\d+\.?\d*)/, // x = 4 or x = 4.5
+      /(y\s*=\s*[-]?\d+\.?\d*)/, // y = 3
+      /(answer\s*(is|:)?\s*[-]?\d+\.?\d*)/i,
+      /(the\s+answer\s+is\s*[-]?\d+\.?\d*)/i,
+      /(equals?\s+[-]?\d+\.?\d*)/i,
+      /(solution\s*(is|:)?\s*[-]?\d+\.?\d*)/i,
+      /^(it|that|the\s+answer|the\s+solution)\s+(is|equals?)\s*[-]?\d+\.?\d*/i,
+      /^[-]?\d+\.?\d*$/, // Just a number (e.g., "4" or "-5.2")
+      /(i\s+got|i\s+think|i\s+believe|maybe)\s+[-]?\d+\.?\d*/i, // "I got 4" or "I think it's 5"
+      /(is\s+it|is\s+the\s+answer)\s+[-]?\d+\.?\d*\?/i, // "Is it 4?" or "Is the answer 5?"
     ];
     
-    return answerPatterns.some(pattern => pattern.test(normalized));
+    // Also check for completion phrases that indicate they think they're done
+    const completionPhrases = [
+      "i think that's it",
+      "that should be it",
+      "i think i got it",
+      "is that the answer",
+      "is that correct",
+      "done",
+      "finished",
+      "i solved it",
+      "that's the answer",
+    ];
+    
+    return answerPatterns.some(pattern => pattern.test(normalized)) ||
+           completionPhrases.some(phrase => normalized.includes(phrase));
   }
 
   /**

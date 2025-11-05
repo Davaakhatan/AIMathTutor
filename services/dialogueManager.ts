@@ -200,10 +200,14 @@ export class DialogueManager {
                 (whiteboardImage ? "\n\nIMPORTANT: The student has shared a whiteboard drawing. Analyze it carefully and:\n" +
                 "1. Reference specific parts of their drawing (e.g., 'I see you drew a triangle with...')\n" +
                 "2. Provide visual feedback on their work (e.g., 'The angle looks good, but...')\n" +
-                "3. Suggest visual improvements if needed (e.g., 'Try drawing a perpendicular line here')\n" +
-                "4. Acknowledge what they got right visually\n" +
-                "5. Guide them with visual suggestions (e.g., 'Let's add labels to make it clearer')\n" +
-                "Use the drawing to enhance your guidance and make it more interactive and visual." : ""),
+                "3. **MISTAKE DETECTION**: If you notice calculation errors, wrong formulas, or incorrect steps in their drawing or written work, point them out constructively:\n" +
+                "   - 'I notice you calculated 5 + 3 = 9, but let's check: 5 + 3 = ?'\n" +
+                "   - 'The formula you used looks correct, but the calculation might have an error. Can you double-check?'\n" +
+                "   - 'I see you labeled angle A, but make sure it matches the problem statement'\n" +
+                "4. Suggest visual improvements if needed (e.g., 'Try drawing a perpendicular line here')\n" +
+                "5. Acknowledge what they got right visually\n" +
+                "6. Guide them with visual suggestions (e.g., 'Let's add labels to make it clearer')\n" +
+                "Use the drawing to enhance your guidance, detect mistakes, and make it more interactive and visual." : ""),
             },
             {
               role: "user",

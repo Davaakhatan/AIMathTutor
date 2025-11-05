@@ -2,7 +2,7 @@
 
 import { memo } from "react";
 import { Message as MessageType } from "@/types";
-import MathRenderer from "../math/MathRenderer";
+import EnhancedMessageRenderer from "./EnhancedMessageRenderer";
 import MessageActions from "../MessageActions";
 
 interface MessageProps {
@@ -25,7 +25,7 @@ function Message({ message }: MessageProps) {
       >
         <div className="flex items-start justify-between gap-2">
           <div className="flex-1 text-sm leading-relaxed font-light">
-            <MathRenderer content={message.content} />
+            <EnhancedMessageRenderer content={message.content} isUser={isUser} />
           </div>
           <MessageActions content={message.content} />
         </div>

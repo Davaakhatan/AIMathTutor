@@ -4,6 +4,7 @@ import { useState, useEffect } from "react";
 import { useLocalStorage } from "@/hooks/useLocalStorage";
 import { ProblemType } from "@/types";
 import { getAllConcepts, getConceptsByCategory, getConceptsNeedingPractice, ConceptTrackingData } from "@/services/conceptTracker";
+import ProgressVisualization from "../ProgressVisualization";
 
 interface ProblemStats {
   totalProblems: number;
@@ -321,6 +322,14 @@ export default function DashboardContent() {
           </div>
         );
       })()}
+
+      {/* Progress Visualization */}
+      <div className="mt-6 pt-6 border-t border-gray-200 dark:border-gray-700">
+        <h4 className="text-xs font-medium text-gray-700 dark:text-gray-300 mb-3 uppercase tracking-wide transition-colors">
+          Visual Progress
+        </h4>
+        <ProgressVisualization view="all" />
+      </div>
 
       {/* Problems by Type */}
       <div>
