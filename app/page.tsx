@@ -402,6 +402,7 @@ export default function Home() {
                 {/* Display uploaded image if available (especially for geometry problems) */}
                 {currentProblem.imageUrl && (
                   <div className="mb-4">
+                    {/* eslint-disable-next-line @next/next/no-img-element */}
                     <img
                       src={currentProblem.imageUrl}
                       alt="Problem diagram"

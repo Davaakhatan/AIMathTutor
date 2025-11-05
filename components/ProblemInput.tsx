@@ -227,6 +227,7 @@ export default function ProblemInput({ onProblemParsed, apiKey }: ProblemInputPr
                 {/* Show image if available */}
                 {parsedProblem.imageUrl && (
                   <div className="mb-3">
+                    {/* eslint-disable-next-line @next/next/no-img-element */}
                     <img
                       src={parsedProblem.imageUrl}
                       alt="Problem diagram"

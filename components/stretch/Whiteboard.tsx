@@ -301,7 +301,7 @@ export default function Whiteboard({
 
       {!compact && (
         <p className="text-xs text-gray-500 dark:text-gray-400 mt-2 transition-colors">
-          Draw diagrams, equations, or visual explanations. Click "Send" to share with the tutor.
+          Draw diagrams, equations, or visual explanations. Click &quot;Send&quot; to share with the tutor.
         </p>
       )}
     </div>
