@@ -26,6 +26,7 @@ DEFERRABLE INITIALLY DEFERRED;
 -- Drop any conflicting policies
 DROP POLICY IF EXISTS "Owners can create student profiles" ON public.student_profiles;
 DROP POLICY IF EXISTS "Parents can create student profiles" ON public.student_profiles;
+DROP POLICY IF EXISTS "Students can create their own profiles" ON public.student_profiles;
 
 -- Students can create their own profiles (for Model B)
 CREATE POLICY "Students can create their own profiles" ON public.student_profiles
