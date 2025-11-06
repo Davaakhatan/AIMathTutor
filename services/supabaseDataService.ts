@@ -49,9 +49,14 @@ export async function getXPData(userId: string, profileId?: string | null): Prom
     if (error) {
       if (error.code === "PGRST116") {
         // No XP data yet - create default
-        return await createDefaultXPData(userId);
+        return await createDefaultXPData(userId, effectiveProfileId);
       }
-      logger.error("Error fetching XP data", { error: error.message, userId });
+      // Handle 406 Not Acceptable (RLS policy issue)
+      if (error.code === "PGRST301" || error.message?.includes("406")) {
+        logger.warn("RLS policy issue fetching XP data, trying to create default", { userId, profileId: effectiveProfileId });
+        return await createDefaultXPData(userId, effectiveProfileId);
+      }
+      logger.error("Error fetching XP data", { error: error.message, userId, profileId: effectiveProfileId });
       return null;
     }
 
