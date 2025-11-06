@@ -75,6 +75,12 @@ export async function getStudentProfiles(): Promise<StudentProfile[]> {
         .order("created_at", { ascending: true });
 
       if (error) {
+        // If profile doesn't exist yet (new student), return empty array instead of throwing
+        // The trigger should create it, but if it hasn't run yet, we'll just return empty
+        if (error.code === "PGRST116" || error.message?.includes("No rows")) {
+          logger.warn("Student profile not found yet, returning empty array", { userId: user.id });
+          return [];
+        }
         logger.error("Error fetching student's own profile", { error: error.message });
         throw error;
       }

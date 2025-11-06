@@ -123,29 +123,45 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         supabase.auth.getSession().then(async ({ data: { session }, error }) => {
           if (error) {
             logger.error("Error getting initial session", { error });
+            setLoading(false);
+            return;
           }
           setSession(session);
           setUser(session?.user ?? null);
           
           // Load user role and profiles/data if user is logged in
           if (session?.user) {
-            const { data: profile } = await supabase
-              .from("profiles")
-              .select("role")
-              .eq("id", session.user.id)
-              .single();
-            
-            setUserRole((profile?.role as any) || null);
-            
-            await Promise.all([
-              loadProfiles(session.user.id),
-              loadUserDataFromSupabase(),
-            ]);
+            try {
+              const { data: profile } = await supabase
+                .from("profiles")
+                .select("role")
+                .eq("id", session.user.id)
+                .single();
+              
+              setUserRole((profile?.role as any) || null);
+              
+              // Load profiles and user data in parallel, but don't block on errors
+              Promise.all([
+                loadProfiles(session.user.id).catch((err) => {
+                  logger.error("Error loading profiles on initial session", { error: err });
+                  // Don't throw - allow app to continue
+                }),
+                loadUserDataFromSupabase().catch((err) => {
+                  logger.error("Error loading user data on initial session", { error: err });
+                  // Don't throw - allow app to continue
+                }),
+              ]).finally(() => {
+                // Always set loading to false, even if there were errors
+                setLoading(false);
+              });
+            } catch (error) {
+              logger.error("Error loading profile data on initial session", { error });
+              setLoading(false);
+            }
           } else {
             setUserRole(null);
+            setLoading(false);
           }
-          
-          setLoading(false);
         });
 
         // Listen for auth changes
@@ -176,15 +192,26 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
           // localStorage will be used as cache, Supabase as source of truth
           if (_event === "SIGNED_IN" && session?.user) {
             logger.info("User signed in, loading data from Supabase", { userId: session.user.id });
-            // Load profiles and user data in parallel
+            // Load profiles and user data in parallel, but don't block on errors
             const loadPromises = [];
             if (profilesLoadedForUserRef.current !== session.user.id) {
-              loadPromises.push(loadProfiles(session.user.id));
+              loadPromises.push(
+                loadProfiles(session.user.id).catch((err) => {
+                  logger.error("Error loading profiles on sign in", { error: err });
+                })
+              );
             }
             if (userDataLoadedRef.current !== session.user.id) {
-              loadPromises.push(loadUserDataFromSupabase());
+              loadPromises.push(
+                loadUserDataFromSupabase().catch((err) => {
+                  logger.error("Error loading user data on sign in", { error: err });
+                })
+              );
             }
-            await Promise.all(loadPromises);
+            // Don't await - let it load in background, set loading to false immediately
+            Promise.all(loadPromises).catch((err) => {
+              logger.error("Error in parallel load on sign in", { error: err });
+            });
           }
           
           if (_event === "SIGNED_OUT") {
@@ -197,6 +224,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
             userDataLoadedRef.current = null;
           }
           
+          // Always set loading to false, even if profile loading is still in progress
           setLoading(false);
         });
 
