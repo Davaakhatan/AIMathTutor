@@ -279,11 +279,6 @@ export default function ProfileManager() {
             Parents/Teachers link to existing student accounts
           </p>
         )}
-        {userRole === "student" && (
-          <p className="text-xs text-gray-500 dark:text-gray-400">
-            Students have one profile created automatically
-          </p>
-        )}
       </div>
 
       {/* Create/Edit Form */}
