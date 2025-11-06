@@ -38,7 +38,17 @@ export default function LearningPath({ onStartProblem, apiKey }: LearningPathPro
       
       updatedPath.steps = updatedPath.steps.map(step => {
         const concept = conceptData.concepts[step.conceptId];
-        if (concept && concept.masteryLevel >= 70 && !step.completed) {
+        // Mark as completed if:
+        // 1. Mastery level >= 60% (lower threshold for completion)
+        // 2. OR has solved at least one problem successfully (50% success rate)
+        // 3. OR has attempted and solved at least one problem
+        const isCompleted = concept && (
+          concept.masteryLevel >= 60 || 
+          (concept.problemsSolved > 0 && concept.problemsSolved >= concept.problemsAttempted * 0.5) ||
+          (concept.problemsSolved > 0 && concept.problemsAttempted === 1)
+        );
+        
+        if (isCompleted && !step.completed) {
           pathUpdated = true;
           return {
             ...step,
@@ -59,6 +69,46 @@ export default function LearningPath({ onStartProblem, apiKey }: LearningPathPro
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [conceptData?.lastUpdated, learningPath?.id]); // Only depend on conceptData changes and path ID, not the full path object
+  
+  // Also check for updates periodically (every 2 seconds) to catch real-time updates
+  useEffect(() => {
+    if (!learningPath || !conceptData) return;
+    
+    const interval = setInterval(() => {
+      let pathUpdated = false;
+      const updatedPath = { ...learningPath };
+      
+      updatedPath.steps = updatedPath.steps.map(step => {
+        const concept = conceptData.concepts[step.conceptId];
+        const isCompleted = concept && (
+          concept.masteryLevel >= 60 || 
+          (concept.problemsSolved > 0 && concept.problemsSolved >= concept.problemsAttempted * 0.5) ||
+          (concept.problemsSolved > 0 && concept.problemsAttempted === 1)
+        );
+        
+        if (isCompleted && !step.completed) {
+          pathUpdated = true;
+          return {
+            ...step,
+            completed: true,
+            completedAt: Date.now(),
+          };
+        }
+        return step;
+      });
+      
+      if (pathUpdated) {
+        const completedSteps = updatedPath.steps.filter(s => s.completed).length;
+        updatedPath.progress = Math.round((completedSteps / updatedPath.steps.length) * 100);
+        updatedPath.currentStep = updatedPath.steps.findIndex(s => !s.completed);
+        updatedPath.lastUpdated = Date.now();
+        setLearningPath(updatedPath);
+      }
+    }, 2000); // Check every 2 seconds
+    
+    return () => clearInterval(interval);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [learningPath?.id, conceptData?.lastUpdated]);
 
   const handleGeneratePath = async () => {
     if (!goal.trim()) return;
@@ -165,12 +215,54 @@ export default function LearningPath({ onStartProblem, apiKey }: LearningPathPro
             {completedSteps} of {learningPath.steps.length} steps completed ({learningPath.progress}%)
           </p>
         </div>
-        <button
-          onClick={handleClearPath}
-          className="text-xs text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200 transition-colors"
-        >
-          Clear
-        </button>
+        <div className="flex gap-2">
+          <button
+            onClick={() => {
+              // Force refresh by checking concept data again
+              if (conceptData) {
+                let pathUpdated = false;
+                const updatedPath = { ...learningPath };
+                
+                updatedPath.steps = updatedPath.steps.map(step => {
+                  const concept = conceptData.concepts[step.conceptId];
+                  const isCompleted = concept && (
+                    concept.masteryLevel >= 60 || 
+                    (concept.problemsSolved > 0 && concept.problemsSolved >= concept.problemsAttempted * 0.5) ||
+                    (concept.problemsSolved > 0 && concept.problemsAttempted === 1)
+                  );
+                  
+                  if (isCompleted && !step.completed) {
+                    pathUpdated = true;
+                    return {
+                      ...step,
+                      completed: true,
+                      completedAt: Date.now(),
+                    };
+                  }
+                  return step;
+                });
+                
+                if (pathUpdated) {
+                  const completedSteps = updatedPath.steps.filter(s => s.completed).length;
+                  updatedPath.progress = Math.round((completedSteps / updatedPath.steps.length) * 100);
+                  updatedPath.currentStep = updatedPath.steps.findIndex(s => !s.completed);
+                  updatedPath.lastUpdated = Date.now();
+                  setLearningPath(updatedPath);
+                }
+              }
+            }}
+            className="text-xs px-2 py-1 text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-gray-100 bg-gray-100 dark:bg-gray-800 rounded-md transition-colors"
+            title="Refresh progress"
+          >
+            ↻ Refresh
+          </button>
+          <button
+            onClick={handleClearPath}
+            className="text-xs text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200 transition-colors"
+          >
+            Clear
+          </button>
+        </div>
       </div>
 
       {/* Progress Bar */}
