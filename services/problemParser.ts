@@ -64,9 +64,20 @@ export class ProblemParser {
           {
             role: "system",
             content:
-              "You are a math problem parser. Extract the math problem text from the image. " +
-              "Return ONLY the problem statement, nothing else. If there are equations, use LaTeX notation. " +
-              "Be precise and include all relevant numbers and operations.",
+              "You are a math problem parser specialized in extracting problems from hand-drawn or photographed images. " +
+              "Your task is to accurately identify and transcribe the math problem shown in the image.\n\n" +
+              "IMPORTANT GUIDELINES:\n" +
+              "1. Look carefully at ALL elements in the image: shapes, numbers, text, labels, measurements\n" +
+              "2. Identify geometric shapes (triangles, rectangles, circles, etc.) and their properties\n" +
+              "3. Extract ALL visible text, numbers, and labels exactly as shown\n" +
+              "4. If there's a question or instruction (like 'Find the height', 'Solve for x', etc.), include it\n" +
+              "5. Preserve the structure: if it's a triangle problem, describe it as a triangle problem\n" +
+              "6. Use LaTeX notation for equations (e.g., $x^2 + 5x + 6 = 0$)\n" +
+              "7. Be precise with measurements and labels\n" +
+              "8. Return ONLY the problem statement - do not generate a different problem\n\n" +
+              "If the image shows a triangle with sides labeled '3' and '3' and base '5' with text 'Find the height', " +
+              "you MUST return something like: 'An isosceles triangle has two equal sides of length 3 and a base of length 5. Find the height.' " +
+              "DO NOT return a completely different problem about rectangles or other shapes.",
           },
           {
             role: "user",
@@ -74,17 +85,23 @@ export class ProblemParser {
               {
                 type: "image_url",
                 image_url: {
-                  url: `data:image/jpeg;base64,${imageBase64}`,
+                  url: `data:image/png;base64,${imageBase64}`,
+                  detail: "high", // Use high detail for better recognition of hand-drawn content
                 },
               },
               {
                 type: "text",
-                text: "Extract the math problem from this image. Return only the problem statement.",
+                text: "Carefully examine this image. Identify all geometric shapes, numbers, labels, and any text. " +
+                      "Extract the complete math problem statement exactly as shown. " +
+                      "If there's a question like 'Find the height' or 'Solve for x', include it. " +
+                      "Describe the problem accurately - if it's a triangle problem, describe it as a triangle problem. " +
+                      "Do not generate a different problem. Return only what you see in the image.",
               },
             ],
           },
         ],
         max_tokens: 500,
+        temperature: 0.3, // Lower temperature for more accurate extraction
       });
 
       const extractedText = response.choices[0]?.message?.content?.trim();

@@ -147,8 +147,10 @@ export default function Whiteboard({
     shapes.forEach((shape) => {
       ctx.strokeStyle = shape.color;
       ctx.fillStyle = shape.color;
-      // Use thicker lines for better AI recognition (minimum 2px)
-      ctx.lineWidth = Math.max(2, shape.lineWidth * 1.2);
+      // Use thicker lines for better AI recognition (minimum 3px for shapes, 2px for lines)
+      // Thicker lines help the AI recognize shapes and numbers better
+      const minLineWidth = shape.type === "line" ? 2 : 3;
+      ctx.lineWidth = Math.max(minLineWidth, shape.lineWidth * 1.5);
       ctx.lineCap = "round";
       ctx.lineJoin = "round";
       ctx.beginPath();
@@ -177,14 +179,16 @@ export default function Whiteboard({
         case "text":
           // lineWidth is stored as pixel size (already calculated)
           // Use larger, bolder font for better AI recognition
-          const fontSize = Math.max(18, shape.lineWidth * 1.2);
+          // Increase font size significantly for better OCR
+          const fontSize = Math.max(24, shape.lineWidth * 1.5);
           ctx.font = `bold ${fontSize}px Arial, sans-serif`;
           ctx.fillStyle = shape.color;
           ctx.textAlign = "left";
           ctx.textBaseline = "alphabetic";
-          // Add subtle text stroke for better visibility against white background
-          ctx.lineWidth = 1;
-          ctx.strokeStyle = "rgba(0, 0, 0, 0.2)";
+          // Add text stroke for better visibility and AI recognition
+          ctx.lineWidth = Math.max(2, fontSize * 0.1);
+          ctx.strokeStyle = shape.color;
+          // Draw stroke first, then fill for better definition
           ctx.strokeText(shape.text || "", shape.x, shape.y);
           ctx.fillText(shape.text || "", shape.x, shape.y);
           break;
@@ -577,28 +581,43 @@ export default function Whiteboard({
     // Redraw to ensure all shapes are rendered before capturing
     redrawCanvas();
     
-    // Create a high-resolution copy for better AI recognition
-    const dpr = window.devicePixelRatio || 1;
-    const rect = canvas.getBoundingClientRect();
-    const tempCanvas = document.createElement('canvas');
-    tempCanvas.width = rect.width * dpr * 2; // 2x scale for better quality
-    tempCanvas.height = rect.height * dpr * 2;
-    const tempCtx = tempCanvas.getContext("2d");
-    
-    if (tempCtx) {
-      // Scale up the context
-      tempCtx.scale(2, 2);
-      // Draw the original canvas scaled up
-      tempCtx.drawImage(canvas, 0, 0, rect.width, rect.height);
+    // Wait a frame to ensure redraw is complete
+    requestAnimationFrame(() => {
+      // Create a high-resolution copy for better AI recognition
+      // Use 4x scale for maximum quality (similar to high-res photos)
+      const scale = 4;
+      const rect = canvas.getBoundingClientRect();
+      const tempCanvas = document.createElement('canvas');
+      tempCanvas.width = rect.width * scale;
+      tempCanvas.height = rect.height * scale;
+      const tempCtx = tempCanvas.getContext("2d");
       
-      // Use higher quality settings for better AI detection
-      const dataURL = tempCanvas.toDataURL("image/png", 1.0);
-      onSendDrawing(dataURL);
-    } else {
-      // Fallback to original canvas
-      const dataURL = canvas.toDataURL("image/png", 1.0);
-      onSendDrawing(dataURL);
-    }
+      if (tempCtx) {
+        // Set high-quality rendering
+        tempCtx.imageSmoothingEnabled = true;
+        tempCtx.imageSmoothingQuality = "high";
+        
+        // Fill white background for better contrast
+        tempCtx.fillStyle = "#ffffff";
+        tempCtx.fillRect(0, 0, tempCanvas.width, tempCanvas.height);
+        
+        // Scale up the context
+        tempCtx.scale(scale, scale);
+        
+        // Draw the original canvas at high resolution
+        // The canvas is already at device pixel ratio, so we draw it at its actual size
+        tempCtx.drawImage(canvas, 0, 0, rect.width, rect.height);
+        
+        // Use maximum quality PNG (1.0) for best AI recognition
+        const dataURL = tempCanvas.toDataURL("image/png", 1.0);
+        onSendDrawing(dataURL);
+      } else {
+        // Fallback to original canvas at maximum quality
+        const dataURL = canvas.toDataURL("image/png", 1.0);
+        onSendDrawing(dataURL);
+      }
+    });
+    
     // Clear canvas after sending (optional - user can keep drawing if they want)
     // Uncomment below if you want to auto-clear after send:
     // clearCanvas();

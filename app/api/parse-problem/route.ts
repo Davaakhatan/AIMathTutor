@@ -28,6 +28,69 @@ export async function POST(request: NextRequest) {
 
     // Extract API key from request if provided (fallback when env var not available)
     const clientApiKey = body.apiKey;
+    
+    // Helper function to validate API key format
+    const isValidApiKeyFormat = (key: string | undefined): boolean => {
+      if (!key || key.length === 0) return false;
+      const trimmed = key.trim();
+      return trimmed.startsWith("sk-") || trimmed.startsWith("sk-proj-");
+    };
+    
+    // Determine which API key to use: client-provided (if valid) > environment variable
+    // If client key is provided but invalid, fall back to env var
+    let apiKeyToUse: string | undefined;
+    if (clientApiKey && isValidApiKeyFormat(clientApiKey)) {
+      apiKeyToUse = clientApiKey.trim();
+      logger.info("Using client-provided API key for parse-problem", {
+        clientApiKeyLength: apiKeyToUse.length,
+      });
+    } else if (clientApiKey && !isValidApiKeyFormat(clientApiKey)) {
+      logger.warn("Client-provided API key has invalid format, falling back to environment variable", {
+        clientApiKeyPrefix: clientApiKey.substring(0, Math.min(10, clientApiKey.length)),
+      });
+      apiKeyToUse = process.env.OPENAI_API_KEY?.trim();
+    } else {
+      apiKeyToUse = process.env.OPENAI_API_KEY?.trim();
+    }
+    
+    // Log API key status for debugging (don't log the actual key)
+    logger.info("Parse-problem API request received", {
+      type: body.type,
+      hasClientApiKey: !!clientApiKey,
+      clientApiKeyValid: clientApiKey ? isValidApiKeyFormat(clientApiKey) : false,
+      hasEnvApiKey: !!process.env.OPENAI_API_KEY,
+      hasApiKeyToUse: !!apiKeyToUse,
+    });
+    
+    // Validate API key is available (only needed for image parsing)
+    if (body.type === "image" && !apiKeyToUse) {
+      logger.error("No API key available for image parsing", {
+        hasClientApiKey: !!clientApiKey,
+        clientApiKeyValid: clientApiKey ? isValidApiKeyFormat(clientApiKey) : false,
+        hasEnvApiKey: !!process.env.OPENAI_API_KEY,
+      });
+      return NextResponse.json(
+        {
+          success: false,
+          error: "OpenAI API key is not configured. Please:\n1. Add OPENAI_API_KEY to your .env.local file\n2. Restart your dev server\n3. Or enter a valid API key in Settings (must start with 'sk-' or 'sk-proj-').",
+        } as ParseProblemResponse,
+        { status: 500 }
+      );
+    }
+    
+    // Final validation of the key we're about to use (only for image parsing)
+    if (body.type === "image" && apiKeyToUse && !isValidApiKeyFormat(apiKeyToUse)) {
+      logger.error("API key format is invalid for image parsing", {
+        apiKeyPrefix: apiKeyToUse.substring(0, Math.min(10, apiKeyToUse.length)),
+      });
+      return NextResponse.json(
+        {
+          success: false,
+          error: "Invalid API key format. OpenAI API keys must start with 'sk-' or 'sk-proj-'. Please check your API key in Settings or .env.local file.",
+        } as ParseProblemResponse,
+        { status: 500 }
+      );
+    }
 
     if (!body.type || !body.data) {
       return NextResponse.json(
@@ -93,11 +156,11 @@ export async function POST(request: NextRequest) {
     let parsedProblem;
 
     if (body.type === "text") {
-      parsedProblem = await problemParser.parseText(body.data, clientApiKey);
+      parsedProblem = await problemParser.parseText(body.data, apiKeyToUse);
     } else if (body.type === "image") {
       // Remove data URL prefix if present
       const base64Data = body.data.replace(/^data:image\/\w+;base64,/, "");
-      parsedProblem = await problemParser.parseImage(base64Data, clientApiKey);
+      parsedProblem = await problemParser.parseImage(base64Data, apiKeyToUse);
     } else {
       return NextResponse.json(
         {

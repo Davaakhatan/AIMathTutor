@@ -30,15 +30,72 @@ export async function POST(request: NextRequest) {
     // Extract API key from request if provided (fallback when env var not available)
     const clientApiKey = body.apiKey;
     
+    // Helper function to validate API key format
+    const isValidApiKeyFormat = (key: string | undefined): boolean => {
+      if (!key || key.length === 0) return false;
+      const trimmed = key.trim();
+      return trimmed.startsWith("sk-") || trimmed.startsWith("sk-proj-");
+    };
+    
+    // Determine which API key to use: client-provided (if valid) > environment variable
+    // If client key is provided but invalid, fall back to env var
+    let apiKeyToUse: string | undefined;
+    if (clientApiKey && isValidApiKeyFormat(clientApiKey)) {
+      apiKeyToUse = clientApiKey.trim();
+      logger.info("Using client-provided API key", {
+        clientApiKeyLength: apiKeyToUse.length,
+      });
+    } else if (clientApiKey && !isValidApiKeyFormat(clientApiKey)) {
+      logger.warn("Client-provided API key has invalid format, falling back to environment variable", {
+        clientApiKeyPrefix: clientApiKey.substring(0, Math.min(10, clientApiKey.length)),
+      });
+      apiKeyToUse = process.env.OPENAI_API_KEY?.trim();
+    } else {
+      apiKeyToUse = process.env.OPENAI_API_KEY?.trim();
+    }
+    
     // Log API key status for debugging (don't log the actual key)
     logger.info("Chat API request received", {
       hasClientApiKey: !!clientApiKey,
       clientApiKeyLength: clientApiKey?.length || 0,
+      clientApiKeyValid: clientApiKey ? isValidApiKeyFormat(clientApiKey) : false,
       hasEnvApiKey: !!process.env.OPENAI_API_KEY,
       envApiKeyLength: process.env.OPENAI_API_KEY?.length || 0,
+      hasApiKeyToUse: !!apiKeyToUse,
+      apiKeyToUseLength: apiKeyToUse?.length || 0,
       isInitialization: !!body.problem,
       hasSessionId: !!body.sessionId,
     });
+    
+    // Validate API key is available
+    if (!apiKeyToUse) {
+      logger.error("No API key available", {
+        hasClientApiKey: !!clientApiKey,
+        clientApiKeyValid: clientApiKey ? isValidApiKeyFormat(clientApiKey) : false,
+        hasEnvApiKey: !!process.env.OPENAI_API_KEY,
+      });
+      return NextResponse.json(
+        {
+          success: false,
+          error: "OpenAI API key is not configured. Please:\n1. Add OPENAI_API_KEY to your .env.local file\n2. Restart your dev server\n3. Or enter a valid API key in Settings (must start with 'sk-' or 'sk-proj-').",
+        } as ChatResponse,
+        { status: 500 }
+      );
+    }
+    
+    // Final validation of the key we're about to use
+    if (!isValidApiKeyFormat(apiKeyToUse)) {
+      logger.error("API key format is invalid", {
+        apiKeyPrefix: apiKeyToUse.substring(0, Math.min(10, apiKeyToUse.length)),
+      });
+      return NextResponse.json(
+        {
+          success: false,
+          error: "Invalid API key format. OpenAI API keys must start with 'sk-' or 'sk-proj-'. Please check your API key in Settings or .env.local file.",
+        } as ChatResponse,
+        { status: 500 }
+      );
+    }
 
     // If this is the first message and includes a problem, initialize conversation
     if (body.problem) {
@@ -62,6 +119,7 @@ export async function POST(request: NextRequest) {
           sessionId: session.id,
           hasClientApiKey: !!clientApiKey,
           hasEnvApiKey: !!process.env.OPENAI_API_KEY,
+          hasApiKeyToUse: !!apiKeyToUse,
         });
         
         // Generate initial tutor message using OpenAI (with API key if provided)
@@ -73,7 +131,7 @@ export async function POST(request: NextRequest) {
             session.id,
             body.problem,
             difficultyMode as "elementary" | "middle" | "high" | "advanced",
-            clientApiKey,
+            apiKeyToUse, // Use the determined API key
             body.whiteboardImage // Pass whiteboard image if provided
           );
         } catch (generateError) {
@@ -83,6 +141,7 @@ export async function POST(request: NextRequest) {
             error: generateError instanceof Error ? generateError.message : String(generateError),
             hasClientApiKey: !!clientApiKey,
             hasEnvApiKey: !!process.env.OPENAI_API_KEY,
+            hasApiKeyToUse: !!apiKeyToUse,
           });
           
           // Clean up the session immediately
@@ -137,6 +196,7 @@ export async function POST(request: NextRequest) {
           } : null,
           hasClientApiKey: !!clientApiKey,
           hasEnvApiKey: !!process.env.OPENAI_API_KEY,
+          hasApiKeyToUse: !!apiKeyToUse,
         };
         
         logger.error("Error initializing conversation", errorDetails);
@@ -239,7 +299,7 @@ export async function POST(request: NextRequest) {
           body.sessionId,
           body.message,
           difficultyMode as "elementary" | "middle" | "high" | "advanced",
-          clientApiKey,
+          apiKeyToUse, // Use the determined API key
           body.whiteboardImage,
           rateLimit
         );
@@ -250,7 +310,7 @@ export async function POST(request: NextRequest) {
         body.sessionId,
         body.message,
         difficultyMode as "elementary" | "middle" | "high" | "advanced",
-        clientApiKey, // Pass client-provided API key if available
+        apiKeyToUse, // Use the determined API key
         body.whiteboardImage // Pass whiteboard image if provided
       );
       
@@ -276,6 +336,7 @@ export async function POST(request: NextRequest) {
         sessionId: body.sessionId,
         hasClientApiKey: !!clientApiKey,
         hasEnvApiKey: !!process.env.OPENAI_API_KEY,
+        hasApiKeyToUse: !!apiKeyToUse,
       });
       
       let errorMessage = "Failed to process message";

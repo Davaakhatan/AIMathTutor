@@ -210,16 +210,36 @@ function HomeContentInternal() {
       const timeoutId = setTimeout(() => controller.abort(), 30000);
 
       // Initialize chat session with problem
+      // If problem has an imageUrl (from whiteboard or upload), pass it as whiteboardImage
+      // so the AI can see the actual image, not just the extracted text
+      const requestBody: any = {
+        problem: problem,
+        difficultyMode: difficultyMode,
+        ...(settings.apiKey && { apiKey: settings.apiKey }), // Only include if defined
+      };
+      
+      // If problem has an image (from whiteboard drawing or upload), pass it to the AI
+      if (problem.imageUrl) {
+        // Extract base64 from data URL if needed
+        let base64Image: string;
+        if (problem.imageUrl.startsWith('data:image')) {
+          base64Image = problem.imageUrl.split(",")[1]; // Remove data URL prefix
+        } else {
+          base64Image = problem.imageUrl; // Already base64
+        }
+        requestBody.whiteboardImage = base64Image;
+        logger.debug("Including problem image in chat initialization", {
+          hasImage: true,
+          imageUrlLength: problem.imageUrl.length,
+        });
+      }
+      
       const response = await fetch("/api/chat", {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
         },
-        body: JSON.stringify({
-          problem: problem,
-          difficultyMode: difficultyMode,
-          ...(settings.apiKey && { apiKey: settings.apiKey }), // Only include if defined
-        }),
+        body: JSON.stringify(requestBody),
         signal: controller.signal,
       });
 

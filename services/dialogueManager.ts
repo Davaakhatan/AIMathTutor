@@ -36,7 +36,39 @@ export class DialogueManager {
       throw new Error(`Session ${sessionId} not found`);
     }
 
-    const prompt = socraticPromptEngine.buildInitialPrompt(problem);
+    // Build prompt - if there's an image, COMPLETELY IGNORE extracted text and only use the image
+    let prompt: string;
+    
+    // If there's an image (whiteboard or uploaded), COMPLETELY replace the prompt to focus ONLY on the image
+    if (whiteboardImage || uploadedImage) {
+      // DO NOT include the extracted text at all - it's often wrong
+      // Tell the AI to ONLY look at the image
+      prompt = "🚨🚨🚨 CRITICAL INSTRUCTION 🚨🚨🚨\n\n" +
+        "A STUDENT HAS DRAWN A MATH PROBLEM ON A WHITEBOARD. " +
+        "YOU MUST ANALYZE THE IMAGE PROVIDED AND IGNORE ANY TEXT THAT WAS EXTRACTED FROM IT.\n\n" +
+        "**YOUR TASK - FOLLOW THESE STEPS EXACTLY:**\n\n" +
+        "STEP 1: Look at the IMAGE provided below. DO NOT read any text descriptions.\n\n" +
+        "STEP 2: Identify EXACTLY what you see in the image:\n" +
+        "- What SHAPE is drawn? (triangle, rectangle, circle, etc.)\n" +
+        "- What NUMBERS are written? (e.g., 5, 10, 6m, 10m, x)\n" +
+        "- What LABELS are present? (e.g., 'Find the area', 'Find x', 'Find the height')\n" +
+        "- What MEASUREMENTS are shown? (e.g., side lengths, angles)\n\n" +
+        "STEP 3: Based ONLY on what you see in the image, determine what problem the student wants to solve.\n\n" +
+        "STEP 4: Start your response by describing EXACTLY what you see in the image.\n" +
+        "For example:\n" +
+        "- If you see a rectangle with sides 5 and 10 and text 'Find the Area', say: 'I can see you've drawn a rectangle with sides labeled 5 and 10, and you want to find its area.'\n" +
+        "- If you see a triangle with sides 6m, 10m, and x, say: 'I can see you've drawn a right triangle with one side labeled 6m, another side labeled 10m, and a third side labeled x.'\n\n" +
+        "**CRITICAL RULES:**\n" +
+        "1. DO NOT mention any problem that's not visible in the image\n" +
+        "2. DO NOT use the extracted text - it may be completely wrong\n" +
+        "3. If the image shows a rectangle, the problem is about a rectangle - NOT a triangle\n" +
+        "4. If the image shows sides 6m and 10m, use those exact measurements - NOT 3, 4, 5\n" +
+        "5. The IMAGE is the ONLY source of truth\n\n" +
+        "Now look at the image and describe what you ACTUALLY see, then help the student solve that specific problem.";
+    } else {
+      // No image - use the normal prompt with extracted text
+      prompt = socraticPromptEngine.buildInitialPrompt(problem);
+    }
 
     try {
       // Use client-provided API key if available, otherwise use default
@@ -49,6 +81,7 @@ export class DialogueManager {
         hasClientApiKey: !!clientApiKey,
         hasEnvApiKey: !!process.env.OPENAI_API_KEY,
         hasUploadedImage: !!uploadedImage,
+        hasWhiteboardImage: !!whiteboardImage,
       });
 
       // Call OpenAI API
@@ -123,37 +156,25 @@ export class DialogueManager {
               content: socraticPromptEngine.generateSystemPrompt(difficultyMode) +
                 ((uploadedImage || whiteboardImage) ? "\n\n" +
                   "═══════════════════════════════════════════════════════════════\n" +
-                  "🚨 CRITICAL: VISUAL DIAGRAM/IMAGE IS PRESENT WITH THIS PROBLEM 🚨\n" +
+                  "🚨🚨🚨 CRITICAL: VISUAL IMAGE IS THE ONLY SOURCE OF TRUTH 🚨🚨🚨\n" +
                   "═══════════════════════════════════════════════════════════════\n\n" +
-                  "**YOU MUST ANALYZE THE VISUAL IMAGE BEFORE RESPONDING TO ANYTHING ELSE.**\n\n" +
-                  "**STEP 1: IMMEDIATE VISUAL ANALYSIS**\n" +
-                  "Look at the image NOW. You MUST identify:\n" +
-                  "- ALL geometric shapes (triangles, rectangles, circles, lines, angles)\n" +
-                  "- ALL text labels, numbers, letters, variables (like x, y, z)\n" +
-                  "- ALL vertex labels (A, B, C, D, etc.) if present\n" +
-                  "- ALL measurements, dimensions, arrows, annotations\n" +
-                  "- Spatial relationships and arrangement\n" +
-                  "- Right angle indicators (small squares at vertices)\n" +
-                  "- Any mathematical relationships visible in the diagram\n\n" +
-                  "**STEP 2: MATCH IMAGE TO PROBLEM TEXT**\n" +
-                  "Compare the image to the problem statement. The image IS the visual representation of the problem.\n" +
-                  "If the problem says 'Find the value of x' and the image shows a right triangle with sides labeled '6 m', 'x', and '10 m', " +
-                  "then you are looking at a Pythagorean Theorem problem where x is a side length.\n\n" +
-                  "**STEP 3: YOUR RESPONSE MUST START WITH ACKNOWLEDGING THE IMAGE**\n" +
-                  "Your FIRST sentence MUST acknowledge exactly what you see in the image. Describe:\n" +
-                  "- 'I can see you have a right triangle with sides labeled 6 m, x, and 10 m...'\n" +
-                  "- 'Looking at your diagram, I notice a right triangle...'\n" +
-                  "- Reference specific measurements from the image (6 m, x, 10 m)\n" +
-                  "- Identify the triangle type and which side is the hypotenuse\n\n" +
-                  "**STEP 4: USE THE IMAGE TO GUIDE YOUR TUTORING**\n" +
-                  "Reference specific elements from the image in your questions:\n" +
-                  "- 'What do you know about the side labeled 6 m?'\n" +
-                  "- 'Can you tell me about the relationship between the hypotenuse (10 m) and the other two sides?'\n" +
-                  "- 'What theorem or formula connects these three sides in a right triangle?'\n" +
-                  "- 'Which side is the hypotenuse? Which sides are the legs?'\n\n" +
-                  "**CRITICAL: DO NOT ignore the image. The image contains essential information that the text alone cannot convey.**\n" +
-                  "If the problem text mentions 'Find the value of x' and the image shows a triangle with labeled sides, " +
-                  "you MUST recognize this is a geometry problem and help the student use the appropriate theorem.\n" +
+                  "**ABSOLUTE RULE: IGNORE ALL TEXT DESCRIPTIONS. ONLY USE THE IMAGE.**\n\n" +
+                  "The user has drawn a problem on a whiteboard. Any text that was extracted from the image " +
+                  "may be COMPLETELY WRONG. The image is the ONLY reliable source of information.\n\n" +
+                  "**YOU MUST:**\n" +
+                  "1. Look ONLY at the image - ignore any text descriptions\n" +
+                  "2. Identify the EXACT shape drawn (rectangle, triangle, circle, etc.)\n" +
+                  "3. Read the EXACT numbers and labels shown in the image\n" +
+                  "4. Use ONLY what you see - if the image shows a rectangle with sides 5 and 10, " +
+                  "the problem is about that rectangle, NOT a triangle\n" +
+                  "5. If the image shows 6m and 10m, use those measurements - NOT 3, 4, 5\n" +
+                  "6. Start your response by describing EXACTLY what you see in the image\n\n" +
+                  "**DO NOT:**\n" +
+                  "- Mention any problem not visible in the image\n" +
+                  "- Use measurements that aren't in the image\n" +
+                  "- Assume it's a triangle if you see a rectangle\n" +
+                  "- Trust any extracted text - it's often wrong\n\n" +
+                  "The image is the student's actual work. Respect what they drew.\n" +
                   "═══════════════════════════════════════════════════════════════\n" : ""),
             },
             {
