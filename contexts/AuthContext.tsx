@@ -240,13 +240,18 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
           }
           
           if (_event === "SIGNED_OUT") {
-            // Clear profile state on sign out
+            // Clear ALL state on sign out
+            logger.info("SIGNED_OUT event received, clearing all state");
+            setSession(null);
+            setUser(null);
+            setUserRole(null);
             setActiveProfileState(null);
             setProfiles([]);
-            setUserRole(null);
             profilesLoadedForUserRef.current = null;
             isLoadingProfilesRef.current = false;
             userDataLoadedRef.current = null;
+            // Clear localStorage cache
+            clearUserData();
           }
         });
 
