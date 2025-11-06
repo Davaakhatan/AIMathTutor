@@ -281,3 +281,51 @@ export function getConceptsNeedingPractice(data?: ConceptTrackingData, threshold
   return getAllConcepts(data).filter(concept => concept.masteryLevel < threshold);
 }
 
+/**
+ * Concept relationship map - defines which concepts are actually related
+ * This ensures Related Concepts shows only relevant concepts, not just same category
+ */
+const CONCEPT_RELATIONSHIPS: Record<string, string[]> = {
+  // Area concepts are related to each other and perimeter
+  "area_rectangle": ["area_triangle", "area_circle", "perimeter", "volume"],
+  "area_triangle": ["area_rectangle", "area_circle", "perimeter", "pythagorean_theorem"],
+  "area_circle": ["area_rectangle", "area_triangle", "perimeter"],
+  "perimeter": ["area_rectangle", "area_triangle", "area_circle"],
+  "volume": ["area_rectangle", "area_triangle", "area_circle"],
+  
+  // Triangle-related concepts
+  "pythagorean_theorem": ["area_triangle", "angles"],
+  "angles": ["pythagorean_theorem", "area_triangle"],
+  
+  // Algebra concepts
+  "linear_equations": ["quadratic_equations", "factoring", "slope"],
+  "quadratic_equations": ["linear_equations", "factoring", "exponents"],
+  "factoring": ["linear_equations", "quadratic_equations"],
+  "exponents": ["quadratic_equations", "roots"],
+  "roots": ["exponents", "quadratic_equations"],
+  "slope": ["linear_equations"],
+  
+  // Arithmetic concepts
+  "fractions": ["decimals", "percentages", "ratios"],
+  "decimals": ["fractions", "percentages"],
+  "percentages": ["fractions", "decimals", "ratios"],
+  "ratios": ["fractions", "percentages"],
+};
+
+/**
+ * Get related concept IDs for a given concept
+ * Returns concepts that are actually related, not just same category
+ */
+export function getRelatedConceptIds(conceptId: string): string[] {
+  // Direct relationships
+  const direct = CONCEPT_RELATIONSHIPS[conceptId] || [];
+  
+  // Also find concepts that list this one as related (bidirectional)
+  const reverse = Object.entries(CONCEPT_RELATIONSHIPS)
+    .filter(([_, related]) => related.includes(conceptId))
+    .map(([id]) => id);
+  
+  // Combine and deduplicate
+  return [...new Set([...direct, ...reverse])];
+}
+

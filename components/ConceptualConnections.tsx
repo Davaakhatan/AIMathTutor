@@ -2,7 +2,7 @@
 
 import { useState, useEffect, memo } from "react";
 import { ParsedProblem } from "@/types";
-import { extractConcepts, getConceptsByCategory } from "@/services/conceptTracker";
+import { extractConcepts, getRelatedConceptIds } from "@/services/conceptTracker";
 import { useLocalStorage } from "@/hooks/useLocalStorage";
 import { ConceptTrackingData } from "@/services/conceptTracker";
 
@@ -39,28 +39,35 @@ const ConceptualConnections = memo(function ConceptualConnections({
     // Get all tracked concepts
     const allConcepts = Object.values(conceptData.concepts || {});
     
-    // Find related concepts (same category or frequently used together)
+    // Find related concepts using relationship map (not just same category)
     const related: RelatedConcept[] = [];
+    const relatedConceptIds = new Set<string>();
     
+    // For each concept in the current problem, find its related concepts
     currentConcepts.forEach((currentConceptId) => {
-      const currentConcept = conceptData.concepts?.[currentConceptId];
-      if (!currentConcept) return;
-
-      // Find concepts in the same category
-      allConcepts.forEach((concept) => {
-        if (
-          concept.id !== currentConceptId &&
-          concept.category === currentConcept.category &&
-          !related.find(r => r.id === concept.id)
-        ) {
-          related.push({
-            id: concept.id,
-            name: concept.name,
-            category: concept.category,
-            masteryLevel: concept.masteryLevel,
-          });
-        }
-      });
+      // Get concepts that are actually related to this one
+      const relatedIds = getRelatedConceptIds(currentConceptId);
+      relatedIds.forEach(id => relatedConceptIds.add(id));
+    });
+    
+    // Find tracked concepts that match the related concept IDs
+    allConcepts.forEach((concept) => {
+      // Only include if:
+      // 1. It's a related concept (from relationship map)
+      // 2. It's not one of the current problem's concepts
+      // 3. It hasn't been added already
+      if (
+        relatedConceptIds.has(concept.id) &&
+        !currentConcepts.includes(concept.id) &&
+        !related.find(r => r.id === concept.id)
+      ) {
+        related.push({
+          id: concept.id,
+          name: concept.name,
+          category: concept.category,
+          masteryLevel: concept.masteryLevel,
+        });
+      }
     });
 
     // Sort by mastery level (lower = needs more practice)
@@ -86,7 +93,7 @@ const ConceptualConnections = memo(function ConceptualConnections({
       <div className="flex items-center justify-between mb-2">
         <div className="flex items-center gap-2">
           <h4 className="text-xs font-semibold text-gray-900 dark:text-gray-100 transition-colors">
-            🔗 Related Concepts
+            Related Concepts
           </h4>
           {currentConceptNames.length > 0 && (
             <span className="text-xs text-gray-600 dark:text-gray-400 transition-colors">
@@ -138,7 +145,7 @@ const ConceptualConnections = memo(function ConceptualConnections({
             ))}
           </div>
           <p className="text-xs text-gray-500 dark:text-gray-400 mt-2 transition-colors">
-            💡 These concepts are related to what you&apos;re working on. Review them to strengthen your understanding!
+            These concepts are related to what you&apos;re working on. Review them to strengthen your understanding!
           </p>
         </div>
       )}
