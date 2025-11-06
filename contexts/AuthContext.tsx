@@ -175,42 +175,28 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
           if ((_event === "INITIAL_SESSION" || _event === "SIGNED_IN") && session?.user) {
             logger.info("Initial session or sign in detected", { event: _event, userId: session.user.id });
             
-            // Load profiles and user data in parallel, but don't block
-            const loadPromises = [];
-            if (profilesLoadedForUserRef.current !== session.user.id) {
-              loadPromises.push(
-                loadProfiles(session.user.id).catch((err) => {
-                  logger.error("Error loading profiles", { error: err, event: _event });
-                })
-              );
-            }
-            if (userDataLoadedRef.current !== session.user.id) {
-              loadPromises.push(
-                loadUserDataFromSupabase().catch((err) => {
-                  logger.error("Error loading user data", { error: err, event: _event });
-                })
-              );
+            // Set loading to false IMMEDIATELY - don't wait for data
+            // The app can show loading states for individual components (profiles, XP, etc.)
+            // while the main app is visible
+            if (!hasSetInitialLoading) {
+              hasSetInitialLoading = true;
+              clearTimeout(loadingTimeout);
+              setLoading(false);
+              logger.debug("Loading state set to false, app will render", { event: _event });
             }
             
-            // Wait for data to load (with a max timeout), then set loading to false
-            Promise.all(loadPromises)
-              .then(() => {
-                logger.debug("Data loading completed", { event: _event });
-                if (!hasSetInitialLoading) {
-                  hasSetInitialLoading = true;
-                  clearTimeout(loadingTimeout);
-                  setLoading(false);
-                }
-              })
-              .catch((err) => {
-                logger.error("Error in parallel load", { error: err, event: _event });
-                // Still set loading to false even if there were errors
-                if (!hasSetInitialLoading) {
-                  hasSetInitialLoading = true;
-                  clearTimeout(loadingTimeout);
-                  setLoading(false);
-                }
+            // Load profiles and user data in the BACKGROUND (non-blocking)
+            // These will update the UI as they complete
+            if (profilesLoadedForUserRef.current !== session.user.id) {
+              loadProfiles(session.user.id).catch((err) => {
+                logger.error("Error loading profiles", { error: err, event: _event });
               });
+            }
+            if (userDataLoadedRef.current !== session.user.id) {
+              loadUserDataFromSupabase().catch((err) => {
+                logger.error("Error loading user data", { error: err, event: _event });
+              });
+            }
           } else if (_event === "INITIAL_SESSION" && !session) {
             // No session on initial load - user is not logged in
             logger.debug("No session on initial load");
