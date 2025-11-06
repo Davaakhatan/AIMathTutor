@@ -5,12 +5,16 @@ import { Message as MessageType } from "@/types";
 import EnhancedMessageRenderer from "./EnhancedMessageRenderer";
 import MessageActions from "../MessageActions";
 import ExampleDrawing from "./ExampleDrawing";
+import DrawingSuggestions from "./DrawingSuggestions";
+import { DrawingSuggestion } from "../ai/DrawingSuggestionParser";
 
 interface MessageProps {
   message: MessageType;
+  onSuggestionClick?: (suggestion: DrawingSuggestion) => void;
+  enableStretchFeatures?: boolean;
 }
 
-function Message({ message }: MessageProps) {
+function Message({ message, onSuggestionClick, enableStretchFeatures = true }: MessageProps) {
   const isUser = message.role === "user";
 
   return (
@@ -28,6 +32,12 @@ function Message({ message }: MessageProps) {
           <div className="flex-1 text-sm leading-relaxed font-light">
             <EnhancedMessageRenderer content={message.content} isUser={isUser} />
             {!isUser && <ExampleDrawing message={message.content} />}
+            {!isUser && enableStretchFeatures && (
+              <DrawingSuggestions 
+                message={message.content} 
+                onSuggestionClick={onSuggestionClick}
+              />
+            )}
           </div>
           <MessageActions content={message.content} />
         </div>

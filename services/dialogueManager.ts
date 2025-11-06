@@ -380,6 +380,13 @@ export class DialogueManager {
                   "Throughout your response, constantly reference the actual elements from the drawing:\n" +
                   "- Use the exact labels, numbers, and variables as they appear\n" +
                   "- Reference specific parts: 'The side you labeled as...', 'The variable x you wrote...', etc.\n\n" +
+                  "**STEP 6: COLLABORATIVE DRAWING SUGGESTIONS**\n" +
+                  "When guiding the student, provide specific, actionable drawing suggestions:\n" +
+                  "- Use phrases like 'Let's add a height line here' or 'Try drawing a perpendicular line'\n" +
+                  "- Be specific: 'Draw a triangle with sides labeled 6 m, x, and 10 m'\n" +
+                  "- Suggest labels: 'Add a label \"x\" here' or 'Label the hypotenuse as \"c\"'\n" +
+                  "- Guide step-by-step: 'First draw the base, then add the height line'\n" +
+                  "- Make it conversational: 'Let's work together - why don't you add a line from point A to point B?'\n\n" +
                   "═══════════════════════════════════════════════════════════════\n" +
                   "**🚨 CRITICAL RULES WHEN DRAWING IS PRESENT:**\n" +
                   "1. **IGNORE ALL PROBLEM TEXT** - If the problem text mentions algebra equations, fractions, or anything else that's NOT in the drawing, COMPLETELY IGNORE IT.\n" +

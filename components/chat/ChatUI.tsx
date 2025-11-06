@@ -344,7 +344,16 @@ const ChatUI = memo(function ChatUI({
                 className="animate-in fade-in slide-in-from-bottom-2 duration-300"
                 style={{ animationDelay: `${index * 50}ms` }}
               >
-                <MessageComponent message={message} />
+                <MessageComponent 
+                  message={message} 
+                  enableStretchFeatures={enableStretchFeatures}
+                  onSuggestionClick={(suggestion) => {
+                    // Handle drawing suggestion click
+                    // Could highlight on whiteboard or provide guidance
+                    console.log("Drawing suggestion clicked:", suggestion);
+                    // TODO: Implement visual feedback on whiteboard
+                  }}
+                />
               </div>
             ))}
           </>
