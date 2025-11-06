@@ -65,8 +65,17 @@ export default function ProfileManager() {
 
     try {
       setIsSubmitting(true);
+      const wasActiveProfile = activeProfile?.id === profileId;
       await deleteStudentProfile(profileId);
+      
+      // Refresh profiles to update the list
       await refreshProfiles();
+      
+      // If we deleted the active profile, switch to Personal (null)
+      if (wasActiveProfile) {
+        await setActiveProfile(null);
+      }
+      
       showToast("Profile deleted successfully", "success");
     } catch (error) {
       logger.error("Error deleting profile", { error });
@@ -91,26 +100,22 @@ export default function ProfileManager() {
         // Update existing profile
         await updateStudentProfile(editingProfile.id, formData as UpdateStudentProfileInput);
         showToast("Profile updated successfully", "success");
-        // If this was the active profile, refresh it
+        // Always refresh profiles to show updated data
+        await refreshProfiles();
+        // If this was the active profile, reload user data
         if (activeProfile?.id === editingProfile.id) {
-          await refreshProfiles();
-          // Reload user data to reflect any changes
           await loadUserDataFromSupabase();
         }
       } else {
         // Create new profile
         const newProfile = await createStudentProfile(formData);
         showToast("Profile created successfully", "success");
-        // Refresh profiles first to get the new profile
+        // Refresh profiles first to get the new profile in the list
         await refreshProfiles();
         // Then set as active (this will also reload data)
         await setActiveProfile(newProfile.id);
       }
       
-      // Only refresh if not creating (already refreshed above)
-      if (editingProfile) {
-        await refreshProfiles();
-      }
       resetForm();
     } catch (error) {
       logger.error("Error saving profile", { error });

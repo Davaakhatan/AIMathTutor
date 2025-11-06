@@ -229,6 +229,20 @@ export async function updateStudentProfile(
       throw new Error("User not authenticated");
     }
 
+    // First verify the profile exists and belongs to the user
+    const { data: existing, error: checkError } = await supabase
+      .from("student_profiles")
+      .select("id")
+      .eq("id", profileId)
+      .eq("owner_id", user.id)
+      .single();
+    
+    if (checkError || !existing) {
+      logger.error("Profile not found or access denied", { profileId, userId: user.id });
+      throw new Error("Profile not found or you don't have permission to update it");
+    }
+
+    // Update the profile
     const { data, error } = await supabase
       .from("student_profiles")
       .update({
@@ -236,7 +250,6 @@ export async function updateStudentProfile(
         updated_at: new Date().toISOString(),
       })
       .eq("id", profileId)
-      .eq("owner_id", user.id)
       .select()
       .single();
 
