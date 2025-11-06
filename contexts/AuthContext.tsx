@@ -125,71 +125,21 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       try {
         const supabase = await getSupabaseClient();
         
-        // Get initial session - use timeout but handle it better
-        let sessionLoaded = false;
-        const loadSession = async () => {
-          try {
-            const { data: { session }, error } = await supabase.auth.getSession();
-            
-            if (sessionLoaded) return; // Already handled by timeout
-            
-            if (error) {
-              logger.error("Error getting initial session", { error });
-              clearTimeout(loadingTimeout);
-              setLoading(false);
-              return;
-            }
-            
-            sessionLoaded = true;
-            clearTimeout(loadingTimeout);
-            
-            setSession(session);
-            setUser(session?.user ?? null);
-            
-            // Load user role and profiles/data if user is logged in
-            if (session?.user) {
-              try {
-                const { data: profile } = await supabase
-                  .from("profiles")
-                  .select("role")
-                  .eq("id", session.user.id)
-                  .single();
-                
-                setUserRole((profile?.role as any) || null);
-                
-                // Load profiles and user data in parallel, but don't block on errors
-                Promise.all([
-                  loadProfiles(session.user.id).catch((err) => {
-                    logger.error("Error loading profiles on initial session", { error: err });
-                    // Don't throw - allow app to continue
-                  }),
-                  loadUserDataFromSupabase().catch((err) => {
-                    logger.error("Error loading user data on initial session", { error: err });
-                    // Don't throw - allow app to continue
-                  }),
-                ]).finally(() => {
-                  // Always set loading to false, even if there were errors
-                  setLoading(false);
-                });
-              } catch (error) {
-                logger.error("Error loading profile data on initial session", { error });
-                setLoading(false);
-              }
-            } else {
-              setUserRole(null);
-              setLoading(false);
-            }
-          } catch (error) {
-            if (!sessionLoaded) {
-              logger.error("Error loading session", { error });
-              clearTimeout(loadingTimeout);
-              setLoading(false);
-            }
+        // Get initial session - let onAuthStateChange handle the loading state
+        // We just need to trigger it by calling getSession
+        supabase.auth.getSession().then(({ data: { session }, error }) => {
+          if (error) {
+            logger.error("Error getting initial session", { error });
+            // Don't set loading to false here - let onAuthStateChange or timeout handle it
+          } else {
+            // Session loaded, but don't set loading to false here
+            // onAuthStateChange will fire with INITIAL_SESSION and handle it
+            logger.debug("Initial session loaded", { hasSession: !!session });
           }
-        };
-        
-        // Start loading session
-        loadSession();
+        }).catch((error) => {
+          logger.error("Error in getSession promise", { error });
+          // Don't set loading to false here - let timeout handle it
+        });
 
         // Listen for auth changes
         let hasSetInitialLoading = false;
@@ -221,30 +171,54 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
             setUserRole(null);
           }
           
-          // On sign in: Load profiles and user data from Supabase
-          // localStorage will be used as cache, Supabase as source of truth
-          if (_event === "SIGNED_IN" && session?.user) {
-            logger.info("User signed in, loading data from Supabase", { userId: session.user.id });
-            // Load profiles and user data in parallel, but don't block on errors
+          // Handle initial session load or sign in
+          if ((_event === "INITIAL_SESSION" || _event === "SIGNED_IN") && session?.user) {
+            logger.info("Initial session or sign in detected", { event: _event, userId: session.user.id });
+            
+            // Load profiles and user data in parallel, but don't block
             const loadPromises = [];
             if (profilesLoadedForUserRef.current !== session.user.id) {
               loadPromises.push(
                 loadProfiles(session.user.id).catch((err) => {
-                  logger.error("Error loading profiles on sign in", { error: err });
+                  logger.error("Error loading profiles", { error: err, event: _event });
                 })
               );
             }
             if (userDataLoadedRef.current !== session.user.id) {
               loadPromises.push(
                 loadUserDataFromSupabase().catch((err) => {
-                  logger.error("Error loading user data on sign in", { error: err });
+                  logger.error("Error loading user data", { error: err, event: _event });
                 })
               );
             }
-            // Don't await - let it load in background, set loading to false immediately
-            Promise.all(loadPromises).catch((err) => {
-              logger.error("Error in parallel load on sign in", { error: err });
-            });
+            
+            // Wait for data to load (with a max timeout), then set loading to false
+            Promise.all(loadPromises)
+              .then(() => {
+                logger.debug("Data loading completed", { event: _event });
+                if (!hasSetInitialLoading) {
+                  hasSetInitialLoading = true;
+                  clearTimeout(loadingTimeout);
+                  setLoading(false);
+                }
+              })
+              .catch((err) => {
+                logger.error("Error in parallel load", { error: err, event: _event });
+                // Still set loading to false even if there were errors
+                if (!hasSetInitialLoading) {
+                  hasSetInitialLoading = true;
+                  clearTimeout(loadingTimeout);
+                  setLoading(false);
+                }
+              });
+          } else if (_event === "INITIAL_SESSION" && !session) {
+            // No session on initial load - user is not logged in
+            logger.debug("No session on initial load");
+            if (!hasSetInitialLoading) {
+              hasSetInitialLoading = true;
+              clearTimeout(loadingTimeout);
+              setLoading(false);
+            }
           }
           
           if (_event === "SIGNED_OUT") {
@@ -255,14 +229,6 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
             profilesLoadedForUserRef.current = null;
             isLoadingProfilesRef.current = false;
             userDataLoadedRef.current = null;
-          }
-          
-          // Only set loading to false once on initial load to avoid race conditions
-          // After that, onAuthStateChange should not control loading state
-          if (!hasSetInitialLoading && (_event === "INITIAL_SESSION" || _event === "SIGNED_IN")) {
-            hasSetInitialLoading = true;
-            clearTimeout(loadingTimeout);
-            setLoading(false);
           }
         });
 
