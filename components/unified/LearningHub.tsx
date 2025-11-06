@@ -6,6 +6,7 @@ import DashboardContent from "./DashboardContent";
 import HistoryContent from "./HistoryContent";
 import PracticeContent from "./PracticeContent";
 import SuggestionsContent from "./SuggestionsContent";
+import LearningPath from "../LearningPath";
 
 interface LearningHubProps {
   onSelectProblem: (problem: ParsedProblem) => void;
@@ -17,7 +18,7 @@ interface LearningHubProps {
  */
 export default function LearningHub({ onSelectProblem, apiKey }: LearningHubProps) {
   const [isOpen, setIsOpen] = useState(false);
-  const [activeTab, setActiveTab] = useState<"dashboard" | "history" | "practice" | "suggestions">("dashboard");
+  const [activeTab, setActiveTab] = useState<"dashboard" | "history" | "practice" | "suggestions" | "path">("dashboard");
   const panelRef = useRef<HTMLDivElement>(null);
 
   // Close on outside click
@@ -104,6 +105,16 @@ export default function LearningHub({ onSelectProblem, apiKey }: LearningHubProp
           >
             Suggestions
           </button>
+          <button
+            onClick={() => setActiveTab("path")}
+            className={`flex-1 px-2 py-1.5 text-xs font-medium rounded-md transition-colors ${
+              activeTab === "path"
+                ? "bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100 shadow-sm"
+                : "text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-gray-100"
+            }`}
+          >
+            Path
+          </button>
         </div>
         <button
           onClick={() => setIsOpen(false)}
@@ -122,6 +133,7 @@ export default function LearningHub({ onSelectProblem, apiKey }: LearningHubProp
         {activeTab === "history" && <HistoryContent onSelectProblem={onSelectProblem} />}
         {activeTab === "practice" && <PracticeContent onStartPractice={onSelectProblem} apiKey={apiKey} />}
         {activeTab === "suggestions" && <SuggestionsContent onSelectProblem={onSelectProblem} />}
+        {activeTab === "path" && <LearningPath onStartProblem={onSelectProblem} apiKey={apiKey} />}
       </div>
     </div>
   );

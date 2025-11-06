@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useState, useRef } from "react";
 import { useLocalStorage } from "@/hooks/useLocalStorage";
 
 interface XPData {
@@ -51,14 +51,21 @@ export default function XPContent({ onXPDataChange }: XPContentProps) {
     return Math.max(0, xpForNextLevel - xpInCurrentLevel);
   };
 
-  // Update XP to next level
+  // Update XP to next level (use ref to prevent infinite loop)
+  const prevXPDataRef = useRef({ totalXP: xpData.totalXP, level: xpData.level });
+  
   useEffect(() => {
-    const xpToNext = calculateXPToNext(xpData.totalXP, xpData.level);
-    if (xpToNext !== xpData.xpToNextLevel) {
-      setXPData((prev) => ({ ...prev, xpToNextLevel: xpToNext }));
+    // Only update if totalXP or level actually changed
+    if (prevXPDataRef.current.totalXP !== xpData.totalXP || 
+        prevXPDataRef.current.level !== xpData.level) {
+      const xpToNext = calculateXPToNext(xpData.totalXP, xpData.level);
+      if (xpToNext !== xpData.xpToNextLevel) {
+        setXPData((prev) => ({ ...prev, xpToNextLevel: xpToNext }));
+      }
+      prevXPDataRef.current = { totalXP: xpData.totalXP, level: xpData.level };
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [xpData.totalXP, xpData.level]); // calculateXPToNext, setXPData are stable
+  }, [xpData.totalXP, xpData.level, xpData.xpToNextLevel]); // Only depend on actual values, not object reference
 
   const progressPercentage = xpData.xpToNextLevel > 0
     ? ((calculateXPForLevel(xpData.level) - xpData.xpToNextLevel) / calculateXPForLevel(xpData.level)) * 100
@@ -66,16 +73,29 @@ export default function XPContent({ onXPDataChange }: XPContentProps) {
 
   const problemsSolved = xpData.xpHistory.filter(h => h.reason.includes("Problem solved") || h.reason.includes("Solved")).length;
 
-  // Notify parent
+  // Notify parent (memoize to prevent infinite loops)
+  const prevNotificationRef = useRef({ totalXP: 0, level: 1, problemsSolved: 0 });
+  
   useEffect(() => {
-    if (onXPDataChange) {
-      onXPDataChange({
-        totalXP: xpData.totalXP,
-        level: xpData.level,
-        problemsSolved,
-      });
+    const currentData = {
+      totalXP: xpData.totalXP,
+      level: xpData.level,
+      problemsSolved,
+    };
+    
+    // Only notify if data actually changed
+    if (
+      prevNotificationRef.current.totalXP !== currentData.totalXP ||
+      prevNotificationRef.current.level !== currentData.level ||
+      prevNotificationRef.current.problemsSolved !== currentData.problemsSolved
+    ) {
+      if (onXPDataChange) {
+        onXPDataChange(currentData);
+      }
+      prevNotificationRef.current = currentData;
     }
-  }, [xpData.totalXP, xpData.level, problemsSolved, onXPDataChange]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [xpData.totalXP, xpData.level, problemsSolved]); // Don't include onXPDataChange to prevent loops
 
   return (
     <div className="p-4 space-y-4">

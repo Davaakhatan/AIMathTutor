@@ -112,20 +112,21 @@ export default function SettingsMenu({ onXPDataChange }: SettingsMenuProps) {
           >
             Notifications
             {unreadCount > 0 && (
-              <span className="absolute -top-1 -right-1 bg-red-500 text-white text-xs font-bold rounded-full w-4 h-4 flex items-center justify-center">
+              <span className="absolute -top-1 -right-1 bg-red-500 text-white text-xs font-bold rounded-full w-4 h-4 flex items-center justify-center leading-none">
                 {unreadCount > 9 ? "9+" : unreadCount}
               </span>
             )}
           </button>
           <button
             onClick={() => setActiveTab("xp")}
-            className={`flex-1 px-2 py-1.5 text-xs font-medium rounded-md transition-colors ${
+            className={`flex-1 px-2 py-1.5 text-xs font-medium rounded-md transition-colors leading-tight ${
               activeTab === "xp"
                 ? "bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100 shadow-sm"
                 : "text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-gray-100"
             }`}
           >
-            XP & Level
+            <span className="block">XP &</span>
+            <span className="block">Level</span>
           </button>
           <button
             onClick={() => setActiveTab("reminders")}

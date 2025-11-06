@@ -11,6 +11,9 @@ import ProgressiveHints from "../ProgressiveHints";
 import Whiteboard from "../stretch/Whiteboard";
 import { sanitizeInput, formatErrorMessage, isRetryableError, delay } from "@/lib/utils";
 import ErrorRecovery from "../ErrorRecovery";
+import { DrawingSuggestion } from "../ai/DrawingSuggestionParser";
+import { useToast } from "@/hooks/useToast";
+import Toast from "../Toast";
 
 interface ChatUIProps {
   sessionId: string;
@@ -41,6 +44,7 @@ const ChatUI = memo(function ChatUI({
   const [voiceEnabled, setVoiceEnabled] = useState(propVoiceEnabled);
   const [showWhiteboard, setShowWhiteboard] = useState(enableStretchFeatures); // Show by default when stretch features enabled
   const whiteboardCanvasRef = useRef<HTMLCanvasElement | null>(null);
+  const { toasts, showToast, removeToast } = useToast();
   
   // Sync with prop
   useEffect(() => {
@@ -83,6 +87,71 @@ const ChatUI = memo(function ChatUI({
       }
     };
   }, [messages]);
+
+  // Handle drawing suggestions
+  const handleDrawingSuggestion = useCallback((suggestion: DrawingSuggestion) => {
+    console.log("Drawing suggestion clicked:", suggestion);
+    
+    switch (suggestion.type) {
+      case "highlight":
+        // For highlight suggestions, show guidance and focus attention
+        showToast(
+          `💡 ${suggestion.action}: ${suggestion.description || "Look at the calculation mentioned in the message."}`,
+          "info",
+          5000
+        );
+        // Scroll to the relevant message if possible
+        setTimeout(() => {
+          messagesEndRef.current?.scrollIntoView({ behavior: "smooth", block: "nearest" });
+        }, 100);
+        break;
+        
+      case "line":
+      case "shape":
+        // For drawing suggestions, show instructions and ensure whiteboard is visible
+        if (!showWhiteboard) {
+          setShowWhiteboard(true);
+        }
+        showToast(
+          `✏️ ${suggestion.action}. Use the whiteboard tools to ${suggestion.description || "draw this."}`,
+          "info",
+          5000
+        );
+        break;
+        
+      case "label":
+        // For label suggestions, guide user to add text
+        if (!showWhiteboard) {
+          setShowWhiteboard(true);
+        }
+        showToast(
+          `🏷️ ${suggestion.action}. Click the "Aa" button on the whiteboard to add text labels.`,
+          "info",
+          5000
+        );
+        break;
+        
+      case "annotation":
+        // For annotation suggestions, provide general guidance
+        showToast(
+          `📝 ${suggestion.action}: ${suggestion.description || "Add this annotation to help visualize the problem."}`,
+          "info",
+          5000
+        );
+        if (!showWhiteboard) {
+          setShowWhiteboard(true);
+        }
+        break;
+        
+      default:
+        // Generic feedback
+        showToast(
+          `💡 ${suggestion.action}: ${suggestion.description || "Follow this suggestion to improve your work."}`,
+          "info",
+          4000
+        );
+    }
+  }, [showWhiteboard, showToast]);
 
   const handleSendMessage = useCallback(async (message: string, whiteboardImage?: string) => {
     if (!message.trim() || isLoading) return;
@@ -348,10 +417,7 @@ const ChatUI = memo(function ChatUI({
                   message={message} 
                   enableStretchFeatures={enableStretchFeatures}
                   onSuggestionClick={(suggestion) => {
-                    // Handle drawing suggestion click
-                    // Could highlight on whiteboard or provide guidance
-                    console.log("Drawing suggestion clicked:", suggestion);
-                    // TODO: Implement visual feedback on whiteboard
+                    handleDrawingSuggestion(suggestion);
                   }}
                 />
               </div>
@@ -430,6 +496,17 @@ const ChatUI = memo(function ChatUI({
         disabled={isLoading}
       />
     </div>
+    
+    {/* Toast Notifications */}
+    {toasts.map((toast) => (
+      <Toast
+        key={toast.id}
+        message={toast.message}
+        type={toast.type}
+        duration={toast.duration}
+        onClose={() => removeToast(toast.id)}
+      />
+    ))}
     </div>
   );
 });
