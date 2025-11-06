@@ -10,9 +10,16 @@ import { logger } from "@/lib/logger";
 export class DialogueManager {
   /**
    * Initialize a conversation with a problem
+   * @param problem - The problem to start with
+   * @param userId - Optional user ID for authenticated users
+   * @param difficultyMode - Difficulty mode for the session
    */
-  initializeConversation(problem: ParsedProblem): Session {
-    const session = contextManager.createSession(problem);
+  async initializeConversation(
+    problem: ParsedProblem,
+    userId?: string,
+    difficultyMode: "elementary" | "middle" | "high" | "advanced" = "middle"
+  ): Promise<Session> {
+    const session = await contextManager.createSession(problem, userId, difficultyMode);
     // Note: Initial message is now generated via OpenAI API in generateInitialMessage()
     // This method just creates the session
     return session;
@@ -26,12 +33,13 @@ export class DialogueManager {
     problem: ParsedProblem,
     difficultyMode: "elementary" | "middle" | "high" | "advanced" = "middle",
     clientApiKey?: string,
-    whiteboardImage?: string // Optional: Base64 whiteboard image
+    whiteboardImage?: string, // Optional: Base64 whiteboard image
+    userId?: string // Optional: User ID for session access
   ): Promise<Message> {
     // Extract image from problem.imageUrl if present (uploaded images)
     const uploadedImage = problem.imageUrl;
     // Verify session exists
-    const session = contextManager.getSession(sessionId);
+    const session = await contextManager.getSession(sessionId, userId);
     if (!session) {
       throw new Error(`Session ${sessionId} not found`);
     }
@@ -222,7 +230,7 @@ export class DialogueManager {
       };
 
       // Add message to session
-      contextManager.addMessage(sessionId, tutorMessage);
+      await contextManager.addMessage(sessionId, tutorMessage, userId);
 
       return tutorMessage;
     } catch (error) {
@@ -242,7 +250,8 @@ export class DialogueManager {
     userMessage: string,
     difficultyMode: "elementary" | "middle" | "high" | "advanced" = "middle",
     clientApiKey?: string, // Optional: Client-provided API key as fallback
-    whiteboardImage?: string // Optional: Base64 whiteboard image
+    whiteboardImage?: string, // Optional: Base64 whiteboard image
+    userId?: string // Optional: User ID for session persistence
   ): Promise<Message> {
     // Add user message to context
     const userMsg: Message = {
@@ -252,10 +261,10 @@ export class DialogueManager {
       timestamp: Date.now(),
     };
 
-    contextManager.addMessage(sessionId, userMsg);
+    await contextManager.addMessage(sessionId, userMsg, userId);
 
     // Get conversation context
-    const context = contextManager.getContext(sessionId);
+    const context = await contextManager.getContext(sessionId, userId);
     if (!context) {
       throw new Error(`Session ${sessionId} not found or has no problem`);
     }
@@ -483,7 +492,7 @@ export class DialogueManager {
       };
 
       // Add to context
-      contextManager.addMessage(sessionId, tutorMsg);
+      await contextManager.addMessage(sessionId, tutorMsg, userId);
 
       return tutorMsg;
     } catch (error) {
@@ -558,7 +567,8 @@ export class DialogueManager {
     userMessage: string,
     difficultyMode: "elementary" | "middle" | "high" | "advanced" = "middle",
     clientApiKey?: string,
-    whiteboardImage?: string
+    whiteboardImage?: string,
+    userId?: string // Optional: User ID for session persistence
   ): AsyncGenerator<string, void, unknown> {
     // Add user message to context
     const userMsg: Message = {
@@ -568,10 +578,10 @@ export class DialogueManager {
       timestamp: Date.now(),
     };
 
-    contextManager.addMessage(sessionId, userMsg);
+    await contextManager.addMessage(sessionId, userMsg, userId);
 
     // Get conversation context
-    const context = contextManager.getContext(sessionId);
+    const context = await contextManager.getContext(sessionId, userId);
     if (!context) {
       throw new Error(`Session ${sessionId} not found or has no problem`);
     }
@@ -749,7 +759,7 @@ export class DialogueManager {
       };
 
       // Add to context
-      contextManager.addMessage(sessionId, tutorMsg);
+      await contextManager.addMessage(sessionId, tutorMsg, userId);
     } catch (error) {
       logger.error("Error in streaming message", {
         error: error instanceof Error ? error.message : String(error),
@@ -762,8 +772,8 @@ export class DialogueManager {
   /**
    * Get conversation history
    */
-  getHistory(sessionId: string): Message[] {
-    const session = contextManager.getSession(sessionId);
+  async getHistory(sessionId: string, userId?: string): Promise<Message[]> {
+    const session = await contextManager.getSession(sessionId, userId);
     return session?.messages || [];
   }
 }

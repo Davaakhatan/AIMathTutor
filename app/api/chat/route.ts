@@ -4,6 +4,7 @@ import { contextManager } from "@/services/contextManager";
 import { ChatRequest, ChatResponse, Message } from "@/types";
 import { chatRateLimiter, getClientId, createRateLimitHeaders } from "@/lib/rateLimit";
 import { logger } from "@/lib/logger";
+import { supabaseAdmin } from "@/lib/supabase-admin";
 
 export async function POST(request: NextRequest) {
   try {
@@ -26,6 +27,30 @@ export async function POST(request: NextRequest) {
     }
 
     const body: ChatRequest = await request.json();
+
+    // Extract user ID from request (for authenticated users)
+    // Client should send userId in request body, or we can extract from auth header
+    let userId: string | undefined = body.userId;
+    
+    // If userId not in body, try to extract from auth header (JWT token)
+    if (!userId) {
+      const authHeader = request.headers.get("authorization");
+      if (authHeader?.startsWith("Bearer ")) {
+        try {
+          const token = authHeader.substring(7);
+          const { data: { user }, error } = await supabaseAdmin.auth.getUser(token);
+          if (!error && user) {
+            userId = user.id;
+            logger.debug("Extracted userId from auth header", { userId });
+          }
+        } catch (error) {
+          // Not authenticated, continue as guest
+          logger.debug("Could not extract userId from auth header", {
+            error: error instanceof Error ? error.message : String(error),
+          });
+        }
+      }
+    }
 
     // Extract API key from request if provided (fallback when env var not available)
     const clientApiKey = body.apiKey;
@@ -113,17 +138,22 @@ export async function POST(request: NextRequest) {
 
       try {
         // When initializing, we don't need sessionId or message
-        const session = dialogueManager.initializeConversation(body.problem);
+        const difficultyMode = body.difficultyMode || "middle";
+        const session = await dialogueManager.initializeConversation(
+          body.problem,
+          userId,
+          difficultyMode as "elementary" | "middle" | "high" | "advanced"
+        );
         
         logger.info("Initializing conversation", {
           sessionId: session.id,
+          userId: userId || "guest",
           hasClientApiKey: !!clientApiKey,
           hasEnvApiKey: !!process.env.OPENAI_API_KEY,
           hasApiKeyToUse: !!apiKeyToUse,
         });
         
         // Generate initial tutor message using OpenAI (with API key if provided)
-        const difficultyMode = body.difficultyMode || "middle";
         let initialTutorMessage: Message;
         
         try {
@@ -132,12 +162,14 @@ export async function POST(request: NextRequest) {
             body.problem,
             difficultyMode as "elementary" | "middle" | "high" | "advanced",
             apiKeyToUse, // Use the determined API key
-            body.whiteboardImage // Pass whiteboard image if provided
+            body.whiteboardImage, // Pass whiteboard image if provided
+            userId // Pass userId for session access
           );
         } catch (generateError) {
           // If initial message generation fails, clean up the session
           logger.error("Failed to generate initial message, cleaning up session", {
             sessionId: session.id,
+            userId: userId || "guest",
             error: generateError instanceof Error ? generateError.message : String(generateError),
             hasClientApiKey: !!clientApiKey,
             hasEnvApiKey: !!process.env.OPENAI_API_KEY,
@@ -145,7 +177,7 @@ export async function POST(request: NextRequest) {
           });
           
           // Clean up the session immediately
-          contextManager.clearSession(session.id);
+          await contextManager.clearSession(session.id, userId);
           
           // Provide more helpful error messages
           if (generateError instanceof Error) {
@@ -163,9 +195,12 @@ export async function POST(request: NextRequest) {
         }
 
         // Verify session still exists after initialization
-        const verifySession = contextManager.getSession(session.id);
+        const verifySession = await contextManager.getSession(session.id, userId);
         if (!verifySession) {
-          logger.error("Session disappeared after initialization", { sessionId: session.id });
+          logger.error("Session disappeared after initialization", { 
+            sessionId: session.id,
+            userId: userId || "guest",
+          });
           throw new Error("Session was lost during initialization. Please try again.");
         }
 
@@ -240,11 +275,12 @@ export async function POST(request: NextRequest) {
     }
 
     // Validate session exists
-    const session = contextManager.getSession(body.sessionId);
+    const session = await contextManager.getSession(body.sessionId, userId);
     if (!session) {
       const allSessions = contextManager.getAllSessions();
       logger.error(`Session not found when processing message`, {
         requestedSessionId: body.sessionId,
+        userId: userId || "guest",
         totalSessions: allSessions.length,
         allSessionIds: allSessions.map(s => s.id),
         sessionAges: allSessions.map(s => ({
@@ -301,7 +337,8 @@ export async function POST(request: NextRequest) {
           difficultyMode as "elementary" | "middle" | "high" | "advanced",
           apiKeyToUse, // Use the determined API key
           body.whiteboardImage,
-          rateLimit
+          rateLimit,
+          userId // Pass userId for session persistence
         );
       }
       
@@ -311,7 +348,8 @@ export async function POST(request: NextRequest) {
         body.message,
         difficultyMode as "elementary" | "middle" | "high" | "advanced",
         apiKeyToUse, // Use the determined API key
-        body.whiteboardImage // Pass whiteboard image if provided
+        body.whiteboardImage, // Pass whiteboard image if provided
+        userId // Pass userId for session persistence
       );
       
       const response = NextResponse.json({
@@ -436,7 +474,8 @@ async function handleStreamingResponse(
   difficultyMode: "elementary" | "middle" | "high" | "advanced",
   clientApiKey: string | undefined,
   whiteboardImage: string | undefined,
-  rateLimit: { allowed: boolean; remaining: number; resetAt: number }
+  rateLimit: { allowed: boolean; remaining: number; resetAt: number },
+  userId?: string
 ): Promise<Response> {
   try {
     // Create a ReadableStream for streaming
@@ -449,7 +488,8 @@ async function handleStreamingResponse(
             userMessage,
             difficultyMode,
             clientApiKey,
-            whiteboardImage
+            whiteboardImage,
+            userId
           );
 
           // Stream the response chunks

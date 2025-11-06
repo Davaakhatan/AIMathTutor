@@ -1,6 +1,7 @@
 import { v4 as uuidv4 } from "uuid";
 import { Session, Message, ConversationContext, ParsedProblem } from "@/types";
 import { logger } from "@/lib/logger";
+import { supabaseAdmin } from "@/lib/supabase-admin";
 
 /**
  * Global session storage that persists across hot reloads in Next.js dev mode
@@ -13,11 +14,12 @@ declare global {
 
 /**
  * Context Manager for maintaining conversation state
- * In-memory storage for MVP (can be upgraded to Redis/database later)
+ * Hybrid storage: Supabase for authenticated users, in-memory for guests
  */
 export class ContextManager {
-  private sessions: Map<string, Session>;
+  private sessions: Map<string, Session>; // In-memory cache for guests and quick access
   private readonly SESSION_TIMEOUT = 30 * 60 * 1000; // 30 minutes
+  private useSupabase: boolean; // Whether to use Supabase for persistence
 
   constructor() {
     // Use global storage in dev mode to survive hot reloads
@@ -32,6 +34,12 @@ export class ContextManager {
       this.sessions = new Map();
     }
     
+    // Check if Supabase is configured
+    this.useSupabase = !!(
+      process.env.NEXT_PUBLIC_SUPABASE_URL && 
+      process.env.SUPABASE_SERVICE_ROLE_KEY
+    );
+    
     // Clean up old sessions every 5 minutes
     if (typeof setInterval !== "undefined") {
       setInterval(() => this.cleanupOldSessions(), 5 * 60 * 1000);
@@ -41,26 +49,114 @@ export class ContextManager {
       timestamp: new Date().toISOString(),
       sessionCount: this.sessions.size,
       usingGlobalStorage: typeof global !== "undefined" && !!global.__globalSessions,
+      useSupabase: this.useSupabase,
     });
   }
 
   /**
    * Create a new session
+   * @param problem - The problem for this session
+   * @param userId - Optional user ID for authenticated users (stores in Supabase)
+   * @param difficultyMode - Optional difficulty mode
    */
-  createSession(problem?: ParsedProblem): Session {
+  async createSession(
+    problem?: ParsedProblem,
+    userId?: string,
+    difficultyMode: "elementary" | "middle" | "high" | "advanced" = "middle"
+  ): Promise<Session> {
+    const sessionId = uuidv4();
+    const now = Date.now();
+    
     const session: Session = {
-      id: uuidv4(),
+      id: sessionId,
       problem,
       messages: [],
-      createdAt: Date.now(),
+      createdAt: now,
     };
 
+    // Store in memory cache for quick access
     this.sessions.set(session.id, session);
+
+    // If user is authenticated and Supabase is configured, persist to database
+    if (userId && this.useSupabase) {
+      try {
+        // First, save the problem if it exists
+        let problemId: string | null = null;
+        if (problem) {
+          const { data: problemData, error: problemError } = await supabaseAdmin
+            .from("problems")
+            .insert({
+              user_id: userId,
+              text: problem.text,
+              type: problem.type,
+              difficulty: difficultyMode,
+              image_url: problem.imageUrl,
+              parsed_data: problem,
+              is_generated: true,
+              source: "chat",
+            })
+            .select("id")
+            .single();
+
+          if (problemError) {
+            logger.warn("Failed to save problem to database", {
+              error: problemError.message,
+              userId,
+            });
+          } else {
+            problemId = problemData.id;
+          }
+        }
+
+        // Create session in database
+        const expiresAt = new Date(now + this.SESSION_TIMEOUT).toISOString();
+        const { error: sessionError } = await supabaseAdmin
+          .from("sessions")
+          .insert({
+            id: sessionId,
+            user_id: userId,
+            problem_id: problemId,
+            messages: [],
+            context: {},
+            difficulty_mode: difficultyMode,
+            status: "active",
+            started_at: new Date(now).toISOString(),
+            last_activity: new Date(now).toISOString(),
+            expires_at: expiresAt,
+          });
+
+        if (sessionError) {
+          logger.warn("Failed to persist session to database", {
+            error: sessionError.message,
+            sessionId,
+            userId,
+          });
+          // Continue with in-memory session even if DB save fails
+        } else {
+          logger.info("Session persisted to database", {
+            sessionId,
+            userId,
+            hasProblem: !!problem,
+          });
+        }
+      } catch (error) {
+        logger.error("Error persisting session to database", {
+          error: error instanceof Error ? error.message : String(error),
+          sessionId,
+          userId,
+        });
+        // Continue with in-memory session
+      }
+    }
+
     logger.info("Session created", {
       sessionId: session.id,
       totalSessions: this.sessions.size,
       hasProblem: !!problem,
+      userId: userId || "guest",
+      persisted: !!(userId && this.useSupabase),
     });
+    
     return session;
   }
 
@@ -87,24 +183,105 @@ export class ContextManager {
 
   /**
    * Get a session by ID
+   * @param sessionId - Session ID
+   * @param userId - Optional user ID for authenticated users (loads from Supabase if not in cache)
    */
-  getSession(sessionId: string): Session | undefined {
-    const session = this.sessions.get(sessionId);
+  async getSession(sessionId: string, userId?: string): Promise<Session | undefined> {
+    // First check in-memory cache
+    let session = this.sessions.get(sessionId);
+    
+    // If not found and user is authenticated, try loading from Supabase
+    if (!session && userId && this.useSupabase) {
+      try {
+        const { data, error } = await supabaseAdmin
+          .from("sessions")
+          .select("*")
+          .eq("id", sessionId)
+          .eq("user_id", userId)
+          .single();
+
+        if (error || !data) {
+          logger.warn("Session not found in database", {
+            sessionId,
+            userId,
+            error: error?.message,
+          });
+          return undefined;
+        }
+
+        // Check if session has expired
+        const expiresAt = new Date(data.expires_at).getTime();
+        if (Date.now() > expiresAt) {
+          logger.info("Session expired, cleaning up", { sessionId, userId });
+          await this.deleteSessionFromDB(sessionId, userId);
+          return undefined;
+        }
+
+        // Convert database session to Session type
+        session = {
+          id: data.id,
+          problem: data.context?.problem || undefined,
+          messages: (data.messages || []) as Message[],
+          createdAt: new Date(data.started_at).getTime(),
+        };
+
+        // Cache in memory for quick access
+        this.sessions.set(session.id, session);
+
+        logger.debug("Session loaded from database", {
+          sessionId,
+          userId,
+          messageCount: session.messages.length,
+        });
+      } catch (error) {
+        logger.error("Error loading session from database", {
+          error: error instanceof Error ? error.message : String(error),
+          sessionId,
+          userId,
+        });
+        return undefined;
+      }
+    }
+
     if (!session) {
-      logger.warn("Session not found in getSession", {
+      logger.warn("Session not found", {
         sessionId,
+        userId: userId || "guest",
         totalSessions: this.sessions.size,
         allSessionIds: Array.from(this.sessions.keys()),
       });
     }
+    
     return session;
   }
 
   /**
-   * Add a message to a session
+   * Delete session from database
    */
-  addMessage(sessionId: string, message: Message): void {
-    const session = this.sessions.get(sessionId);
+  private async deleteSessionFromDB(sessionId: string, userId: string): Promise<void> {
+    try {
+      await supabaseAdmin
+        .from("sessions")
+        .delete()
+        .eq("id", sessionId)
+        .eq("user_id", userId);
+    } catch (error) {
+      logger.error("Error deleting session from database", {
+        error: error instanceof Error ? error.message : String(error),
+        sessionId,
+        userId,
+      });
+    }
+  }
+
+  /**
+   * Add a message to a session
+   * @param sessionId - Session ID
+   * @param message - Message to add
+   * @param userId - Optional user ID for authenticated users (persists to Supabase)
+   */
+  async addMessage(sessionId: string, message: Message, userId?: string): Promise<void> {
+    const session = await this.getSession(sessionId, userId);
     if (!session) {
       throw new Error(`Session ${sessionId} not found`);
     }
@@ -113,6 +290,9 @@ export class ContextManager {
     const now = Date.now();
     if (now - session.createdAt > this.SESSION_TIMEOUT) {
       this.sessions.delete(sessionId);
+      if (userId && this.useSupabase) {
+        await this.deleteSessionFromDB(sessionId, userId);
+      }
       throw new Error(`Session ${sessionId} has expired`);
     }
 
@@ -122,13 +302,48 @@ export class ContextManager {
     if (session.messages.length > 100) {
       session.messages = session.messages.slice(-100);
     }
+
+    // Update in-memory cache
+    this.sessions.set(sessionId, session);
+
+    // If user is authenticated, persist to database
+    if (userId && this.useSupabase) {
+      try {
+        const { error } = await supabaseAdmin
+          .from("sessions")
+          .update({
+            messages: session.messages,
+            last_activity: new Date().toISOString(),
+          })
+          .eq("id", sessionId)
+          .eq("user_id", userId);
+
+        if (error) {
+          logger.warn("Failed to update session in database", {
+            error: error.message,
+            sessionId,
+            userId,
+          });
+          // Continue - in-memory session is still updated
+        }
+      } catch (error) {
+        logger.error("Error updating session in database", {
+          error: error instanceof Error ? error.message : String(error),
+          sessionId,
+          userId,
+        });
+        // Continue - in-memory session is still updated
+      }
+    }
   }
 
   /**
    * Get conversation context for a session
+   * @param sessionId - Session ID
+   * @param userId - Optional user ID for authenticated users
    */
-  getContext(sessionId: string): ConversationContext | null {
-    const session = this.sessions.get(sessionId);
+  async getContext(sessionId: string, userId?: string): Promise<ConversationContext | null> {
+    const session = await this.getSession(sessionId, userId);
     if (!session || !session.problem) {
       return null;
     }
@@ -138,6 +353,9 @@ export class ContextManager {
     if (now - session.createdAt > this.SESSION_TIMEOUT) {
       // Session expired, clean it up
       this.sessions.delete(sessionId);
+      if (userId && this.useSupabase) {
+        await this.deleteSessionFromDB(sessionId, userId);
+      }
       return null;
     }
 
@@ -218,9 +436,15 @@ export class ContextManager {
 
   /**
    * Clear a session (for cleanup)
+   * @param sessionId - Session ID
+   * @param userId - Optional user ID for authenticated users
    */
-  clearSession(sessionId: string): void {
+  async clearSession(sessionId: string, userId?: string): Promise<void> {
     this.sessions.delete(sessionId);
+    
+    if (userId && this.useSupabase) {
+      await this.deleteSessionFromDB(sessionId, userId);
+    }
   }
 
   /**

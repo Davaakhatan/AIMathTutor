@@ -16,6 +16,7 @@ import { DrawingSuggestion } from "../ai/DrawingSuggestionParser";
 import { useToast } from "@/hooks/useToast";
 import Toast from "../Toast";
 import EmotionalSupport from "../EmotionalSupport";
+import { useAuth } from "@/contexts/AuthContext";
 
 interface ChatUIProps {
   sessionId: string;
@@ -31,7 +32,7 @@ interface ChatUIProps {
 
 const ChatUI = memo(function ChatUI({ 
   sessionId, 
-  initialMessages = [], 
+  initialMessages = [],
   onRestart,
   problem,
   enableStretchFeatures = true,
@@ -40,6 +41,7 @@ const ChatUI = memo(function ChatUI({
   onMessagesChange,
   apiKey,
 }: ChatUIProps) {
+  const { user } = useAuth(); // Get authenticated user
   const [messages, setMessages] = useState<Message[]>(initialMessages);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -212,6 +214,7 @@ const ChatUI = memo(function ChatUI({
             message: sanitizedMessage,
             difficultyMode: difficultyMode,
             apiKey: apiKey, // Include client-provided API key if available
+            userId: user?.id, // Include user ID for authenticated users (for persistent sessions)
           };
 
           // Add whiteboard image if provided (convert data URL to base64)

@@ -62,6 +62,7 @@ export interface ChatRequest {
   apiKey?: string; // Optional: Client-provided API key as fallback
   whiteboardImage?: string; // Base64 image data URL from whiteboard
   stream?: boolean; // Enable streaming responses
+  userId?: string; // Optional: User ID for authenticated users (for persistent sessions)
 }
 
 export interface ChatResponse {

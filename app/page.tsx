@@ -216,6 +216,7 @@ function HomeContentInternal() {
         problem: problem,
         difficultyMode: difficultyMode,
         ...(settings.apiKey && { apiKey: settings.apiKey }), // Only include if defined
+        ...(user?.id && { userId: user.id }), // Include user ID for authenticated users (for persistent sessions)
       };
       
       // If problem has an image (from whiteboard drawing or upload), pass it to the AI
