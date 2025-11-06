@@ -52,10 +52,19 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     try {
       isLoadingProfilesRef.current = true;
       setProfilesLoading(true);
-      const [profilesList, active] = await Promise.all([
+      
+      // Add timeout to prevent infinite loading
+      const timeoutPromise = new Promise((_, reject) => {
+        setTimeout(() => reject(new Error("Profile loading timeout")), 10000);
+      });
+      
+      const profilesPromise = Promise.all([
         getStudentProfiles(),
         getActiveStudentProfile(),
       ]);
+      
+      const [profilesList, active] = await Promise.race([profilesPromise, timeoutPromise]) as [StudentProfile[], StudentProfile | null];
+      
       setProfiles(profilesList);
       setActiveProfileState(active);
       profilesLoadedForUserRef.current = userId;
@@ -64,10 +73,15 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         activeProfileId: active?.id 
       });
     } catch (error) {
-      logger.error("Error loading profiles", { error });
+      logger.error("Error loading profiles", { 
+        error: error instanceof Error ? error.message : String(error),
+        userId 
+      });
       // Don't set profilesLoadedForUserRef on error, so we can retry
       setProfiles([]);
       setActiveProfileState(null);
+      // Re-throw so components can handle the error
+      throw error;
     } finally {
       setProfilesLoading(false);
       isLoadingProfilesRef.current = false;
@@ -289,6 +303,16 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const signOut = async () => {
     try {
       const supabase = await getSupabaseClient();
+      
+      // Clear state immediately (optimistic update)
+      setSession(null);
+      setUser(null);
+      setActiveProfileState(null);
+      setProfiles([]);
+      profilesLoadedForUserRef.current = null;
+      isLoadingProfilesRef.current = false;
+      
+      // Sign out from Supabase
       const { error } = await supabase.auth.signOut();
       if (error) {
         logger.error("Sign out error", { error });
@@ -297,6 +321,13 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       logger.info("User signed out successfully");
     } catch (error) {
       logger.error("Sign out exception", { error });
+      // Even if signOut fails, clear local state
+      setSession(null);
+      setUser(null);
+      setActiveProfileState(null);
+      setProfiles([]);
+      profilesLoadedForUserRef.current = null;
+      isLoadingProfilesRef.current = false;
       throw error;
     }
   };

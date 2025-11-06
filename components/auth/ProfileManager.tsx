@@ -23,7 +23,26 @@ export default function ProfileManager() {
     difficulty_preference: "middle",
   });
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [loadError, setLoadError] = useState<string | null>(null);
   const { showToast } = useToast();
+
+  // Try to refresh profiles on mount if loading seems stuck
+  useEffect(() => {
+    if (profilesLoading) {
+      const timeout = setTimeout(async () => {
+        // If still loading after 5 seconds, try to refresh
+        try {
+          await refreshProfiles();
+        } catch (error) {
+          logger.error("Error refreshing profiles", { error });
+          setLoadError("Failed to load profiles. Please check your Supabase connection.");
+        }
+      }, 5000);
+      return () => clearTimeout(timeout);
+    } else {
+      setLoadError(null);
+    }
+  }, [profilesLoading, refreshProfiles]);
 
   const resetForm = () => {
     setFormData({
@@ -104,10 +123,58 @@ export default function ProfileManager() {
     }
   };
 
-  if (profilesLoading) {
+  if (profilesLoading && !loadError) {
     return (
       <div className="p-4 text-center text-gray-500 dark:text-gray-400">
-        Loading profiles...
+        <div className="mb-2">Loading profiles...</div>
+        <div className="text-xs text-gray-400 dark:text-gray-500">
+          If this takes too long, check the browser console for errors
+        </div>
+      </div>
+    );
+  }
+
+  if (loadError) {
+    return (
+      <div className="p-4">
+        <div className="p-4 bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-lg">
+          <div className="flex items-start gap-3">
+            <svg className="w-5 h-5 text-red-600 dark:text-red-400 flex-shrink-0 mt-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+            </svg>
+            <div className="flex-1">
+              <h4 className="text-sm font-medium text-red-800 dark:text-red-300 mb-1">
+                Failed to Load Profiles
+              </h4>
+              <p className="text-sm text-red-700 dark:text-red-400 mb-3">
+                {loadError}
+              </p>
+              <button
+                onClick={async () => {
+                  setLoadError(null);
+                  try {
+                    await refreshProfiles();
+                  } catch (error) {
+                    setLoadError("Failed to load profiles. Please check your Supabase connection.");
+                  }
+                }}
+                className="text-sm font-medium text-red-800 dark:text-red-300 hover:text-red-900 dark:hover:text-red-200 underline"
+              >
+                Try Again
+              </button>
+            </div>
+          </div>
+        </div>
+        <div className="mt-4 p-3 bg-gray-50 dark:bg-gray-800 rounded-lg">
+          <p className="text-xs text-gray-600 dark:text-gray-400 mb-2">
+            <strong>Common causes:</strong>
+          </p>
+          <ul className="text-xs text-gray-600 dark:text-gray-400 space-y-1 list-disc list-inside">
+            <li>Student profiles table doesn't exist in Supabase</li>
+            <li>RLS policies are blocking access</li>
+            <li>Supabase connection issue</li>
+          </ul>
+        </div>
       </div>
     );
   }
