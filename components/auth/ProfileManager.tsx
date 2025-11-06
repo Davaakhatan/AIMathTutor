@@ -14,7 +14,7 @@ import { useToast } from "@/hooks/useToast";
 import { logger } from "@/lib/logger";
 
 export default function ProfileManager() {
-  const { profiles, profilesLoading, refreshProfiles, setActiveProfile } = useAuth();
+  const { profiles, profilesLoading, refreshProfiles, setActiveProfile, activeProfile, loadUserDataFromSupabase } = useAuth();
   const [isCreating, setIsCreating] = useState(false);
   const [editingProfile, setEditingProfile] = useState<StudentProfile | null>(null);
   const [formData, setFormData] = useState<CreateStudentProfileInput>({
@@ -91,6 +91,12 @@ export default function ProfileManager() {
         // Update existing profile
         await updateStudentProfile(editingProfile.id, formData as UpdateStudentProfileInput);
         showToast("Profile updated successfully", "success");
+        // If this was the active profile, refresh it
+        if (activeProfile?.id === editingProfile.id) {
+          await refreshProfiles();
+          // Reload user data to reflect any changes
+          await loadUserDataFromSupabase();
+        }
       } else {
         // Create new profile
         const newProfile = await createStudentProfile(formData);
