@@ -114,11 +114,16 @@ export default function ProfileManager() {
         setIsCreating(false);
       } else {
         // Create new profile
-        // In Model B: Students shouldn't create additional profiles (they have one by default)
-        // Parents shouldn't create profiles (they link to student profiles)
-        // But we'll allow it for now and show a better error if it fails
+        // In Model B: Only students can create profiles (and only if they don't have one)
+        // Parents/Teachers should NOT create profiles - they link to existing student accounts
+        if (userRole === "parent" || userRole === "teacher") {
+          showToast("Parents and teachers cannot create profiles. Please link to an existing student account.", "error");
+          setIsSubmitting(false);
+          return;
+        }
+        
         try {
-          logger.info("Creating profile", { formData });
+          logger.info("Creating profile", { formData, userRole });
           const newProfile = await createStudentProfile(formData);
           logger.info("Profile created successfully", { profileId: newProfile.id, name: newProfile.name });
           showToast("Profile created successfully", "success");
@@ -264,13 +269,15 @@ export default function ProfileManager() {
         <h3 className="text-lg font-semibold text-gray-900 dark:text-white">
           {userRole === "student" ? "My Profile" : "Student Profiles"}
         </h3>
-        {!isCreating && !editingProfile && userRole !== "student" && (
-          <button
-            onClick={handleCreate}
-            className="px-3 py-1.5 text-sm font-medium text-white bg-indigo-600 hover:bg-indigo-700 rounded-lg transition-colors"
-          >
-            + Add Profile
-          </button>
+        {!isCreating && !editingProfile && userRole === "student" && (
+          <p className="text-xs text-gray-500 dark:text-gray-400">
+            Students have one profile created automatically
+          </p>
+        )}
+        {!isCreating && !editingProfile && (userRole === "parent" || userRole === "teacher") && (
+          <p className="text-xs text-gray-500 dark:text-gray-400">
+            Parents/Teachers link to existing student accounts
+          </p>
         )}
         {userRole === "student" && (
           <p className="text-xs text-gray-500 dark:text-gray-400">
