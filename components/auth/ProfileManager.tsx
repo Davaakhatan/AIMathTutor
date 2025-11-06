@@ -118,14 +118,22 @@ export default function ProfileManager() {
         // Parents shouldn't create profiles (they link to student profiles)
         // But we'll allow it for now and show a better error if it fails
         try {
+          logger.info("Creating profile", { formData });
           const newProfile = await createStudentProfile(formData);
+          logger.info("Profile created successfully", { profileId: newProfile.id, name: newProfile.name });
           showToast("Profile created successfully", "success");
+          
           // Refresh profiles first to get the new profile in the list
           await refreshProfiles();
+          logger.debug("Profiles refreshed after creation");
+          
           // Wait a bit for the refresh to complete
           await new Promise(resolve => setTimeout(resolve, 200));
+          
           // Then set as active (this will also reload data)
           await setActiveProfile(newProfile.id);
+          logger.debug("New profile set as active");
+          
           // Close create form
           setIsCreating(false);
         } catch (createError: any) {
@@ -138,6 +146,8 @@ export default function ProfileManager() {
             hint: createError?.hint,
             formData 
           });
+          // Also log to console for debugging
+          console.error("Profile creation error:", createError);
           throw createError; // Re-throw to be caught by outer catch
         }
       }

@@ -125,30 +125,76 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       try {
         const supabase = await getSupabaseClient();
         
-        // Get initial session - let onAuthStateChange handle the loading state
-        // We just need to trigger it by calling getSession
+        // Get initial session - set loading to false immediately after session is confirmed
+        // Don't wait for onAuthStateChange which might fire later
         supabase.auth.getSession().then(({ data: { session }, error }) => {
           if (error) {
             logger.error("Error getting initial session", { error });
-            // Don't set loading to false here - let onAuthStateChange or timeout handle it
+            clearTimeout(loadingTimeout);
+            setLoading(false);
           } else {
-            // Session loaded, but don't set loading to false here
-            // onAuthStateChange will fire with INITIAL_SESSION and handle it
+            // Session loaded - set loading to false immediately
+            // Data will load in background via onAuthStateChange
             logger.debug("Initial session loaded", { hasSession: !!session });
+            setSession(session);
+            setUser(session?.user ?? null);
+            
+            // Set loading to false immediately - don't wait for data
+            if (!hasSetInitialLoading) {
+              hasSetInitialLoading = true;
+              clearTimeout(loadingTimeout);
+              setLoading(false);
+              logger.debug("Loading set to false immediately after session load");
+            }
+            
+            // Load user role and data in background (non-blocking)
+            if (session?.user) {
+              // Load role
+              supabase
+                .from("profiles")
+                .select("role")
+                .eq("id", session.user.id)
+                .single()
+                .then(({ data: profile }) => {
+                  setUserRole((profile?.role as any) || null);
+                })
+                .catch((err) => {
+                  logger.error("Error loading user role", { error: err });
+                });
+              
+              // Load profiles and user data in background
+              if (profilesLoadedForUserRef.current !== session.user.id) {
+                loadProfiles(session.user.id).catch((err) => {
+                  logger.error("Error loading profiles on initial session", { error: err });
+                });
+              }
+              if (userDataLoadedRef.current !== session.user.id) {
+                loadUserDataFromSupabase().catch((err) => {
+                  logger.error("Error loading user data on initial session", { error: err });
+                });
+              }
+            }
           }
         }).catch((error) => {
           logger.error("Error in getSession promise", { error });
-          // Don't set loading to false here - let timeout handle it
+          clearTimeout(loadingTimeout);
+          setLoading(false);
         });
 
-        // Listen for auth changes
+        // Listen for auth changes (for sign in/out events, not initial load)
         let hasSetInitialLoading = false;
         const {
           data: { subscription },
         } = supabase.auth.onAuthStateChange(async (_event, session) => {
           logger.debug("Auth state changed", { event: _event, hasSession: !!session });
           
-          // Update session and user state first
+          // Skip INITIAL_SESSION - we already handled it in getSession()
+          if (_event === "INITIAL_SESSION") {
+            logger.debug("Skipping INITIAL_SESSION - already handled");
+            return;
+          }
+          
+          // Update session and user state
           setSession(session);
           setUser(session?.user ?? null);
           
@@ -171,39 +217,20 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
             setUserRole(null);
           }
           
-          // Handle initial session load or sign in
-          if ((_event === "INITIAL_SESSION" || _event === "SIGNED_IN") && session?.user) {
-            logger.info("Initial session or sign in detected", { event: _event, userId: session.user.id });
-            
-            // Set loading to false IMMEDIATELY - don't wait for data
-            // The app can show loading states for individual components (profiles, XP, etc.)
-            // while the main app is visible
-            if (!hasSetInitialLoading) {
-              hasSetInitialLoading = true;
-              clearTimeout(loadingTimeout);
-              setLoading(false);
-              logger.debug("Loading state set to false, app will render", { event: _event });
-            }
+          // Handle sign in (not initial session)
+          if (_event === "SIGNED_IN" && session?.user) {
+            logger.info("User signed in", { userId: session.user.id });
             
             // Load profiles and user data in the BACKGROUND (non-blocking)
-            // These will update the UI as they complete
             if (profilesLoadedForUserRef.current !== session.user.id) {
               loadProfiles(session.user.id).catch((err) => {
-                logger.error("Error loading profiles", { error: err, event: _event });
+                logger.error("Error loading profiles on sign in", { error: err });
               });
             }
             if (userDataLoadedRef.current !== session.user.id) {
               loadUserDataFromSupabase().catch((err) => {
-                logger.error("Error loading user data", { error: err, event: _event });
+                logger.error("Error loading user data on sign in", { error: err });
               });
-            }
-          } else if (_event === "INITIAL_SESSION" && !session) {
-            // No session on initial load - user is not logged in
-            logger.debug("No session on initial load");
-            if (!hasSetInitialLoading) {
-              hasSetInitialLoading = true;
-              clearTimeout(loadingTimeout);
-              setLoading(false);
             }
           }
           
