@@ -35,6 +35,7 @@ import ProgressHub from "@/components/unified/ProgressHub";
 import WelcomeScreen from "@/components/WelcomeScreen";
 import { ParsedProblem, Message } from "@/types";
 import { normalizeProblemText } from "@/lib/textUtils";
+import { logger } from "@/lib/logger";
 
 export default function Home() {
   const [isMounted, setIsMounted] = useState(false);
@@ -216,7 +217,7 @@ export default function Home() {
       if (!response.ok) {
         const errorData = await response.json().catch(() => ({}));
         const errorMessage = errorData.error || `Failed to initialize: ${response.status}`;
-        console.error("Initialization failed:", errorMessage, errorData);
+        logger.error("Initialization failed", { errorMessage, errorData });
         throw new Error(errorMessage);
       }
 
@@ -224,24 +225,24 @@ export default function Home() {
 
       if (!result.success) {
         const errorMessage = result.error || "Failed to start conversation";
-        console.error("Initialization failed:", errorMessage, result);
+        logger.error("Initialization failed", { errorMessage, result });
         throw new Error(errorMessage);
       }
 
       // Verify we have both sessionId and response
       if (!result.sessionId) {
-        console.error("No sessionId in response:", result);
+        logger.error("No sessionId in response", { result });
         throw new Error("Server did not return a session ID. Please try again.");
       }
 
       if (!result.response || !result.response.text) {
-        console.error("No response text in result:", result);
+        logger.error("No response text in result", { result });
         throw new Error("Server did not return an initial message. Please try again.");
       }
 
       // Set session ID
       setSessionId(result.sessionId);
-      console.log("Session initialized:", result.sessionId);
+      logger.info("Session initialized", { sessionId: result.sessionId });
 
       // Create initial message from tutor response
       const initialMessage: Message = {
@@ -253,7 +254,7 @@ export default function Home() {
       setInitialMessages([initialMessage]);
       setAllMessages([initialMessage]);
     } catch (error) {
-      console.error("Error initializing chat:", error);
+      logger.error("Error initializing chat", { error: error instanceof Error ? error.message : String(error) });
       
       // Clear any stale session ID
       setSessionId(null);
@@ -265,7 +266,7 @@ export default function Home() {
       } else if (error instanceof Error) {
         // Show the actual error message to help debug
         const errorMsg = error.message || "Failed to start conversation. Please try again.";
-        console.error("Initialization error details:", errorMsg);
+        logger.error("Initialization error details", { errorMsg });
         showToast(errorMsg, "error");
       } else {
         showToast("An unexpected error occurred. Please try again.", "error");
@@ -344,7 +345,7 @@ export default function Home() {
         key="welcome-screen" 
         onGetStarted={() => {
           // Welcome screen dismissed, ready to use app
-          console.log("Welcome screen onGetStarted callback fired");
+          logger.debug("Welcome screen onGetStarted callback fired");
         }} 
       />
       {/* Commented out OnboardingTutorial - keeping only WelcomeScreen for now */}

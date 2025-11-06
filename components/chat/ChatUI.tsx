@@ -11,6 +11,7 @@ import ProgressiveHints from "../ProgressiveHints";
 import Whiteboard from "../stretch/Whiteboard";
 import { sanitizeInput, formatErrorMessage, isRetryableError, delay } from "@/lib/utils";
 import ErrorRecovery from "../ErrorRecovery";
+import { logger } from "@/lib/logger";
 import { DrawingSuggestion } from "../ai/DrawingSuggestionParser";
 import { useToast } from "@/hooks/useToast";
 import Toast from "../Toast";
@@ -97,7 +98,7 @@ const ChatUI = memo(function ChatUI({
 
   // Handle drawing suggestions
   const handleDrawingSuggestion = useCallback((suggestion: DrawingSuggestion) => {
-    console.log("Drawing suggestion clicked:", suggestion);
+    logger.debug("Drawing suggestion clicked", { suggestion });
     
     switch (suggestion.type) {
       case "highlight":
@@ -167,7 +168,7 @@ const ChatUI = memo(function ChatUI({
     if (!sessionId) {
       const errorMsg = "No active session. Please start a new problem first.";
       setError(errorMsg);
-      console.error("Cannot send message: sessionId is missing", {
+      logger.error("Cannot send message: sessionId is missing", {
         sessionId,
         messagesCount: messages.length,
       });
@@ -224,16 +225,15 @@ const ChatUI = memo(function ChatUI({
             }
             
             // Log for debugging
-            console.log("Sending whiteboard image:", {
+            logger.debug("Sending whiteboard image", {
               hasImage: true,
               originalLength: whiteboardImage.length,
               base64Length: base64Data.length,
-              startsWith: whiteboardImage.substring(0, 30),
             });
             
             requestBody.whiteboardImage = base64Data;
           } else {
-            console.log("No whiteboard image to send");
+            logger.debug("No whiteboard image to send");
           }
 
           // Try streaming first (enabled by default for better UX)
@@ -373,7 +373,7 @@ const ChatUI = memo(function ChatUI({
               }
             } catch (streamError) {
               // Fallback to non-streaming on streaming error
-              console.debug("Streaming failed, falling back to regular request", {
+              logger.debug("Streaming failed, falling back to regular request", {
                 error: streamError instanceof Error ? streamError.message : String(streamError),
               });
               // Remove stream flag and continue with regular request
@@ -648,20 +648,27 @@ const ChatUI = memo(function ChatUI({
         )}
 
         {error && (
-          <ErrorRecovery
-            error={error}
-            onRetry={() => {
-              setError(null);
-              // Get the last user message and retry
-              const lastUserMessage = messages
-                .filter((m) => m.role === "user")
-                .pop();
-              if (lastUserMessage) {
-                handleSendMessage(lastUserMessage.content);
-              }
-            }}
-            onDismiss={() => setError(null)}
-          />
+          <div className="animate-in fade-in slide-in-from-bottom-2 duration-300">
+            <ErrorRecovery
+              error={error}
+              onRetry={() => {
+                setError(null);
+                // Get the last user message and retry
+                const lastUserMessage = messages
+                  .filter((m) => m.role === "user")
+                  .pop();
+                if (lastUserMessage) {
+                  handleSendMessage(lastUserMessage.content);
+                } else {
+                  // If no user message, try restarting the conversation
+                  if (onRestart) {
+                    onRestart();
+                  }
+                }
+              }}
+              onDismiss={() => setError(null)}
+            />
+          </div>
         )}
 
         <div ref={messagesEndRef} />

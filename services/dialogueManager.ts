@@ -321,11 +321,10 @@ export class DialogueManager {
             imageUrl = `data:image/png;base64,${whiteboardImage}`;
           }
           
-          // Log for debugging (truncated) - Use console.log for immediate visibility
-          console.log("🔍 WHITEBOARD IMAGE DETECTED:", {
+          // Log for debugging
+          logger.debug("Whiteboard image detected", {
             hasImage: true,
             imageUrlLength: imageUrl.length,
-            imageUrlPrefix: imageUrl.substring(0, 50),
             willBeSentToAI: true,
           });
           logger.debug("Adding whiteboard image to API request", {
@@ -342,7 +341,6 @@ export class DialogueManager {
             },
           });
         } else {
-          console.log("⚠️ NO WHITEBOARD IMAGE in request - AI will NOT see any drawing");
           logger.debug("No whiteboard image in request");
         }
 
