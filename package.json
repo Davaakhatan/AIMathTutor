@@ -14,6 +14,7 @@
     "test:chat": "ts-node scripts/test-utils.ts chat"
   },
   "dependencies": {
+    "@supabase/supabase-js": "^2.80.0",
     "katex": "^0.16.11",
     "next": "^14.2.5",
     "openai": "^4.47.1",

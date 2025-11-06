@@ -2,6 +2,7 @@
 
 import { useState, useEffect, useRef } from "react";
 import { useLocalStorage } from "@/hooks/useLocalStorage";
+import { useAuth } from "@/contexts/AuthContext";
 import SettingsContent from "./SettingsContent";
 import NotificationsContent from "./NotificationsContent";
 import XPContent from "./XPContent";
@@ -15,12 +16,18 @@ interface SettingsMenuProps {
  * Unified Settings Menu - Combines Settings, Notifications, XP System, and Reminders
  */
 export default function SettingsMenu({ onXPDataChange }: SettingsMenuProps) {
+  const { user } = useAuth();
   const [isOpen, setIsOpen] = useState(false);
   const [activeTab, setActiveTab] = useState<"settings" | "notifications" | "xp" | "reminders">("settings");
   const panelRef = useRef<HTMLDivElement>(null);
   const [isMounted, setIsMounted] = useState(false);
   const [xpData] = useLocalStorage<any>("aitutor-xp", { totalXP: 0, level: 1, problemsSolved: 0 });
   const [notifications] = useLocalStorage<any[]>("aitutor-notifications", []);
+  
+  // Calculate vertical position when user is logged in (stack below UserMenu)
+  const buttonIndex = 3; // Fourth button after UserMenu
+  const topOffset = user ? `calc(max(1rem, env(safe-area-inset-top, 1rem)) + 4rem + 10.5rem)` : 'max(1rem, env(safe-area-inset-top, 1rem))';
+  const rightOffset = user ? 'max(1rem, env(safe-area-inset-right, 1rem))' : 'max(1rem, env(safe-area-inset-right, 1rem))';
   
   // Only calculate after mount to avoid hydration mismatch
   const unreadCount = isMounted ? notifications.filter((n: any) => !n.read).length : 0;
@@ -62,8 +69,8 @@ export default function SettingsMenu({ onXPDataChange }: SettingsMenuProps) {
         onClick={() => setIsOpen(true)}
         style={{ 
           position: 'fixed', 
-          top: 'max(1rem, env(safe-area-inset-top, 1rem))', 
-          right: 'max(1rem, env(safe-area-inset-right, 1rem))', 
+          top: topOffset, 
+          right: rightOffset, 
           zIndex: 60 
         }}
         className="bg-gray-900 dark:bg-gray-700 text-white rounded-full p-3 sm:p-3 shadow-lg hover:bg-gray-800 dark:hover:bg-gray-600 active:scale-95 transition-all focus:outline-none focus:ring-2 focus:ring-gray-400 dark:focus:ring-gray-500 focus:ring-offset-2 touch-device:min-h-[48px] touch-device:min-w-[48px] relative"
@@ -93,8 +100,8 @@ export default function SettingsMenu({ onXPDataChange }: SettingsMenuProps) {
       ref={panelRef}
       style={{ 
         position: 'fixed', 
-        top: 'max(1rem, env(safe-area-inset-top, 1rem))', 
-        right: 'max(1rem, env(safe-area-inset-right, 1rem))', 
+        top: topOffset, 
+        right: rightOffset, 
         zIndex: 60,
         maxWidth: 'calc(100vw - 2rem - env(safe-area-inset-left, 0px) - env(safe-area-inset-right, 0px))'
       }}

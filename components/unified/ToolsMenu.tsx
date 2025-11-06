@@ -2,6 +2,7 @@
 
 import { useState, useEffect, useRef } from "react";
 import { useLocalStorage } from "@/hooks/useLocalStorage";
+import { useAuth } from "@/contexts/AuthContext";
 import { ParsedProblem } from "@/types";
 
 interface SavedProblem extends ParsedProblem {
@@ -17,6 +18,7 @@ interface ToolsMenuProps {
  * Unified Tools Menu - Combines Search, Tips, and Formula Reference
  */
 export default function ToolsMenu({ onSelectProblem }: ToolsMenuProps) {
+  const { user } = useAuth();
   const [isOpen, setIsOpen] = useState(false);
   const [activeTab, setActiveTab] = useState<"search" | "tips" | "formulas">("search");
   const panelRef = useRef<HTMLDivElement>(null);
@@ -26,6 +28,11 @@ export default function ToolsMenu({ onSelectProblem }: ToolsMenuProps) {
   const [currentTip, setCurrentTip] = useState(0);
   const [showShortcuts, setShowShortcuts] = useState(false);
   const [selectedCategory, setSelectedCategory] = useState<string>("All");
+  
+  // Calculate vertical position when user is logged in (stack below UserMenu)
+  const buttonIndex = 2; // Third button after UserMenu
+  const topOffset = user ? `calc(max(1rem, env(safe-area-inset-top, 1rem)) + 4rem + 7rem)` : 'max(1rem, env(safe-area-inset-top, 1rem))';
+  const rightOffset = user ? 'max(1rem, env(safe-area-inset-right, 1rem))' : 'clamp(1rem, 6rem, calc(100vw - 4rem))';
 
   const allProblems = [...bookmarks.map((b) => ({ ...b, isBookmarked: true })), ...savedProblems.map((p) => ({ ...p, isBookmarked: false }))];
   
@@ -175,8 +182,8 @@ export default function ToolsMenu({ onSelectProblem }: ToolsMenuProps) {
         onClick={() => setIsOpen(true)}
         style={{ 
           position: 'fixed', 
-          top: 'max(1rem, env(safe-area-inset-top, 1rem))', 
-          right: 'clamp(1rem, 5rem, calc(100vw - 4rem))', 
+          top: topOffset, 
+          right: rightOffset, 
           zIndex: 40 
         }}
         className="bg-gray-900 dark:bg-gray-700 text-white rounded-full p-3 shadow-lg hover:bg-gray-800 dark:hover:bg-gray-600 active:scale-95 transition-all focus:outline-none focus:ring-2 focus:ring-gray-400 dark:focus:ring-gray-500 focus:ring-offset-2 touch-device:min-h-[48px] touch-device:min-w-[48px] relative"
@@ -200,8 +207,8 @@ export default function ToolsMenu({ onSelectProblem }: ToolsMenuProps) {
       ref={panelRef}
       style={{ 
         position: 'fixed', 
-        top: 'max(1rem, env(safe-area-inset-top, 1rem))', 
-        right: 'clamp(1rem, 5rem, calc(100vw - 4rem))', 
+        top: topOffset, 
+        right: rightOffset, 
         zIndex: 40,
         maxWidth: 'calc(100vw - 2rem - env(safe-area-inset-left, 0px) - env(safe-area-inset-right, 0px))'
       }}

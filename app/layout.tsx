@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import "./globals.css";
 import ErrorBoundary from "@/components/ErrorBoundary";
 import MobileOptimizer from "@/components/MobileOptimizer";
+import ServiceWorkerRegistration from "@/components/ServiceWorkerRegistration";
 
 export const metadata: Metadata = {
   title: "AI Math Tutor - Socratic Learning Assistant",
@@ -9,8 +10,19 @@ export const metadata: Metadata = {
   keywords: ["math tutor", "AI tutor", "Socratic method", "math learning", "problem solving"],
   authors: [{ name: "Davaakhatan Zorigtbaatar" }],
   icons: {
-    icon: "/icon.svg",
-    apple: "/icon.svg",
+    icon: [
+      { url: "/icon.svg", type: "image/svg+xml" },
+    ],
+    apple: [
+      { url: "/icon.svg", type: "image/svg+xml" },
+    ],
+  },
+  manifest: "/manifest.json",
+  themeColor: "#6366f1",
+  appleWebApp: {
+    capable: true,
+    statusBarStyle: "default",
+    title: "AI Math Tutor",
   },
 };
 
@@ -29,7 +41,12 @@ export default function RootLayout({
 }>) {
   return (
     <html lang="en" suppressHydrationWarning>
+      <head>
+        <link rel="manifest" href="/manifest.json" />
+        <link rel="apple-touch-icon" href="/icon.svg" />
+      </head>
       <body>
+        <ServiceWorkerRegistration />
         <MobileOptimizer />
         <ErrorBoundary>
           {children}

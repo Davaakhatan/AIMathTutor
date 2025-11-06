@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, Suspense } from "react";
 import ProblemInput from "@/components/ProblemInput";
 import ChatUI from "@/components/chat/ChatUI";
 import DifficultyModeSelector from "@/components/stretch/DifficultyModeSelector";
@@ -12,6 +12,10 @@ import AutoSave from "@/components/AutoSave";
 import ProblemStats from "@/components/ProblemStats";
 import SkipLink from "@/components/SkipLink";
 import OfflineIndicator from "@/components/OfflineIndicator";
+import PWAInstaller from "@/components/PWAInstaller";
+import AuthButton from "@/components/auth/AuthButton";
+import AuthModal from "@/components/auth/AuthModal";
+import LandingPage from "@/components/landing/LandingPage";
 import ToolsMenu from "@/components/unified/ToolsMenu";
 import LearningHub from "@/components/unified/LearningHub";
 import ShareProblem from "@/components/ShareProblem";
@@ -36,9 +40,14 @@ import WelcomeScreen from "@/components/WelcomeScreen";
 import { ParsedProblem, Message } from "@/types";
 import { normalizeProblemText } from "@/lib/textUtils";
 import { logger } from "@/lib/logger";
+import { AuthProvider, useAuth } from "@/contexts/AuthContext";
 
-export default function Home() {
+function HomeContentInternal() {
   const [isMounted, setIsMounted] = useState(false);
+  const [showLandingPage, setShowLandingPage] = useState(true);
+  const [isGuestMode, setIsGuestMode] = useState(false);
+  const [authModalOpen, setAuthModalOpen] = useState(false);
+  const [authModalMode, setAuthModalMode] = useState<"login" | "signup">("signup");
   const [currentProblem, setCurrentProblem] = useState<ParsedProblem | null>(
     null
   );
@@ -81,6 +90,7 @@ export default function Home() {
   const [difficultyMode, setDifficultyMode] = useState<"elementary" | "middle" | "high" | "advanced">("middle");
   const [allMessages, setAllMessages] = useState<Message[]>([]);
   const { toasts, showToast, removeToast } = useToast();
+  const { user, loading: authLoading } = useAuth();
   const [xpData, setXPData] = useState({ totalXP: 0, level: 1, problemsSolved: 0 });
   const [streak, setStreak] = useState(0);
   const [isStudyActive, setIsStudyActive] = useState(false);
@@ -337,10 +347,40 @@ export default function Home() {
         }
       }, [isStudyActive]);
 
+  // Show loading state while auth is initializing or not mounted
+  if (!isMounted || authLoading) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-[#fafafa] dark:bg-[#0a0a0a]">
+        <div className="text-center">
+          <div className="w-12 h-12 border-4 border-indigo-600 border-t-transparent rounded-full animate-spin mx-auto mb-4"></div>
+          <p className="text-gray-600 dark:text-gray-400">Loading...</p>
+        </div>
+      </div>
+    );
+  }
+
+  // Show landing page for non-authenticated users (unless guest mode)
+  if (!user && showLandingPage && !isGuestMode) {
+    return (
+      <div suppressHydrationWarning>
+        <SkipLink />
+        <OfflineIndicator />
+        <PWAInstaller />
+        <LandingPage
+          onGetStarted={() => {
+            setIsGuestMode(true);
+            setShowLandingPage(false);
+          }}
+        />
+      </div>
+    );
+  }
+
   return (
-    <>
+    <div suppressHydrationWarning>
       <SkipLink />
       <OfflineIndicator />
+      <PWAInstaller />
       <WelcomeScreen 
         key="welcome-screen" 
         onGetStarted={() => {
@@ -357,7 +397,40 @@ export default function Home() {
         style={{ visibility: isMounted ? 'visible' : 'hidden' }}
       >
         <div className="w-full max-w-5xl overflow-visible">
+        {/* Auth Button - Top Right (Fixed position to avoid conflicts) */}
+        <div className="fixed top-4 right-4 z-50 mb-4" style={{ 
+          top: 'max(1rem, env(safe-area-inset-top, 1rem))',
+          right: 'max(1rem, env(safe-area-inset-right, 1rem))',
+        }}>
+          <AuthButton 
+            isGuestMode={isGuestMode && !user} 
+            onSignUpClick={() => {
+              setAuthModalMode("signup");
+              setAuthModalOpen(true);
+            }}
+          />
+        </div>
+        
         <div className="text-center mb-6 sm:mb-8 md:mb-12">
+          {isGuestMode && !user && (
+            <div className="mb-6 inline-flex items-center gap-2 px-4 py-2 bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 rounded-lg">
+              <svg className="w-4 h-4 text-blue-600 dark:text-blue-400 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+              </svg>
+              <p className="text-xs text-blue-700 dark:text-blue-300 font-medium">
+                You&apos;re in Guest Mode. Your progress won&apos;t be saved. <button 
+                  onClick={(e) => {
+                    e.preventDefault();
+                    setAuthModalMode("signup");
+                    setAuthModalOpen(true);
+                  }}
+                  className="underline hover:no-underline font-semibold"
+                >
+                  Sign up
+                </button> to save your progress.
+              </p>
+            </div>
+          )}
           <h1 className="text-2xl sm:text-3xl md:text-4xl font-light mb-2 sm:mb-3 text-gray-900 dark:text-gray-100 tracking-tight transition-colors">
             AI Math Tutor
           </h1>
@@ -553,6 +626,11 @@ export default function Home() {
             onSelectProblem={handleProblemParsed}
             onDifficultyChange={setDifficultyMode} 
             apiKey={settings.apiKey}
+            isGuestMode={isGuestMode && !user}
+            onSignUpClick={() => {
+              setAuthModalMode("signup");
+              setAuthModalOpen(true);
+            }}
           />
 
           {/* Unified Settings Menu (Settings + Notifications + XP) */}
@@ -569,10 +647,18 @@ export default function Home() {
                 return prev;
               });
             }}
+            isGuestMode={isGuestMode && !user}
+            onSignUpClick={() => {
+              setAuthModalMode("signup");
+              setAuthModalOpen(true);
+            }}
           />
 
           {/* Unified Tools Menu (Search + Tips + Formulas) */}
-          <ToolsMenu onSelectProblem={handleProblemParsed} />
+          <ToolsMenu 
+            onSelectProblem={handleProblemParsed}
+            isGuestMode={isGuestMode && !user}
+          />
 
           {/* Unified Progress Hub (Stats + Goals + Timer + Streak) */}
           <ProgressHub
@@ -580,6 +666,11 @@ export default function Home() {
             problemsSolvedToday={problemsSolvedToday}
             timeSpentToday={timeSpentToday}
             onStreakChange={setStreak}
+            isGuestMode={isGuestMode && !user}
+            onSignUpClick={() => {
+              setAuthModalMode("signup");
+              setAuthModalOpen(true);
+            }}
           />
 
           {/* XP System (hidden - tracking only, UI is in SettingsMenu) */}
@@ -613,6 +704,11 @@ export default function Home() {
             currentLevel={xpData.level}
             currentProblemsSolved={xpData.problemsSolved}
             currentStreak={streak}
+            isGuestMode={isGuestMode && !user}
+            onSignUpClick={() => {
+              setAuthModalMode("signup");
+              setAuthModalOpen(true);
+            }}
           />
 
           {/* Study Reminders (hidden - UI is in SettingsMenu) */}
@@ -643,6 +739,35 @@ export default function Home() {
           {/* Notification Center (background logic only - UI is in SettingsMenu) */}
           <NotificationCenter hideButton={true} />
         </main>
-      </>
+        {/* Auth Modal for guest mode */}
+        {isGuestMode && !user && (
+          <AuthModal
+            isOpen={authModalOpen}
+            onClose={() => setAuthModalOpen(false)}
+            initialMode={authModalMode}
+          />
+        )}
+      </div>
     );
   }
+
+// Wrap HomeContent with AuthProvider
+export default function Home() {
+  // Always render the same initial structure to avoid hydration mismatches
+  return (
+    <div suppressHydrationWarning>
+      <Suspense fallback={
+        <div className="min-h-screen flex items-center justify-center bg-[#fafafa] dark:bg-[#0a0a0a]">
+          <div className="text-center">
+            <div className="w-12 h-12 border-4 border-indigo-600 border-t-transparent rounded-full animate-spin mx-auto mb-4"></div>
+            <p className="text-gray-600 dark:text-gray-400">Loading...</p>
+          </div>
+        </div>
+      }>
+        <AuthProvider>
+          <HomeContentInternal />
+        </AuthProvider>
+      </Suspense>
+    </div>
+  );
+}

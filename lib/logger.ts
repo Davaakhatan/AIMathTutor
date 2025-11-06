@@ -8,7 +8,8 @@ class Logger {
   private isDevelopment: boolean;
 
   constructor() {
-    this.isDevelopment = process.env.NODE_ENV === "development";
+    // Safe for SSR - only access process.env if available
+    this.isDevelopment = typeof process !== "undefined" && process.env?.NODE_ENV === "development";
   }
 
   private formatMessage(level: LogLevel, message: string, ...args: any[]): string {

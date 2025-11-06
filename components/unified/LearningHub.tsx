@@ -2,6 +2,7 @@
 
 import { useState, useEffect, useRef } from "react";
 import { ParsedProblem } from "@/types";
+import { useAuth } from "@/contexts/AuthContext";
 import DashboardContent from "./DashboardContent";
 import HistoryContent from "./HistoryContent";
 import PracticeContent from "./PracticeContent";
@@ -13,15 +14,24 @@ interface LearningHubProps {
   onSelectProblem: (problem: ParsedProblem) => void;
   onDifficultyChange?: (difficulty: DifficultyLevel) => void;
   apiKey?: string;
+  isGuestMode?: boolean;
+  onSignUpClick?: () => void;
 }
 
 /**
  * Unified Learning Hub - Combines Dashboard, History, Practice, and Suggestions
  */
-export default function LearningHub({ onSelectProblem, onDifficultyChange, apiKey }: LearningHubProps) {
+export default function LearningHub({ onSelectProblem, onDifficultyChange, apiKey, isGuestMode = false, onSignUpClick }: LearningHubProps) {
+  const { user } = useAuth();
   const [isOpen, setIsOpen] = useState(false);
   const [activeTab, setActiveTab] = useState<"dashboard" | "history" | "practice" | "suggestions" | "path">("dashboard");
   const panelRef = useRef<HTMLDivElement>(null);
+  
+  // Calculate vertical position when user is logged in (stack below UserMenu)
+  // UserMenu is ~48px height + 1rem top = ~64px, buttons are 48px each + 8px gap
+  const buttonIndex = 0; // First button after UserMenu
+  const topOffset = user ? `calc(max(1rem, env(safe-area-inset-top, 1rem)) + 4rem + 0rem)` : 'max(1rem, env(safe-area-inset-top, 1rem))';
+  const rightOffset = user ? 'max(1rem, env(safe-area-inset-right, 1rem))' : 'clamp(1rem, 10rem, calc(100vw - 4rem))';
 
   // Close on outside click
   useEffect(() => {
@@ -43,11 +53,11 @@ export default function LearningHub({ onSelectProblem, onDifficultyChange, apiKe
         onClick={() => setIsOpen(true)}
         style={{ 
           position: 'fixed', 
-          top: 'max(1rem, env(safe-area-inset-top, 1rem))', 
-          right: 'clamp(1rem, 9rem, calc(100vw - 4rem))', 
+          top: topOffset, 
+          right: rightOffset, 
           zIndex: 30 
         }}
-        className="bg-purple-600 dark:bg-purple-700 text-white rounded-full p-3 shadow-lg hover:bg-purple-700 dark:hover:bg-purple-600 active:scale-95 transition-all focus:outline-none focus:ring-2 focus:ring-purple-400 dark:focus:ring-purple-500 focus:ring-offset-2 touch-device:min-h-[48px] touch-device:min-w-[48px]"
+        className="bg-gray-900 dark:bg-gray-700 text-white rounded-full p-3 shadow-lg hover:bg-gray-800 dark:hover:bg-gray-600 active:scale-95 transition-all focus:outline-none focus:ring-2 focus:ring-gray-400 dark:focus:ring-gray-500 focus:ring-offset-2 touch-device:min-h-[48px] touch-device:min-w-[48px]"
         aria-label="Open learning hub"
         title="Learning Hub"
       >
@@ -68,8 +78,8 @@ export default function LearningHub({ onSelectProblem, onDifficultyChange, apiKe
       ref={panelRef}
       style={{ 
         position: 'fixed', 
-        top: 'max(1rem, env(safe-area-inset-top, 1rem))', 
-        right: 'clamp(1rem, 9rem, calc(100vw - 4rem))', 
+        top: topOffset, 
+        right: rightOffset, 
         zIndex: 50,
         maxWidth: 'calc(100vw - 2rem - env(safe-area-inset-left, 0px) - env(safe-area-inset-right, 0px))'
       }}

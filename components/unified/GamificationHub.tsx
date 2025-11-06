@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect, useRef } from "react";
+import { useAuth } from "@/contexts/AuthContext";
 import AchievementsContent from "./AchievementsContent";
 import LeaderboardContent from "./LeaderboardContent";
 
@@ -20,9 +21,15 @@ export default function GamificationHub({
   currentProblemsSolved,
   currentStreak,
 }: GamificationHubProps) {
+  const { user } = useAuth();
   const [isOpen, setIsOpen] = useState(false);
   const [activeTab, setActiveTab] = useState<"achievements" | "leaderboard">("achievements");
   const panelRef = useRef<HTMLDivElement>(null);
+  
+  // Calculate vertical position when user is logged in (stack below UserMenu)
+  const buttonIndex = 1; // Second button after UserMenu
+  const topOffset = user ? `calc(max(1rem, env(safe-area-inset-top, 1rem)) + 4rem + 3.5rem)` : 'max(1rem, env(safe-area-inset-top, 1rem))';
+  const rightOffset = user ? 'max(1rem, env(safe-area-inset-right, 1rem))' : 'clamp(1rem, 13rem, calc(100vw - 4rem))';
 
   // Close on outside click
   useEffect(() => {
@@ -44,11 +51,11 @@ export default function GamificationHub({
         onClick={() => setIsOpen(true)}
         style={{ 
           position: 'fixed', 
-          top: 'max(1rem, env(safe-area-inset-top, 1rem))', 
-          right: 'clamp(1rem, 13rem, calc(100vw - 4rem))', 
+          top: topOffset, 
+          right: rightOffset, 
           zIndex: 30 
         }}
-        className="bg-indigo-600 dark:bg-indigo-700 text-white rounded-full p-3 shadow-lg hover:bg-indigo-700 dark:hover:bg-indigo-600 active:scale-95 transition-all focus:outline-none focus:ring-2 focus:ring-indigo-400 dark:focus:ring-indigo-500 focus:ring-offset-2 touch-device:min-h-[48px] touch-device:min-w-[48px] relative"
+        className="bg-gray-900 dark:bg-gray-700 text-white rounded-full p-3 shadow-lg hover:bg-gray-800 dark:hover:bg-gray-600 active:scale-95 transition-all focus:outline-none focus:ring-2 focus:ring-gray-400 dark:focus:ring-gray-500 focus:ring-offset-2 touch-device:min-h-[48px] touch-device:min-w-[48px] relative"
         aria-label="Open gamification hub"
         title="Gamification Hub"
       >
@@ -69,8 +76,8 @@ export default function GamificationHub({
       ref={panelRef}
       style={{ 
         position: 'fixed', 
-        top: 'max(1rem, env(safe-area-inset-top, 1rem))', 
-        right: 'clamp(1rem, 13rem, calc(100vw - 4rem))', 
+        top: topOffset, 
+        right: rightOffset, 
         zIndex: 40,
         maxWidth: 'calc(100vw - 2rem - env(safe-area-inset-left, 0px) - env(safe-area-inset-right, 0px))'
       }}
