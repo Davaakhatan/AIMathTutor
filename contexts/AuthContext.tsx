@@ -114,57 +114,82 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       return;
     }
 
+    // Set a timeout to ensure loading is always set to false
+    const loadingTimeout = setTimeout(() => {
+      logger.warn("Loading timeout reached, forcing loading to false");
+      setLoading(false);
+    }, 5000); // 5 second timeout
+
     // Dynamically load and initialize Supabase
     const initSupabase = async () => {
       try {
         const supabase = await getSupabaseClient();
         
-        // Get initial session
-        supabase.auth.getSession().then(async ({ data: { session }, error }) => {
-          if (error) {
-            logger.error("Error getting initial session", { error });
-            setLoading(false);
-            return;
-          }
-          setSession(session);
-          setUser(session?.user ?? null);
-          
-          // Load user role and profiles/data if user is logged in
-          if (session?.user) {
-            try {
-              const { data: profile } = await supabase
-                .from("profiles")
-                .select("role")
-                .eq("id", session.user.id)
-                .single();
-              
-              setUserRole((profile?.role as any) || null);
-              
-              // Load profiles and user data in parallel, but don't block on errors
-              Promise.all([
-                loadProfiles(session.user.id).catch((err) => {
-                  logger.error("Error loading profiles on initial session", { error: err });
-                  // Don't throw - allow app to continue
-                }),
-                loadUserDataFromSupabase().catch((err) => {
-                  logger.error("Error loading user data on initial session", { error: err });
-                  // Don't throw - allow app to continue
-                }),
-              ]).finally(() => {
-                // Always set loading to false, even if there were errors
+        // Get initial session with timeout
+        const sessionPromise = supabase.auth.getSession();
+        const timeoutPromise = new Promise((_, reject) => 
+          setTimeout(() => reject(new Error("Session timeout")), 3000)
+        );
+        
+        Promise.race([sessionPromise, timeoutPromise])
+          .then(async (result: any) => {
+            const { data: { session }, error } = result;
+            
+            if (error) {
+              logger.error("Error getting initial session", { error });
+              clearTimeout(loadingTimeout);
+              setLoading(false);
+              return;
+            }
+            
+            setSession(session);
+            setUser(session?.user ?? null);
+            
+            // Load user role and profiles/data if user is logged in
+            if (session?.user) {
+              try {
+                const { data: profile } = await supabase
+                  .from("profiles")
+                  .select("role")
+                  .eq("id", session.user.id)
+                  .single();
+                
+                setUserRole((profile?.role as any) || null);
+                
+                // Load profiles and user data in parallel, but don't block on errors
+                Promise.all([
+                  loadProfiles(session.user.id).catch((err) => {
+                    logger.error("Error loading profiles on initial session", { error: err });
+                    // Don't throw - allow app to continue
+                  }),
+                  loadUserDataFromSupabase().catch((err) => {
+                    logger.error("Error loading user data on initial session", { error: err });
+                    // Don't throw - allow app to continue
+                  }),
+                ]).finally(() => {
+                  // Always set loading to false, even if there were errors
+                  clearTimeout(loadingTimeout);
+                  setLoading(false);
+                });
+              } catch (error) {
+                logger.error("Error loading profile data on initial session", { error });
+                clearTimeout(loadingTimeout);
                 setLoading(false);
-              });
-            } catch (error) {
-              logger.error("Error loading profile data on initial session", { error });
+              }
+            } else {
+              setUserRole(null);
+              clearTimeout(loadingTimeout);
               setLoading(false);
             }
-          } else {
-            setUserRole(null);
+          })
+          .catch((error) => {
+            logger.error("Error in session promise race", { error });
+            clearTimeout(loadingTimeout);
             setLoading(false);
-          }
-        });
+          });
 
         // Listen for auth changes
+        let hasSetInitialLoading = false;
         const {
           data: { subscription },
         } = supabase.auth.onAuthStateChange(async (_event, session) => {
@@ -176,14 +201,19 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
           
           // Load user role if user is logged in
           if (session?.user) {
-            const supabase = await getSupabaseClient();
-            const { data: profile } = await supabase
-              .from("profiles")
-              .select("role")
-              .eq("id", session.user.id)
-              .single();
-            
-            setUserRole((profile?.role as any) || null);
+            try {
+              const supabase = await getSupabaseClient();
+              const { data: profile } = await supabase
+                .from("profiles")
+                .select("role")
+                .eq("id", session.user.id)
+                .single();
+              
+              setUserRole((profile?.role as any) || null);
+            } catch (error) {
+              logger.error("Error loading user role in auth state change", { error });
+              // Continue anyway
+            }
           } else {
             setUserRole(null);
           }
@@ -224,8 +254,13 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
             userDataLoadedRef.current = null;
           }
           
-          // Always set loading to false, even if profile loading is still in progress
-          setLoading(false);
+          // Only set loading to false once on initial load to avoid race conditions
+          // After that, onAuthStateChange should not control loading state
+          if (!hasSetInitialLoading && (_event === "INITIAL_SESSION" || _event === "SIGNED_IN")) {
+            hasSetInitialLoading = true;
+            clearTimeout(loadingTimeout);
+            setLoading(false);
+          }
         });
 
         return () => {
@@ -233,6 +268,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         };
       } catch (error) {
         logger.error("Failed to initialize Supabase client", { error });
+        clearTimeout(loadingTimeout);
         setLoading(false);
       }
     };
@@ -243,6 +279,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     });
 
     return () => {
+      clearTimeout(loadingTimeout);
       if (cleanup) cleanup();
     };
   }, [loadProfiles]);
