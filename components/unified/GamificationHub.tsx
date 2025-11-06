@@ -42,7 +42,12 @@ export default function GamificationHub({
     return (
       <button
         onClick={() => setIsOpen(true)}
-        style={{ position: 'fixed', top: '1rem', right: '13rem', zIndex: 30 }}
+        style={{ 
+          position: 'fixed', 
+          top: 'max(1rem, env(safe-area-inset-top, 1rem))', 
+          right: 'clamp(1rem, 13rem, calc(100vw - 4rem))', 
+          zIndex: 30 
+        }}
         className="bg-indigo-600 dark:bg-indigo-700 text-white rounded-full p-3 shadow-lg hover:bg-indigo-700 dark:hover:bg-indigo-600 active:scale-95 transition-all focus:outline-none focus:ring-2 focus:ring-indigo-400 dark:focus:ring-indigo-500 focus:ring-offset-2 touch-device:min-h-[48px] touch-device:min-w-[48px] relative"
         aria-label="Open gamification hub"
         title="Gamification Hub"
@@ -62,7 +67,13 @@ export default function GamificationHub({
   return (
     <div
       ref={panelRef}
-      style={{ position: 'fixed', top: '1rem', right: '13rem', zIndex: 40 }}
+      style={{ 
+        position: 'fixed', 
+        top: 'max(1rem, env(safe-area-inset-top, 1rem))', 
+        right: 'clamp(1rem, 13rem, calc(100vw - 4rem))', 
+        zIndex: 40,
+        maxWidth: 'calc(100vw - 2rem - env(safe-area-inset-left, 0px) - env(safe-area-inset-right, 0px))'
+      }}
       className="bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-700 rounded-lg shadow-xl w-96 max-w-[calc(100vw-2rem)] max-h-[85vh] flex flex-col transition-all duration-200"
     >
       {/* Header with Tabs */}

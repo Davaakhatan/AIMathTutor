@@ -245,7 +245,12 @@ export default function ProgressHub({
     return (
       <button
         onClick={() => setIsOpen(true)}
-        style={{ position: 'fixed', top: '1rem', left: '1rem', zIndex: 50 }}
+        style={{ 
+          position: 'fixed', 
+          top: 'max(1rem, env(safe-area-inset-top, 1rem))', 
+          left: 'max(1rem, env(safe-area-inset-left, 1rem))', 
+          zIndex: 50 
+        }}
         className="bg-gradient-to-r from-blue-500 to-purple-500 text-white rounded-lg shadow-lg px-3 py-2 flex items-center gap-2 hover:from-blue-600 hover:to-purple-600 active:scale-95 transition-all min-h-[44px] touch-device:min-h-[48px]"
         aria-label="Open progress hub"
         title="Progress Hub"
@@ -266,7 +271,13 @@ export default function ProgressHub({
   return (
     <div
       ref={panelRef}
-      style={{ position: 'fixed', top: '1rem', left: '1rem', zIndex: 50 }}
+      style={{ 
+        position: 'fixed', 
+        top: 'max(1rem, env(safe-area-inset-top, 1rem))', 
+        left: 'max(1rem, env(safe-area-inset-left, 1rem))', 
+        zIndex: 50,
+        maxWidth: 'calc(100vw - 2rem - env(safe-area-inset-left, 0px) - env(safe-area-inset-right, 0px))'
+      }}
       className="bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-700 rounded-lg shadow-xl w-96 max-w-[calc(100vw-2rem)] max-h-[85vh] flex flex-col transition-all duration-200"
     >
       {/* Header with Tabs */}

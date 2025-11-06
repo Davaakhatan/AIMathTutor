@@ -173,7 +173,12 @@ export default function ToolsMenu({ onSelectProblem }: ToolsMenuProps) {
     return (
       <button
         onClick={() => setIsOpen(true)}
-        style={{ position: 'fixed', top: '1rem', right: '5rem', zIndex: 40 }}
+        style={{ 
+          position: 'fixed', 
+          top: 'max(1rem, env(safe-area-inset-top, 1rem))', 
+          right: 'clamp(1rem, 5rem, calc(100vw - 4rem))', 
+          zIndex: 40 
+        }}
         className="bg-gray-900 dark:bg-gray-700 text-white rounded-full p-3 shadow-lg hover:bg-gray-800 dark:hover:bg-gray-600 active:scale-95 transition-all focus:outline-none focus:ring-2 focus:ring-gray-400 dark:focus:ring-gray-500 focus:ring-offset-2 touch-device:min-h-[48px] touch-device:min-w-[48px] relative"
         aria-label="Open tools menu"
         title="Tools Menu (Ctrl+K or ?)"
@@ -193,7 +198,13 @@ export default function ToolsMenu({ onSelectProblem }: ToolsMenuProps) {
   return (
     <div
       ref={panelRef}
-      style={{ position: 'fixed', top: '1rem', right: '5rem', zIndex: 40 }}
+      style={{ 
+        position: 'fixed', 
+        top: 'max(1rem, env(safe-area-inset-top, 1rem))', 
+        right: 'clamp(1rem, 5rem, calc(100vw - 4rem))', 
+        zIndex: 40,
+        maxWidth: 'calc(100vw - 2rem - env(safe-area-inset-left, 0px) - env(safe-area-inset-right, 0px))'
+      }}
       className="bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-700 rounded-lg shadow-xl w-96 max-w-[calc(100vw-2rem)] max-h-[85vh] flex flex-col transition-all duration-200"
     >
       {/* Header with Tabs */}

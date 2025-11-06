@@ -90,7 +90,12 @@ export default function Settings() {
         return (
           <button
             onClick={() => setIsOpen(true)}
-            className="fixed top-4 right-4 z-50 bg-gray-900 dark:bg-gray-700 text-white rounded-full p-3 sm:p-3 shadow-lg hover:bg-gray-800 dark:hover:bg-gray-600 active:scale-95 transition-all focus:outline-none focus:ring-2 focus:ring-gray-400 dark:focus:ring-gray-500 focus:ring-offset-2 touch-device:min-h-[48px] touch-device:min-w-[48px]"
+            className="fixed z-50 bg-gray-900 dark:bg-gray-700 text-white rounded-full p-3 sm:p-3 shadow-lg hover:bg-gray-800 dark:hover:bg-gray-600 active:scale-95 transition-all focus:outline-none focus:ring-2 focus:ring-gray-400 dark:focus:ring-gray-500 focus:ring-offset-2 touch-device:min-h-[48px] touch-device:min-w-[48px]"
+            style={{
+              top: 'max(1rem, env(safe-area-inset-top, 1rem))',
+              right: 'max(1rem, env(safe-area-inset-right, 1rem))',
+              zIndex: 50
+            }}
             aria-label="Open settings"
             title="Settings"
           >
@@ -115,8 +120,12 @@ export default function Settings() {
   return (
     <div
       ref={panelRef}
-      className="fixed top-4 z-50 bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-700 rounded-lg shadow-xl w-80 max-w-[calc(100vw-2rem)] max-h-[80vh] flex flex-col transition-all duration-200"
-      style={{ right: "5rem" }}
+      className="fixed z-50 bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-700 rounded-lg shadow-xl w-80 max-w-[calc(100vw-2rem)] max-h-[calc(80vh-env(safe-area-inset-top,0px))] flex flex-col transition-all duration-200"
+      style={{ 
+        top: 'max(1rem, env(safe-area-inset-top, 1rem))',
+        right: 'clamp(1rem, 5rem, calc(100vw - 4rem))',
+        maxWidth: 'calc(100vw - 2rem - env(safe-area-inset-left, 0px) - env(safe-area-inset-right, 0px))'
+      }}
     >
       <div className="flex items-center justify-between p-4 border-b border-gray-200 dark:border-gray-700">
         <h3 className="text-sm font-medium text-gray-900 dark:text-gray-100">Settings</h3>

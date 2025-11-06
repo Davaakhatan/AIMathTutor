@@ -41,7 +41,12 @@ export default function LearningHub({ onSelectProblem, onDifficultyChange, apiKe
     return (
       <button
         onClick={() => setIsOpen(true)}
-        style={{ position: 'fixed', top: '1rem', right: '9rem', zIndex: 30 }}
+        style={{ 
+          position: 'fixed', 
+          top: 'max(1rem, env(safe-area-inset-top, 1rem))', 
+          right: 'clamp(1rem, 9rem, calc(100vw - 4rem))', 
+          zIndex: 30 
+        }}
         className="bg-purple-600 dark:bg-purple-700 text-white rounded-full p-3 shadow-lg hover:bg-purple-700 dark:hover:bg-purple-600 active:scale-95 transition-all focus:outline-none focus:ring-2 focus:ring-purple-400 dark:focus:ring-purple-500 focus:ring-offset-2 touch-device:min-h-[48px] touch-device:min-w-[48px]"
         aria-label="Open learning hub"
         title="Learning Hub"
@@ -61,7 +66,13 @@ export default function LearningHub({ onSelectProblem, onDifficultyChange, apiKe
   return (
     <div
       ref={panelRef}
-      style={{ position: 'fixed', top: '1rem', right: '9rem', zIndex: 50 }}
+      style={{ 
+        position: 'fixed', 
+        top: 'max(1rem, env(safe-area-inset-top, 1rem))', 
+        right: 'clamp(1rem, 9rem, calc(100vw - 4rem))', 
+        zIndex: 50,
+        maxWidth: 'calc(100vw - 2rem - env(safe-area-inset-left, 0px) - env(safe-area-inset-right, 0px))'
+      }}
       className="bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-700 rounded-lg shadow-xl w-96 max-w-[calc(100vw-2rem)] max-h-[85vh] flex flex-col transition-all duration-200"
     >
       {/* Header with Tabs */}
