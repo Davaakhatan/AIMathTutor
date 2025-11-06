@@ -4,7 +4,7 @@ import { contextManager } from "@/services/contextManager";
 import { ChatRequest, ChatResponse, Message } from "@/types";
 import { chatRateLimiter, getClientId, createRateLimitHeaders } from "@/lib/rateLimit";
 import { logger } from "@/lib/logger";
-import { supabaseAdmin } from "@/lib/supabase-admin";
+import { getSupabaseAdmin } from "@/lib/supabase-admin";
 
 export async function POST(request: NextRequest) {
   try {
@@ -37,11 +37,14 @@ export async function POST(request: NextRequest) {
       const authHeader = request.headers.get("authorization");
       if (authHeader?.startsWith("Bearer ")) {
         try {
-          const token = authHeader.substring(7);
-          const { data: { user }, error } = await supabaseAdmin.auth.getUser(token);
-          if (!error && user) {
-            userId = user.id;
-            logger.debug("Extracted userId from auth header", { userId });
+          const supabase = getSupabaseAdmin();
+          if (supabase) {
+            const token = authHeader.substring(7);
+            const { data: { user }, error } = await supabase.auth.getUser(token);
+            if (!error && user) {
+              userId = user.id;
+              logger.debug("Extracted userId from auth header", { userId });
+            }
           }
         } catch (error) {
           // Not authenticated, continue as guest

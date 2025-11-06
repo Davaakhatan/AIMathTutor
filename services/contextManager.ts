@@ -1,7 +1,7 @@
 import { v4 as uuidv4 } from "uuid";
 import { Session, Message, ConversationContext, ParsedProblem } from "@/types";
 import { logger } from "@/lib/logger";
-import { supabaseAdmin } from "@/lib/supabase-admin";
+import { getSupabaseAdmin } from "@/lib/supabase-admin";
 
 /**
  * Global session storage that persists across hot reloads in Next.js dev mode
@@ -80,64 +80,69 @@ export class ContextManager {
     // If user is authenticated and Supabase is configured, persist to database
     if (userId && this.useSupabase) {
       try {
-        // First, save the problem if it exists
-        let problemId: string | null = null;
-        if (problem) {
-          const { data: problemData, error: problemError } = await supabaseAdmin
-            .from("problems")
-            .insert({
-              user_id: userId,
-              text: problem.text,
-              type: problem.type,
-              difficulty: difficultyMode,
-              image_url: problem.imageUrl,
-              parsed_data: problem,
-              is_generated: true,
-              source: "chat",
-            })
-            .select("id")
-            .single();
+        const supabase = getSupabaseAdmin();
+        if (!supabase) {
+          logger.debug("Supabase not configured, using in-memory session only", { userId });
+        } else {
+          // First, save the problem if it exists
+          let problemId: string | null = null;
+          if (problem) {
+            const { data: problemData, error: problemError } = await supabase
+              .from("problems")
+              .insert({
+                user_id: userId,
+                text: problem.text,
+                type: problem.type,
+                difficulty: difficultyMode,
+                image_url: problem.imageUrl,
+                parsed_data: problem,
+                is_generated: true,
+                source: "chat",
+              })
+              .select("id")
+              .single();
 
-          if (problemError) {
-            logger.warn("Failed to save problem to database", {
-              error: problemError.message,
+            if (problemError) {
+              logger.warn("Failed to save problem to database", {
+                error: problemError.message,
+                userId,
+              });
+            } else {
+              problemId = problemData.id;
+            }
+          }
+
+          // Create session in database
+          const expiresAt = new Date(now + this.SESSION_TIMEOUT).toISOString();
+          const { error: sessionError } = await supabase
+            .from("sessions")
+            .insert({
+              id: sessionId,
+              user_id: userId,
+              problem_id: problemId,
+              messages: [],
+              context: {},
+              difficulty_mode: difficultyMode,
+              status: "active",
+              started_at: new Date(now).toISOString(),
+              last_activity: new Date(now).toISOString(),
+              expires_at: expiresAt,
+            });
+
+          if (sessionError) {
+            logger.warn("Failed to persist session to database", {
+              error: sessionError.message,
+              sessionId,
               userId,
             });
+            // Continue with in-memory session even if DB save fails
           } else {
-            problemId = problemData.id;
+            logger.info("Session persisted to database", {
+              sessionId,
+              userId,
+              hasProblem: !!problem,
+            });
           }
-        }
-
-        // Create session in database
-        const expiresAt = new Date(now + this.SESSION_TIMEOUT).toISOString();
-        const { error: sessionError } = await supabaseAdmin
-          .from("sessions")
-          .insert({
-            id: sessionId,
-            user_id: userId,
-            problem_id: problemId,
-            messages: [],
-            context: {},
-            difficulty_mode: difficultyMode,
-            status: "active",
-            started_at: new Date(now).toISOString(),
-            last_activity: new Date(now).toISOString(),
-            expires_at: expiresAt,
-          });
-
-        if (sessionError) {
-          logger.warn("Failed to persist session to database", {
-            error: sessionError.message,
-            sessionId,
-            userId,
-          });
-          // Continue with in-memory session even if DB save fails
-        } else {
-          logger.info("Session persisted to database", {
-            sessionId,
-            userId,
-            hasProblem: !!problem,
-          });
         }
       } catch (error) {
         logger.error("Error persisting session to database", {
@@ -193,7 +198,12 @@ export class ContextManager {
     // If not found and user is authenticated, try loading from Supabase
     if (!session && userId && this.useSupabase) {
       try {
-        const { data, error } = await supabaseAdmin
+        const supabase = getSupabaseAdmin();
+        if (!supabase) {
+          return undefined;
+        }
+        
+        const { data, error } = await supabase
           .from("sessions")
           .select("*")
           .eq("id", sessionId)
@@ -260,7 +270,12 @@ export class ContextManager {
    */
   private async deleteSessionFromDB(sessionId: string, userId: string): Promise<void> {
     try {
-      await supabaseAdmin
+      const supabase = getSupabaseAdmin();
+      if (!supabase) {
+        return;
+      }
+      
+      await supabase
         .from("sessions")
         .delete()
         .eq("id", sessionId)
@@ -309,22 +324,25 @@ export class ContextManager {
     // If user is authenticated, persist to database
     if (userId && this.useSupabase) {
       try {
-        const { error } = await supabaseAdmin
-          .from("sessions")
-          .update({
-            messages: session.messages,
-            last_activity: new Date().toISOString(),
-          })
-          .eq("id", sessionId)
-          .eq("user_id", userId);
+        const supabase = getSupabaseAdmin();
+        if (supabase) {
+          const { error } = await supabase
+            .from("sessions")
+            .update({
+              messages: session.messages,
+              last_activity: new Date().toISOString(),
+            })
+            .eq("id", sessionId)
+            .eq("user_id", userId);
 
-        if (error) {
-          logger.warn("Failed to update session in database", {
-            error: error.message,
-            sessionId,
-            userId,
-          });
-          // Continue - in-memory session is still updated
+          if (error) {
+            logger.warn("Failed to update session in database", {
+              error: error.message,
+              sessionId,
+              userId,
+            });
+            // Continue - in-memory session is still updated
+          }
         }
       } catch (error) {
         logger.error("Error updating session in database", {
