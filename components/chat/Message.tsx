@@ -1,26 +1,59 @@
 "use client";
 
-import { memo } from "react";
+import { memo, useRef } from "react";
 import { Message as MessageType } from "@/types";
 import EnhancedMessageRenderer from "./EnhancedMessageRenderer";
 import MessageActions from "../MessageActions";
 import ExampleDrawing from "./ExampleDrawing";
 import DrawingSuggestions from "./DrawingSuggestions";
+import VoiceVisualSync from "./VoiceVisualSync";
 import { DrawingSuggestion } from "../ai/DrawingSuggestionParser";
+import { VisualUpdate } from "@/lib/visualSyncManager";
 
 interface MessageProps {
   message: MessageType;
   onSuggestionClick?: (suggestion: DrawingSuggestion) => void;
   enableStretchFeatures?: boolean;
+  whiteboardRef?: React.RefObject<HTMLCanvasElement>;
+  voiceSyncEnabled?: boolean;
 }
 
-function Message({ message, onSuggestionClick, enableStretchFeatures = true }: MessageProps) {
+function Message({ 
+  message, 
+  onSuggestionClick, 
+  enableStretchFeatures = true,
+  whiteboardRef,
+  voiceSyncEnabled = false,
+}: MessageProps) {
   const isUser = message.role === "user";
 
+  const messageRef = useRef<HTMLDivElement>(null);
+  
+  const handleVisualUpdate = (update: VisualUpdate) => {
+    // Handle visual updates from voice synchronization
+    if (update.type === "highlight" && messageRef.current) {
+      // Add highlight effect to message
+      messageRef.current.classList.add("voice-sync-highlight");
+      setTimeout(() => {
+        messageRef.current?.classList.remove("voice-sync-highlight");
+      }, update.duration || 3000);
+    }
+  };
+  
   return (
     <div
+      ref={messageRef}
+      data-message-id={message.id}
       className={`flex ${isUser ? "justify-end" : "justify-start"} group`}
     >
+      {!isUser && voiceSyncEnabled && (
+        <VoiceVisualSync
+          message={message}
+          onVisualUpdate={handleVisualUpdate}
+          whiteboardRef={whiteboardRef}
+          isEnabled={enableStretchFeatures}
+        />
+      )}
       <div
         className={`max-w-[85%] sm:max-w-[75%] rounded-lg px-3 py-2 sm:px-4 sm:py-3 transition-all relative ${
           isUser

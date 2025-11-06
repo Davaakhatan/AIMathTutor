@@ -43,6 +43,7 @@ const ChatUI = memo(function ChatUI({
   const [error, setError] = useState<string | null>(null);
   const [voiceEnabled, setVoiceEnabled] = useState(propVoiceEnabled);
   const [showWhiteboard, setShowWhiteboard] = useState(enableStretchFeatures); // Show by default when stretch features enabled
+  const [voiceSyncEnabled, setVoiceSyncEnabled] = useState(false);
   const whiteboardCanvasRef = useRef<HTMLCanvasElement | null>(null);
   const { toasts, showToast, removeToast } = useToast();
   
@@ -306,6 +307,9 @@ const ChatUI = memo(function ChatUI({
               onSendDrawing={handleSendWhiteboard}
               onReviewDrawing={handleReviewWhiteboard}
               compact={false}
+              onCanvasRef={(canvas) => {
+                whiteboardCanvasRef.current = canvas;
+              }}
             />
           )}
           
@@ -354,14 +358,28 @@ const ChatUI = memo(function ChatUI({
           </div>
           <div className="flex items-center gap-2">
             {enableStretchFeatures && (
-              <button
-                onClick={() => setVoiceEnabled(!voiceEnabled)}
-                className="text-xs text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-300 transition-colors font-light px-2 py-1"
-                aria-label={voiceEnabled ? "Disable voice" : "Enable voice"}
-                title={voiceEnabled ? "Disable voice" : "Enable voice"}
-              >
-                {voiceEnabled ? "🔊" : "🔇"}
-              </button>
+              <>
+                <button
+                  onClick={() => setVoiceEnabled(!voiceEnabled)}
+                  className="text-xs text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-300 transition-colors font-light px-2 py-1"
+                  aria-label={voiceEnabled ? "Disable voice" : "Enable voice"}
+                  title={voiceEnabled ? "Disable voice" : "Enable voice"}
+                >
+                  {voiceEnabled ? "🔊" : "🔇"}
+                </button>
+                <button
+                  onClick={() => setVoiceSyncEnabled(!voiceSyncEnabled)}
+                  className={`text-xs px-2 py-1 rounded-lg transition-colors font-light ${
+                    voiceSyncEnabled
+                      ? "bg-purple-100 dark:bg-purple-900/20 text-purple-700 dark:text-purple-300"
+                      : "text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-300"
+                  }`}
+                  aria-label={voiceSyncEnabled ? "Disable voice-visual sync" : "Enable voice-visual sync"}
+                  title={voiceSyncEnabled ? "Disable voice-visual sync" : "Enable voice-visual sync (synchronizes voice with visual highlights)"}
+                >
+                  🎬
+                </button>
+              </>
             )}
             {onRestart && (
               <button
@@ -419,6 +437,8 @@ const ChatUI = memo(function ChatUI({
                   onSuggestionClick={(suggestion) => {
                     handleDrawingSuggestion(suggestion);
                   }}
+                  whiteboardRef={whiteboardCanvasRef}
+                  voiceSyncEnabled={voiceSyncEnabled && voiceEnabled}
                 />
               </div>
             ))}

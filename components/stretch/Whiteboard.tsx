@@ -8,6 +8,7 @@ interface WhiteboardProps {
   onSendDrawing?: (imageDataUrl: string) => void;
   onReviewDrawing?: (imageDataUrl: string) => void;
   compact?: boolean; // Compact mode for sidebar integration
+  onCanvasRef?: (canvas: HTMLCanvasElement | null) => void; // Callback to get canvas ref
 }
 
 // Shape types for object tracking
@@ -38,6 +39,7 @@ export default function Whiteboard({
   onSendDrawing,
   onReviewDrawing,
   compact = false,
+  onCanvasRef,
 }: WhiteboardProps) {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const [isDrawing, setIsDrawing] = useState(false);
@@ -56,6 +58,38 @@ export default function Whiteboard({
   const [selectedShapeId, setSelectedShapeId] = useState<string | null>(null);
   const [isDragging, setIsDragging] = useState(false);
   const [dragOffset, setDragOffset] = useState<{ x: number; y: number } | null>(null);
+  
+  // Listen for voice-triggered drawing events
+  useEffect(() => {
+    const canvas = canvasRef.current;
+    if (!canvas) return;
+    
+    const handleVoiceDrawing = (event: CustomEvent) => {
+      const { instruction } = event.detail;
+      if (!instruction) return;
+      
+      // Parse instruction and trigger appropriate drawing
+      const lowerInstruction = instruction.toLowerCase();
+      
+      // Simple pattern matching for common drawing instructions
+      if (lowerInstruction.includes("triangle")) {
+        // Could trigger triangle drawing mode or draw a sample triangle
+        setDrawingMode("triangle");
+      } else if (lowerInstruction.includes("circle")) {
+        setDrawingMode("circle");
+      } else if (lowerInstruction.includes("rectangle") || lowerInstruction.includes("square")) {
+        setDrawingMode("rectangle");
+      } else if (lowerInstruction.includes("line")) {
+        setDrawingMode("line");
+      }
+    };
+    
+    canvas.addEventListener("voice-drawing-trigger", handleVoiceDrawing as EventListener);
+    
+    return () => {
+      canvas.removeEventListener("voice-drawing-trigger", handleVoiceDrawing as EventListener);
+    };
+  }, []);
 
   const colors = [
     "#000000", // Black
@@ -252,11 +286,19 @@ export default function Whiteboard({
 
     resizeCanvas();
     window.addEventListener("resize", resizeCanvas);
-
+    
+    // Notify parent of canvas ref
+    if (onCanvasRef && canvasRef.current) {
+      onCanvasRef(canvasRef.current);
+    }
+    
     return () => {
       window.removeEventListener("resize", resizeCanvas);
+      if (onCanvasRef) {
+        onCanvasRef(null);
+      }
     };
-  }, [redrawCanvas]);
+  }, [redrawCanvas, onCanvasRef]);
 
   // Redraw when shapes or paths change
   useEffect(() => {
