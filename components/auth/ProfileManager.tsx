@@ -128,20 +128,26 @@ export default function ProfileManager() {
           logger.info("Profile created successfully", { profileId: newProfile.id, name: newProfile.name });
           console.log("Profile created:", newProfile);
           
+          // Show success immediately
+          showToast("Profile created successfully! Refreshing...", "success");
+          
           // Refresh profiles first to get the new profile in the list
+          let refreshSucceeded = false;
           try {
             await refreshProfiles();
             logger.debug("Profiles refreshed after creation");
             console.log("Profiles refreshed after creation");
+            refreshSucceeded = true;
           } catch (refreshError: any) {
             logger.error("Error refreshing profiles after creation", { error: refreshError });
             console.error("Refresh profiles error:", refreshError);
+            refreshSucceeded = false;
             
-            // If refresh fails, show error but don't block
-            if (refreshError?.message?.includes("infinite recursion") || refreshError?.code === "42P17") {
-              showToast("Profile created but refresh failed. Please run the database migration and refresh the page.", "error");
+            // If refresh fails, show specific error message
+            if (refreshError?.message?.includes("infinite recursion") || refreshError?.code === "42P17" || refreshError?.message?.includes("Database policy error")) {
+              showToast("Profile created! Please run fix_infinite_recursion_student_profiles.sql migration in Supabase, then refresh the page.", "error");
             } else {
-              showToast("Profile created but refresh failed. Please refresh the page.", "error");
+              showToast("Profile created! Please refresh the page to see it.", "error");
             }
           }
           
@@ -159,24 +165,20 @@ export default function ProfileManager() {
             // Don't show error toast here - profile was created successfully
           }
           
-          // Only show success if refresh didn't fail with a critical error
-          const refreshFailed = false; // We'll check this from the catch block
-          if (!refreshFailed) {
-            showToast("Profile created successfully", "success");
-          }
-          
           // Close create form
           setIsCreating(false);
           
-          // Force a page refresh after 1 second to ensure profile shows up
-          // This is a workaround if refreshProfiles is failing
-          setTimeout(() => {
-            // Check if profiles list was updated
-            // If not, suggest refresh
-            if (profiles.length === 0) {
-              console.warn("Profile created but not showing in list. Please refresh the page.");
-            }
-          }, 1000);
+          // If refresh failed, suggest manual page refresh
+          if (!refreshSucceeded) {
+            // Wait a bit then check if profiles were loaded
+            setTimeout(() => {
+              if (profiles.length === 0) {
+                console.warn("Profile created but not showing. The profile exists in the database. Please refresh the page.");
+                // Optionally auto-refresh after 2 seconds
+                // window.location.reload();
+              }
+            }, 1000);
+          }
         } catch (createError: any) {
           // Log full error details
           logger.error("Error creating profile", { 
