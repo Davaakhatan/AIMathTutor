@@ -14,6 +14,7 @@ import ErrorRecovery from "../ErrorRecovery";
 import { DrawingSuggestion } from "../ai/DrawingSuggestionParser";
 import { useToast } from "@/hooks/useToast";
 import Toast from "../Toast";
+import EmotionalSupport from "../EmotionalSupport";
 
 interface ChatUIProps {
   sessionId: string;
@@ -89,6 +90,11 @@ const ChatUI = memo(function ChatUI({
     };
   }, [messages]);
 
+  // Memoize celebrate callback to prevent infinite loops
+  const handleCelebrate = useCallback(() => {
+    // Optional: Add celebration sound or animation
+  }, []);
+
   // Handle drawing suggestions
   const handleDrawingSuggestion = useCallback((suggestion: DrawingSuggestion) => {
     console.log("Drawing suggestion clicked:", suggestion);
@@ -159,7 +165,12 @@ const ChatUI = memo(function ChatUI({
     
     // Validate sessionId exists before sending
     if (!sessionId) {
-      setError("No active session. Please start a new problem or restart the conversation.");
+      const errorMsg = "No active session. Please start a new problem first.";
+      setError(errorMsg);
+      console.error("Cannot send message: sessionId is missing", {
+        sessionId,
+        messagesCount: messages.length,
+      });
       return;
     }
     
@@ -507,6 +518,14 @@ const ChatUI = memo(function ChatUI({
         )}
 
         <div ref={messagesEndRef} />
+
+        {/* Emotional Support */}
+        {enableStretchFeatures && (
+          <EmotionalSupport 
+            messages={messages}
+            onCelebrate={handleCelebrate}
+          />
+        )}
       </div>
 
       {/* Input Area */}

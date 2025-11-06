@@ -1,6 +1,7 @@
 import { openai, createOpenAIClient } from "@/lib/openai";
 import { contextManager } from "./contextManager";
 import { socraticPromptEngine } from "./socraticPromptEngine";
+import { analyzeSentiment } from "./sentimentAnalyzer";
 import { responseValidator } from "./responseValidator";
 import { ParsedProblem, Message, Session } from "@/types";
 import { v4 as uuidv4 } from "uuid";
@@ -238,12 +239,16 @@ export class DialogueManager {
       throw new Error(`Session ${sessionId} not found or has no problem`);
     }
 
-    // Build prompt with context
+    // Analyze sentiment from the user's message
+    const sentimentAnalysis = analyzeSentiment(userMessage);
+
+    // Build prompt with context (including sentiment analysis)
     let prompt = socraticPromptEngine.buildContext(
       context.problem,
       context.messages,
       context.stuckCount,
-      difficultyMode
+      difficultyMode,
+      sentimentAnalysis
     );
     
     // If whiteboard image is present, REPLACE the problem context with drawing-focused instructions

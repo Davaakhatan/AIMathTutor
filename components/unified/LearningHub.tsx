@@ -7,16 +7,18 @@ import HistoryContent from "./HistoryContent";
 import PracticeContent from "./PracticeContent";
 import SuggestionsContent from "./SuggestionsContent";
 import LearningPath from "../LearningPath";
+import { DifficultyLevel } from "@/services/difficultyTracker";
 
 interface LearningHubProps {
   onSelectProblem: (problem: ParsedProblem) => void;
+  onDifficultyChange?: (difficulty: DifficultyLevel) => void;
   apiKey?: string;
 }
 
 /**
  * Unified Learning Hub - Combines Dashboard, History, Practice, and Suggestions
  */
-export default function LearningHub({ onSelectProblem, apiKey }: LearningHubProps) {
+export default function LearningHub({ onSelectProblem, onDifficultyChange, apiKey }: LearningHubProps) {
   const [isOpen, setIsOpen] = useState(false);
   const [activeTab, setActiveTab] = useState<"dashboard" | "history" | "practice" | "suggestions" | "path">("dashboard");
   const panelRef = useRef<HTMLDivElement>(null);
@@ -128,8 +130,8 @@ export default function LearningHub({ onSelectProblem, apiKey }: LearningHubProp
       </div>
 
       {/* Tab Content */}
-      <div className="flex-1 overflow-y-auto min-h-0">
-        {activeTab === "dashboard" && <DashboardContent />}
+            <div className="flex-1 overflow-y-auto min-h-0">
+              {activeTab === "dashboard" && <DashboardContent onDifficultyChange={onDifficultyChange} />}
         {activeTab === "history" && <HistoryContent onSelectProblem={onSelectProblem} />}
         {activeTab === "practice" && <PracticeContent onStartPractice={onSelectProblem} apiKey={apiKey} />}
         {activeTab === "suggestions" && <SuggestionsContent onSelectProblem={onSelectProblem} />}

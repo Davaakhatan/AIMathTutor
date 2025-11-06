@@ -439,7 +439,7 @@ export default function Home() {
                   </div>
                 </div>
               </div>
-            ) : sessionId ? (
+            ) : sessionId && currentProblem ? (
               <div className="space-y-4">
                 {/* Difficulty Mode Selector */}
                 <DifficultyModeSelector
@@ -494,6 +494,7 @@ export default function Home() {
                   <ProblemProgress
                     messages={allMessages}
                     problem={currentProblem}
+                    difficultyMode={difficultyMode}
                   />
                 )}
 
@@ -548,7 +549,8 @@ export default function Home() {
 
           {/* Unified Learning Hub (Dashboard + History + Practice) */}
           <LearningHub 
-            onSelectProblem={handleProblemParsed} 
+            onSelectProblem={handleProblemParsed}
+            onDifficultyChange={setDifficultyMode} 
             apiKey={settings.apiKey}
           />
 

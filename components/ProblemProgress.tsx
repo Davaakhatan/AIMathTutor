@@ -3,17 +3,20 @@
 import { Message, ParsedProblem } from "@/types";
 import { useState } from "react";
 import { useConceptTracking } from "@/hooks/useConceptTracking";
+import { useDifficultyTracking } from "@/hooks/useDifficultyTracking";
+import { DifficultyLevel } from "@/services/difficultyTracker";
 
 interface ProblemProgressProps {
   messages: Message[];
   problem: ParsedProblem;
+  difficultyMode?: DifficultyLevel;
 }
 
 /**
  * Shows progress through solving a problem
  * Based on conversation length and hints used
  */
-export default function ProblemProgress({ messages, problem }: ProblemProgressProps) {
+export default function ProblemProgress({ messages, problem, difficultyMode = "middle" }: ProblemProgressProps) {
   const [showDetails, setShowDetails] = useState(false);
   
   const userMessages = messages.filter(m => m.role === "user");
@@ -188,6 +191,8 @@ export default function ProblemProgress({ messages, problem }: ProblemProgressPr
   
   // Track concept mastery when problem is solved
   useConceptTracking(problem, messages, isSolved);
+  // Track difficulty performance when problem is solved
+  useDifficultyTracking(problem, messages, isSolved, difficultyMode);
 
   // Calculate progress (rough estimate based on conversation length)
   // More exchanges = more progress, but also more hints = less progress

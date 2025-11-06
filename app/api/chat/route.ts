@@ -81,8 +81,25 @@ export async function POST(request: NextRequest) {
           logger.error("Failed to generate initial message, cleaning up session", {
             sessionId: session.id,
             error: generateError instanceof Error ? generateError.message : String(generateError),
+            hasClientApiKey: !!clientApiKey,
+            hasEnvApiKey: !!process.env.OPENAI_API_KEY,
           });
-          // Session will be cleaned up automatically on next request, but we should still throw
+          
+          // Clean up the session immediately
+          contextManager.clearSession(session.id);
+          
+          // Provide more helpful error messages
+          if (generateError instanceof Error) {
+            const errorMsg = generateError.message;
+            if (errorMsg.includes("API key") || errorMsg.includes("401") || errorMsg.includes("unauthorized")) {
+              throw new Error("OpenAI API key error. Please check your API key in Settings or .env.local file.");
+            } else if (errorMsg.includes("quota") || errorMsg.includes("insufficient_quota")) {
+              throw new Error("OpenAI account quota exceeded. Please check your account credits.");
+            } else if (errorMsg.includes("rate limit") || errorMsg.includes("429")) {
+              throw new Error("Too many requests. Please wait a moment and try again.");
+            }
+          }
+          
           throw generateError;
         }
 
@@ -211,29 +228,67 @@ export async function POST(request: NextRequest) {
 
     // Process user message
     const difficultyMode = body.difficultyMode || "middle";
-    const tutorResponse = await dialogueManager.processMessage(
-      body.sessionId,
-      body.message,
-      difficultyMode as "elementary" | "middle" | "high" | "advanced",
-      clientApiKey, // Pass client-provided API key if available
-      body.whiteboardImage // Pass whiteboard image if provided
-    );
+    
+    try {
+      const tutorResponse = await dialogueManager.processMessage(
+        body.sessionId,
+        body.message,
+        difficultyMode as "elementary" | "middle" | "high" | "advanced",
+        clientApiKey, // Pass client-provided API key if available
+        body.whiteboardImage // Pass whiteboard image if provided
+      );
+      
+      const response = NextResponse.json({
+        success: true,
+        response: {
+          text: tutorResponse.content,
+          timestamp: tutorResponse.timestamp,
+        },
+      } as ChatResponse);
 
-    const response = NextResponse.json({
-      success: true,
-      response: {
-        text: tutorResponse.content,
-        timestamp: tutorResponse.timestamp,
-      },
-    } as ChatResponse);
+      // Add rate limit headers
+      const headers = createRateLimitHeaders(20, rateLimit.remaining, rateLimit.resetAt);
+      Object.entries(headers).forEach(([key, value]) => {
+        response.headers.set(key, value);
+      });
 
-    // Add rate limit headers
-    const headers = createRateLimitHeaders(20, rateLimit.remaining, rateLimit.resetAt);
-    Object.entries(headers).forEach(([key, value]) => {
-      response.headers.set(key, value);
-    });
-
-    return response;
+      return response;
+    } catch (processError) {
+      // Enhanced error handling for OpenAI API errors
+      logger.error("Error processing message", {
+        error: processError instanceof Error ? processError.message : String(processError),
+        sessionId: body.sessionId,
+        hasClientApiKey: !!clientApiKey,
+        hasEnvApiKey: !!process.env.OPENAI_API_KEY,
+      });
+      
+      let errorMessage = "Failed to process message";
+      let statusCode = 500;
+      
+      if (processError instanceof Error) {
+        errorMessage = processError.message;
+        
+        // Handle OpenAI API errors
+        if (errorMessage.includes("API key") || errorMessage.includes("401") || errorMessage.includes("unauthorized")) {
+          errorMessage = "OpenAI API key error. Please check your API key in Settings.";
+          statusCode = 401;
+        } else if (errorMessage.includes("rate limit") || errorMessage.includes("429")) {
+          errorMessage = "Too many requests. Please wait a moment and try again.";
+          statusCode = 429;
+        } else if (errorMessage.includes("quota") || errorMessage.includes("insufficient_quota")) {
+          errorMessage = "OpenAI account quota exceeded. Please check your account credits.";
+          statusCode = 402;
+        }
+      }
+      
+      return NextResponse.json(
+        {
+          success: false,
+          error: errorMessage,
+        } as ChatResponse,
+        { status: statusCode }
+      );
+    }
   } catch (error) {
     // Enhanced error logging for debugging
     const errorInfo = {

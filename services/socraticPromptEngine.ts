@@ -1,6 +1,7 @@
 import { ParsedProblem, Message } from "@/types";
 import { logger } from "@/lib/logger";
 import { normalizeProblemText } from "@/lib/textUtils";
+import { analyzeSentiment, analyzeConversationHistory, SentimentAnalysis } from "@/services/sentimentAnalyzer";
 
 export class SocraticPromptEngine {
   /**
@@ -122,7 +123,8 @@ Remember:
     problem: ParsedProblem,
     history: Message[],
     stuckCount: number,
-    difficultyMode: "elementary" | "middle" | "high" | "advanced" = "middle"
+    difficultyMode: "elementary" | "middle" | "high" | "advanced" = "middle",
+    sentimentAnalysis?: SentimentAnalysis
   ): string {
     const problemContext = this.formatProblem(problem);
     const adaptation = this.getAdaptation(stuckCount, history.length);
@@ -200,6 +202,41 @@ Remember:
     "- 'That's a good approach, but there might be an error in the calculation. Can you double-check?'\n" +
     "- 'The formula looks right, but the result seems off. What do you get when you calculate...?'\n" +
     "- Always guide them to discover the mistake themselves rather than just telling them it's wrong.\n";
+
+    // Add emotional support instructions based on sentiment
+    if (sentimentAnalysis) {
+      const conversationHistory = analyzeConversationHistory(history);
+      
+      if (sentimentAnalysis.type === "frustrated" || conversationHistory.frustrationLevel > 0.3) {
+        prompt += "\n**EMOTIONAL SUPPORT NEEDED**: The student is showing signs of frustration. Adjust your tone:\n" +
+        "- Be EXTRA patient and supportive\n" +
+        "- Break the problem into VERY small steps\n" +
+        "- Provide more encouragement: 'You're doing great just by trying!' or 'Let's take this one step at a time'\n" +
+        "- Celebrate ANY progress, no matter how small: 'Great! You identified the first step!' or 'That's exactly right!'\n" +
+        "- Use warmer, more empathetic language\n" +
+        "- Acknowledge their effort: 'I can see you're working hard on this'\n" +
+        "- If they're stuck, be more direct with hints but still encouraging\n";
+      } else if (sentimentAnalysis.type === "confused") {
+        prompt += "\n**CLARIFICATION NEEDED**: The student seems confused. Adjust your approach:\n" +
+        "- Provide clearer, more specific guidance\n" +
+        "- Use simpler language and break down concepts\n" +
+        "- Ask one question at a time\n" +
+        "- Be encouraging: 'Confusion is normal when learning - let's work through this together'\n";
+      } else if (sentimentAnalysis.type === "confident") {
+        prompt += "\n**MOMENTUM**: The student is showing confidence. Build on this:\n" +
+        "- Acknowledge their confidence: 'Great thinking!' or 'You're on the right track!'\n" +
+        "- Let them take the lead but provide gentle guidance\n" +
+        "- Celebrate their progress\n";
+      }
+      
+      if (conversationHistory.encouragementNeeded) {
+        prompt += "\n**ENCOURAGEMENT**: The student needs more encouragement. Be sure to:\n" +
+        "- Celebrate small wins and progress\n" +
+        "- Acknowledge their effort and persistence\n" +
+        "- Use positive reinforcement frequently\n" +
+        "- Break problems into smaller, achievable steps\n";
+      }
+    }
 
     // Log prompt length for monitoring
     const promptLength = prompt.length;

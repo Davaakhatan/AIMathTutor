@@ -5,6 +5,8 @@ import { useLocalStorage } from "@/hooks/useLocalStorage";
 import { ProblemType } from "@/types";
 import { getAllConcepts, getConceptsByCategory, getConceptsNeedingPractice, ConceptTrackingData } from "@/services/conceptTracker";
 import ProgressVisualization from "../ProgressVisualization";
+import DifficultyRecommendation from "../DifficultyRecommendation";
+import { DifficultyLevel } from "@/services/difficultyTracker";
 
 interface ProblemStats {
   totalProblems: number;
@@ -52,7 +54,11 @@ interface StreakData {
 /**
  * Dashboard Content - Learning analytics and statistics
  */
-export default function DashboardContent() {
+interface DashboardContentProps {
+  onDifficultyChange?: (difficulty: DifficultyLevel) => void;
+}
+
+export default function DashboardContent({ onDifficultyChange }: DashboardContentProps = {}) {
   const [savedProblems] = useLocalStorage<SavedProblem[]>("aitutor-problem-history", []);
   const [xpData] = useLocalStorage<XPData>("aitutor-xp", { totalXP: 0, level: 1, xpHistory: [] });
   const [streakData] = useLocalStorage<StreakData>("aitutor-streak", { currentStreak: 0, longestStreak: 0, lastStudyDate: 0 });
@@ -527,6 +533,14 @@ export default function DashboardContent() {
             </p>
           )}
         </div>
+      </div>
+
+      {/* Difficulty Recommendation */}
+      <div className="mt-6">
+        <DifficultyRecommendation
+          currentDifficulty={undefined} // Will read from tracking data
+          onDifficultyChange={onDifficultyChange}
+        />
       </div>
     </div>
   );
