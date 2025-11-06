@@ -138,15 +138,48 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         }
         
         // Get initial session in background (non-blocking)
-        supabase.auth.getSession().then(({ data: { session }, error }) => {
+        supabase.auth.getSession().then(async ({ data: { session }, error }) => {
           if (error) {
             logger.error("Error getting initial session", { error });
             // Session is already cleared, just log the error
+            setSession(null);
+            setUser(null);
+            setUserRole(null);
             return;
           }
           
+          // Verify session is still valid by checking with Supabase
+          // Sometimes localStorage has stale sessions
+          if (session) {
+            try {
+              // Verify the session is still valid by getting the user
+              const { data: { user }, error: userError } = await supabase.auth.getUser();
+              if (userError || !user) {
+                logger.warn("Session found but user verification failed, clearing session", { error: userError });
+                // Session is invalid, clear it
+                await supabase.auth.signOut();
+                setSession(null);
+                setUser(null);
+                setUserRole(null);
+                setActiveProfileState(null);
+                setProfiles([]);
+                return;
+              }
+            } catch (verifyError) {
+              logger.error("Error verifying session", { error: verifyError });
+              // If verification fails, clear the session
+              await supabase.auth.signOut();
+              setSession(null);
+              setUser(null);
+              setUserRole(null);
+              setActiveProfileState(null);
+              setProfiles([]);
+              return;
+            }
+          }
+          
           // Update session state (app is already rendered)
-          logger.debug("Initial session loaded", { hasSession: !!session });
+          logger.debug("Initial session loaded", { hasSession: !!session, userId: session?.user?.id });
           setSession(session);
           setUser(session?.user ?? null);
           
@@ -406,10 +439,30 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     try {
       const supabase = await getSupabaseClient();
       
-      // Clear ALL state immediately (optimistic update)
+      // Sign out from Supabase FIRST (this clears the session from Supabase storage)
+      // Wait for it to complete before clearing local state
+      const { error } = await supabase.auth.signOut();
+      if (error) {
+        logger.error("Sign out error", { error });
+      } else {
+        logger.info("User signed out successfully from Supabase");
+      }
+      
+      // Clear Supabase's localStorage keys directly (in case signOut didn't clear them)
+      if (typeof window !== 'undefined') {
+        const supabaseKeys = Object.keys(localStorage).filter(key => 
+          key.startsWith('sb-') || key.includes('supabase')
+        );
+        supabaseKeys.forEach(key => {
+          localStorage.removeItem(key);
+        });
+        logger.debug("Cleared Supabase localStorage keys", { keys: supabaseKeys });
+      }
+      
+      // Clear ALL state after Supabase signOut completes
       setSession(null);
       setUser(null);
-      setUserRole(null); // Clear role
+      setUserRole(null);
       setActiveProfileState(null);
       setProfiles([]);
       profilesLoadedForUserRef.current = null;
@@ -419,14 +472,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       // Clear localStorage cache
       clearUserData();
       
-      // Sign out from Supabase (this clears the session cookie)
-      const { error } = await supabase.auth.signOut();
-      if (error) {
-        logger.error("Sign out error", { error });
-        // Still clear state even if Supabase signOut fails
-      } else {
-        logger.info("User signed out successfully");
-      }
+      logger.info("Sign out complete - all state cleared");
     } catch (error) {
       logger.error("Sign out exception", { error });
       // Even if signOut fails, ensure all state is cleared
@@ -439,6 +485,16 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       isLoadingProfilesRef.current = false;
       userDataLoadedRef.current = null;
       clearUserData();
+      
+      // Also clear Supabase localStorage keys on error
+      if (typeof window !== 'undefined') {
+        const supabaseKeys = Object.keys(localStorage).filter(key => 
+          key.startsWith('sb-') || key.includes('supabase')
+        );
+        supabaseKeys.forEach(key => {
+          localStorage.removeItem(key);
+        });
+      }
     }
   };
 
