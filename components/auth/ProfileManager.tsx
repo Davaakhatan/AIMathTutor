@@ -107,8 +107,6 @@ export default function ProfileManager() {
         await refreshProfiles();
         // If this was the active profile, reload user data
         if (activeProfile?.id === editingProfile.id) {
-          // Reset user data loaded flag to force reload
-          userDataLoadedRef.current = null;
           await loadUserDataFromSupabase();
         }
         // Close edit form
