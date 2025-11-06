@@ -66,15 +66,18 @@ export default function ProfileManager() {
     try {
       setIsSubmitting(true);
       const wasActiveProfile = activeProfile?.id === profileId;
+      
+      // If deleting active profile, switch to Personal first
+      if (wasActiveProfile) {
+        await setActiveProfile(null);
+        // Wait a bit for the switch to complete
+        await new Promise(resolve => setTimeout(resolve, 200));
+      }
+      
       await deleteStudentProfile(profileId);
       
       // Refresh profiles to update the list
       await refreshProfiles();
-      
-      // If we deleted the active profile, switch to Personal (null)
-      if (wasActiveProfile) {
-        await setActiveProfile(null);
-      }
       
       showToast("Profile deleted successfully", "success");
     } catch (error) {
