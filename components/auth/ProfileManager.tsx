@@ -126,18 +126,34 @@ export default function ProfileManager() {
           logger.info("Creating profile", { formData, userRole });
           const newProfile = await createStudentProfile(formData);
           logger.info("Profile created successfully", { profileId: newProfile.id, name: newProfile.name });
-          showToast("Profile created successfully", "success");
+          console.log("Profile created:", newProfile);
           
           // Refresh profiles first to get the new profile in the list
-          await refreshProfiles();
-          logger.debug("Profiles refreshed after creation");
+          try {
+            await refreshProfiles();
+            logger.debug("Profiles refreshed after creation");
+            console.log("Profiles refreshed, current profiles:", profiles);
+          } catch (refreshError) {
+            logger.error("Error refreshing profiles after creation", { error: refreshError });
+            console.error("Refresh profiles error:", refreshError);
+            // Continue anyway - we'll manually add the profile to the list
+          }
           
           // Wait a bit for the refresh to complete
-          await new Promise(resolve => setTimeout(resolve, 200));
+          await new Promise(resolve => setTimeout(resolve, 500));
           
           // Then set as active (this will also reload data)
-          await setActiveProfile(newProfile.id);
-          logger.debug("New profile set as active");
+          try {
+            await setActiveProfile(newProfile.id);
+            logger.debug("New profile set as active");
+            console.log("Profile set as active:", newProfile.id);
+          } catch (setActiveError) {
+            logger.error("Error setting active profile", { error: setActiveError });
+            console.error("Set active profile error:", setActiveError);
+            // Continue anyway
+          }
+          
+          showToast("Profile created successfully", "success");
           
           // Close create form
           setIsCreating(false);
