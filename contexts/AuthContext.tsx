@@ -386,8 +386,13 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       
       // Update database in background (don't wait)
       setActiveProfile(profileId)
-        .then(() => {
+        .then(async () => {
           logger.info("Active profile updated in database", { profileId });
+          // Reload data for the new profile
+          if (user) {
+            userDataLoadedRef.current = null; // Reset to allow reload
+            await loadUserDataFromSupabase();
+          }
         })
         .catch((error) => {
           logger.error("Error updating active profile in database", { error, profileId });
@@ -404,7 +409,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       await refreshProfiles();
       throw error;
     }
-  }, [profiles, refreshProfiles]);
+  }, [profiles, refreshProfiles, user, loadUserDataFromSupabase]);
 
   // Load user data from Supabase and cache in localStorage
   const loadUserDataFromSupabase = useCallback(async () => {
