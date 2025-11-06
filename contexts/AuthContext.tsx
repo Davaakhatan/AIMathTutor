@@ -1,6 +1,6 @@
 "use client";
 
-import { createContext, useContext, useEffect, useState, useCallback } from "react";
+import { createContext, useContext, useEffect, useState, useCallback, useRef } from "react";
 // Use type-only imports to avoid loading the module
 import type { User, Session, AuthError } from "@supabase/supabase-js";
 import { getSupabaseClient } from "@/lib/supabase";
@@ -38,17 +38,19 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [activeProfile, setActiveProfileState] = useState<StudentProfile | null>(null);
   const [profiles, setProfiles] = useState<StudentProfile[]>([]);
   const [profilesLoading, setProfilesLoading] = useState(false);
-  const [profilesLoadedForUser, setProfilesLoadedForUser] = useState<string | null>(null);
+  const profilesLoadedForUserRef = useRef<string | null>(null);
+  const isLoadingProfilesRef = useRef(false);
 
   // Load student profiles for the current user
   const loadProfiles = useCallback(async (userId: string) => {
     // Prevent duplicate loads for the same user
-    if (profilesLoadedForUser === userId && profiles.length >= 0) {
-      logger.debug("Profiles already loaded for user, skipping", { userId });
+    if (profilesLoadedForUserRef.current === userId || isLoadingProfilesRef.current) {
+      logger.debug("Profiles already loaded or loading for user, skipping", { userId });
       return;
     }
 
     try {
+      isLoadingProfilesRef.current = true;
       setProfilesLoading(true);
       const [profilesList, active] = await Promise.all([
         getStudentProfiles(),
@@ -56,20 +58,21 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       ]);
       setProfiles(profilesList);
       setActiveProfileState(active);
-      setProfilesLoadedForUser(userId);
+      profilesLoadedForUserRef.current = userId;
       logger.info("Profiles loaded", { 
         count: profilesList.length, 
         activeProfileId: active?.id 
       });
     } catch (error) {
       logger.error("Error loading profiles", { error });
-      // Don't set profilesLoadedForUser on error, so we can retry
+      // Don't set profilesLoadedForUserRef on error, so we can retry
       setProfiles([]);
       setActiveProfileState(null);
     } finally {
       setProfilesLoading(false);
+      isLoadingProfilesRef.current = false;
     }
-  }, [profilesLoadedForUser, profiles.length]);
+  }, []);
 
   useEffect(() => {
     // Only run on client side
@@ -115,7 +118,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
             clearUserData();
             logger.info("Cleared localStorage data for logged-in user", { userId: session.user.id });
             // Load profiles after sign in (only once)
-            if (profilesLoadedForUser !== session.user.id) {
+            if (profilesLoadedForUserRef.current !== session.user.id) {
               await loadProfiles(session.user.id);
             }
           }
@@ -124,7 +127,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
             // Clear profile state on sign out
             setActiveProfileState(null);
             setProfiles([]);
-            setProfilesLoadedForUser(null);
+            profilesLoadedForUserRef.current = null;
+            isLoadingProfilesRef.current = false;
           }
           
           setLoading(false);
