@@ -53,17 +53,25 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       isLoadingProfilesRef.current = true;
       setProfilesLoading(true);
       
-      // Add timeout to prevent infinite loading
-      const timeoutPromise = new Promise((_, reject) => {
-        setTimeout(() => reject(new Error("Profile loading timeout")), 10000);
-      });
+      // Load profiles with individual error handling (don't fail both if one fails)
+      let profilesList: StudentProfile[] = [];
+      let active: StudentProfile | null = null;
       
-      const profilesPromise = Promise.all([
-        getStudentProfiles(),
-        getActiveStudentProfile(),
-      ]);
+      try {
+        profilesList = await getStudentProfiles();
+      } catch (error) {
+        logger.error("Error fetching student profiles list", { error });
+        // Continue even if this fails - we'll just have an empty list
+        profilesList = [];
+      }
       
-      const [profilesList, active] = await Promise.race([profilesPromise, timeoutPromise]) as [StudentProfile[], StudentProfile | null];
+      try {
+        active = await getActiveStudentProfile();
+      } catch (error) {
+        logger.error("Error fetching active student profile", { error });
+        // Continue even if this fails - no active profile
+        active = null;
+      }
       
       setProfiles(profilesList);
       setActiveProfileState(active);

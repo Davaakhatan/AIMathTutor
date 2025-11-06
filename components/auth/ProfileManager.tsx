@@ -26,23 +26,12 @@ export default function ProfileManager() {
   const [loadError, setLoadError] = useState<string | null>(null);
   const { showToast } = useToast();
 
-  // Try to refresh profiles on mount if loading seems stuck
+  // Clear error when profiles successfully load
   useEffect(() => {
-    if (profilesLoading) {
-      const timeout = setTimeout(async () => {
-        // If still loading after 5 seconds, try to refresh
-        try {
-          await refreshProfiles();
-        } catch (error) {
-          logger.error("Error refreshing profiles", { error });
-          setLoadError("Failed to load profiles. Please check your Supabase connection.");
-        }
-      }, 5000);
-      return () => clearTimeout(timeout);
-    } else {
+    if (!profilesLoading && profiles.length >= 0) {
       setLoadError(null);
     }
-  }, [profilesLoading, refreshProfiles]);
+  }, [profilesLoading, profiles.length]);
 
   const resetForm = () => {
     setFormData({
