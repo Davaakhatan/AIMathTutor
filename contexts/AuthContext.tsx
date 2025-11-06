@@ -125,15 +125,13 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       try {
         const supabase = await getSupabaseClient();
         
-        // Get initial session with timeout
-        const sessionPromise = supabase.auth.getSession();
-        const timeoutPromise = new Promise((_, reject) => 
-          setTimeout(() => reject(new Error("Session timeout")), 3000)
-        );
-        
-        Promise.race([sessionPromise, timeoutPromise])
-          .then(async (result: any) => {
-            const { data: { session }, error } = result;
+        // Get initial session - use timeout but handle it better
+        let sessionLoaded = false;
+        const loadSession = async () => {
+          try {
+            const { data: { session }, error } = await supabase.auth.getSession();
+            
+            if (sessionLoaded) return; // Already handled by timeout
             
             if (error) {
               logger.error("Error getting initial session", { error });
@@ -141,6 +139,9 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
               setLoading(false);
               return;
             }
+            
+            sessionLoaded = true;
+            clearTimeout(loadingTimeout);
             
             setSession(session);
             setUser(session?.user ?? null);
@@ -168,25 +169,27 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
                   }),
                 ]).finally(() => {
                   // Always set loading to false, even if there were errors
-                  clearTimeout(loadingTimeout);
                   setLoading(false);
                 });
               } catch (error) {
                 logger.error("Error loading profile data on initial session", { error });
-                clearTimeout(loadingTimeout);
                 setLoading(false);
               }
             } else {
               setUserRole(null);
+              setLoading(false);
+            }
+          } catch (error) {
+            if (!sessionLoaded) {
+              logger.error("Error loading session", { error });
               clearTimeout(loadingTimeout);
               setLoading(false);
             }
-          })
-          .catch((error) => {
-            logger.error("Error in session promise race", { error });
-            clearTimeout(loadingTimeout);
-            setLoading(false);
-          });
+          }
+        };
+        
+        // Start loading session
+        loadSession();
 
         // Listen for auth changes
         let hasSetInitialLoading = false;

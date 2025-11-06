@@ -14,7 +14,7 @@ import { useToast } from "@/hooks/useToast";
 import { logger } from "@/lib/logger";
 
 export default function ProfileManager() {
-  const { profiles, profilesLoading, refreshProfiles, setActiveProfile, activeProfile, loadUserDataFromSupabase } = useAuth();
+  const { profiles, profilesLoading, refreshProfiles, setActiveProfile, activeProfile, loadUserDataFromSupabase, userRole } = useAuth();
   const [isCreating, setIsCreating] = useState(false);
   const [editingProfile, setEditingProfile] = useState<StudentProfile | null>(null);
   const [formData, setFormData] = useState<CreateStudentProfileInput>({
@@ -116,25 +116,58 @@ export default function ProfileManager() {
         setIsCreating(false);
       } else {
         // Create new profile
-        const newProfile = await createStudentProfile(formData);
-        showToast("Profile created successfully", "success");
-        // Refresh profiles first to get the new profile in the list
-        await refreshProfiles();
-        // Wait a bit for the refresh to complete
-        await new Promise(resolve => setTimeout(resolve, 200));
-        // Then set as active (this will also reload data)
-        await setActiveProfile(newProfile.id);
-        // Close create form
-        setIsCreating(false);
+        // In Model B: Students shouldn't create additional profiles (they have one by default)
+        // Parents shouldn't create profiles (they link to student profiles)
+        // But we'll allow it for now and show a better error if it fails
+        try {
+          const newProfile = await createStudentProfile(formData);
+          showToast("Profile created successfully", "success");
+          // Refresh profiles first to get the new profile in the list
+          await refreshProfiles();
+          // Wait a bit for the refresh to complete
+          await new Promise(resolve => setTimeout(resolve, 200));
+          // Then set as active (this will also reload data)
+          await setActiveProfile(newProfile.id);
+          // Close create form
+          setIsCreating(false);
+        } catch (createError: any) {
+          // Log full error details
+          logger.error("Error creating profile", { 
+            error: createError, 
+            message: createError?.message,
+            code: createError?.code,
+            details: createError?.details,
+            hint: createError?.hint,
+            formData 
+          });
+          throw createError; // Re-throw to be caught by outer catch
+        }
       }
       
       resetForm();
-    } catch (error) {
-      logger.error("Error saving profile", { error });
-      showToast(
-        error instanceof Error ? error.message : "Failed to save profile. Please try again.",
-        "error"
-      );
+    } catch (error: any) {
+      logger.error("Error saving profile", { 
+        error,
+        message: error?.message,
+        code: error?.code,
+        details: error?.details,
+        hint: error?.hint,
+        formData
+      });
+      
+      // Show more detailed error message
+      let errorMessage = "Failed to save profile. Please try again.";
+      if (error?.message) {
+        errorMessage = error.message;
+      } else if (error?.code === "23505") {
+        errorMessage = "A profile with this name already exists.";
+      } else if (error?.code === "42501") {
+        errorMessage = "Permission denied. You may not have permission to create profiles.";
+      } else if (error?.hint) {
+        errorMessage = `${error.message || "Error"}: ${error.hint}`;
+      }
+      
+      showToast(errorMessage, "error");
     } finally {
       setIsSubmitting(false);
     }
@@ -159,12 +192,14 @@ export default function ProfileManager() {
           <p className="text-gray-500 dark:text-gray-400 mb-4">
             Loading profiles...
           </p>
-          <button
-            onClick={handleCreate}
-            className="px-4 py-2 text-sm font-medium text-white bg-indigo-600 hover:bg-indigo-700 rounded-lg transition-colors"
-          >
-            Create Profile (while loading)
-          </button>
+          {userRole !== "student" && (
+            <button
+              onClick={handleCreate}
+              className="px-4 py-2 text-sm font-medium text-white bg-indigo-600 hover:bg-indigo-700 rounded-lg transition-colors"
+            >
+              Create Profile (while loading)
+            </button>
+          )}
         </div>
       </div>
     );
@@ -219,15 +254,20 @@ export default function ProfileManager() {
     <div className="space-y-4">
       <div className="flex items-center justify-between">
         <h3 className="text-lg font-semibold text-gray-900 dark:text-white">
-          Student Profiles
+          {userRole === "student" ? "My Profile" : "Student Profiles"}
         </h3>
-        {!isCreating && !editingProfile && (
+        {!isCreating && !editingProfile && userRole !== "student" && (
           <button
             onClick={handleCreate}
             className="px-3 py-1.5 text-sm font-medium text-white bg-indigo-600 hover:bg-indigo-700 rounded-lg transition-colors"
           >
             + Add Profile
           </button>
+        )}
+        {userRole === "student" && (
+          <p className="text-xs text-gray-500 dark:text-gray-400">
+            Students have one profile created automatically
+          </p>
         )}
       </div>
 

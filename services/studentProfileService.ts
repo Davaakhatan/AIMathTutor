@@ -277,6 +277,26 @@ export async function createStudentProfile(
       throw new Error("User not authenticated");
     }
 
+    // Check user's role - in Model B, students shouldn't create additional profiles
+    const { data: userProfile } = await supabase
+      .from("profiles")
+      .select("role")
+      .eq("id", user.id)
+      .single();
+
+    if (userProfile?.role === "student") {
+      // Check if student already has a profile
+      const { data: existingProfile } = await supabase
+        .from("student_profiles")
+        .select("id")
+        .eq("owner_id", user.id)
+        .single();
+
+      if (existingProfile) {
+        throw new Error("Students can only have one profile. You already have a profile.");
+      }
+    }
+
     const { data, error } = await supabase
       .from("student_profiles")
       .insert({
@@ -294,7 +314,13 @@ export async function createStudentProfile(
       .single();
 
     if (error) {
-      logger.error("Error creating student profile", { error: error.message, input });
+      logger.error("Error creating student profile", { 
+        error: error.message, 
+        code: error.code,
+        details: error.details,
+        hint: error.hint,
+        input 
+      });
       throw error;
     }
 
