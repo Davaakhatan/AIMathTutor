@@ -8,6 +8,7 @@ import SettingsContent from "./SettingsContent";
 import NotificationsContent from "./NotificationsContent";
 import XPContent from "./XPContent";
 import RemindersContent from "./RemindersContent";
+import ProfileManager from "@/components/auth/ProfileManager";
 
 interface SettingsMenuProps {
   onXPDataChange?: (data: { totalXP: number; level: number; problemsSolved: number }) => void;
@@ -20,7 +21,7 @@ export default function SettingsMenu({ onXPDataChange }: SettingsMenuProps) {
   const { user } = useAuth();
   const { activePanel, setActivePanel, isAnyPanelOpen } = usePanel();
   const [isOpen, setIsOpen] = useState(false);
-  const [activeTab, setActiveTab] = useState<"settings" | "notifications" | "xp" | "reminders">("settings");
+  const [activeTab, setActiveTab] = useState<"settings" | "notifications" | "xp" | "reminders" | "profiles">("settings");
   const panelRef = useRef<HTMLDivElement>(null);
   const [isMounted, setIsMounted] = useState(false);
   const [xpData] = useLocalStorage<any>("aitutor-xp", { totalXP: 0, level: 1, problemsSolved: 0 });
@@ -178,6 +179,18 @@ export default function SettingsMenu({ onXPDataChange }: SettingsMenuProps) {
           >
             Reminders
           </button>
+          {user && (
+            <button
+              onClick={() => setActiveTab("profiles")}
+              className={`flex-1 px-2 py-1.5 text-xs font-medium rounded-md transition-colors ${
+                activeTab === "profiles"
+                  ? "bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100 shadow-sm"
+                  : "text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-gray-100"
+              }`}
+            >
+              Profiles
+            </button>
+          )}
         </div>
         <button
           onClick={handleClose}
@@ -196,6 +209,11 @@ export default function SettingsMenu({ onXPDataChange }: SettingsMenuProps) {
         {activeTab === "notifications" && <NotificationsContent />}
         {activeTab === "xp" && <XPContent onXPDataChange={onXPDataChange} />}
         {activeTab === "reminders" && <RemindersContent />}
+        {activeTab === "profiles" && user && (
+          <div className="p-4">
+            <ProfileManager />
+          </div>
+        )}
       </div>
     </div>
   );

@@ -1,0 +1,271 @@
+"use client";
+
+import { useState, useEffect } from "react";
+import { useAuth } from "@/contexts/AuthContext";
+import { 
+  createStudentProfile, 
+  updateStudentProfile, 
+  deleteStudentProfile,
+  type CreateStudentProfileInput,
+  type UpdateStudentProfileInput,
+  type StudentProfile
+} from "@/services/studentProfileService";
+import { useToast } from "@/hooks/useToast";
+import { logger } from "@/lib/logger";
+
+export default function ProfileManager() {
+  const { profiles, profilesLoading, refreshProfiles, setActiveProfile } = useAuth();
+  const [isCreating, setIsCreating] = useState(false);
+  const [editingProfile, setEditingProfile] = useState<StudentProfile | null>(null);
+  const [formData, setFormData] = useState<CreateStudentProfileInput>({
+    name: "",
+    grade_level: "middle",
+    difficulty_preference: "middle",
+  });
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const { showToast } = useToast();
+
+  const resetForm = () => {
+    setFormData({
+      name: "",
+      grade_level: "middle",
+      difficulty_preference: "middle",
+    });
+    setIsCreating(false);
+    setEditingProfile(null);
+  };
+
+  const handleCreate = () => {
+    resetForm();
+    setIsCreating(true);
+  };
+
+  const handleEdit = (profile: StudentProfile) => {
+    setFormData({
+      name: profile.name,
+      grade_level: profile.grade_level || "middle",
+      difficulty_preference: profile.difficulty_preference || "middle",
+    });
+    setEditingProfile(profile);
+    setIsCreating(false);
+  };
+
+  const handleDelete = async (profileId: string) => {
+    if (!confirm("Are you sure you want to delete this profile? This action cannot be undone.")) {
+      return;
+    }
+
+    try {
+      setIsSubmitting(true);
+      await deleteStudentProfile(profileId);
+      await refreshProfiles();
+      showToast("Profile deleted successfully", "success");
+    } catch (error) {
+      logger.error("Error deleting profile", { error });
+      showToast("Failed to delete profile. Please try again.", "error");
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    
+    if (!formData.name.trim()) {
+      showToast("Please enter a profile name", "error");
+      return;
+    }
+
+    try {
+      setIsSubmitting(true);
+      
+      if (editingProfile) {
+        // Update existing profile
+        await updateStudentProfile(editingProfile.id, formData as UpdateStudentProfileInput);
+        showToast("Profile updated successfully", "success");
+      } else {
+        // Create new profile
+        const newProfile = await createStudentProfile(formData);
+        showToast("Profile created successfully", "success");
+        // Optionally set as active
+        await setActiveProfile(newProfile.id);
+      }
+      
+      await refreshProfiles();
+      resetForm();
+    } catch (error) {
+      logger.error("Error saving profile", { error });
+      showToast(
+        error instanceof Error ? error.message : "Failed to save profile. Please try again.",
+        "error"
+      );
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
+
+  if (profilesLoading) {
+    return (
+      <div className="p-4 text-center text-gray-500 dark:text-gray-400">
+        Loading profiles...
+      </div>
+    );
+  }
+
+  return (
+    <div className="space-y-4">
+      <div className="flex items-center justify-between">
+        <h3 className="text-lg font-semibold text-gray-900 dark:text-white">
+          Student Profiles
+        </h3>
+        {!isCreating && !editingProfile && (
+          <button
+            onClick={handleCreate}
+            className="px-3 py-1.5 text-sm font-medium text-white bg-indigo-600 hover:bg-indigo-700 rounded-lg transition-colors"
+          >
+            + Add Profile
+          </button>
+        )}
+      </div>
+
+      {/* Create/Edit Form */}
+      {(isCreating || editingProfile) && (
+        <form onSubmit={handleSubmit} className="p-4 bg-gray-50 dark:bg-gray-800 rounded-lg space-y-4">
+          <div>
+            <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+              Profile Name *
+            </label>
+            <input
+              type="text"
+              value={formData.name}
+              onChange={(e) => setFormData({ ...formData, name: e.target.value })}
+              className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-900 text-gray-900 dark:text-white focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
+              placeholder="Enter student name"
+              required
+            />
+          </div>
+
+          <div className="grid grid-cols-2 gap-4">
+            <div>
+              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                Grade Level
+              </label>
+              <select
+                value={formData.grade_level || "middle"}
+                onChange={(e) => setFormData({ ...formData, grade_level: e.target.value as any })}
+                className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-900 text-gray-900 dark:text-white focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
+              >
+                <option value="elementary">Elementary</option>
+                <option value="middle">Middle School</option>
+                <option value="high">High School</option>
+                <option value="advanced">Advanced</option>
+                <option value="college">College</option>
+              </select>
+            </div>
+
+            <div>
+              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                Difficulty Preference
+              </label>
+              <select
+                value={formData.difficulty_preference || "middle"}
+                onChange={(e) => setFormData({ ...formData, difficulty_preference: e.target.value as any })}
+                className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-900 text-gray-900 dark:text-white focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
+              >
+                <option value="elementary">Elementary</option>
+                <option value="middle">Middle School</option>
+                <option value="high">High School</option>
+                <option value="advanced">Advanced</option>
+              </select>
+            </div>
+          </div>
+
+          <div className="flex gap-2">
+            <button
+              type="submit"
+              disabled={isSubmitting}
+              className="flex-1 px-4 py-2 text-sm font-medium text-white bg-indigo-600 hover:bg-indigo-700 rounded-lg transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+            >
+              {isSubmitting ? "Saving..." : editingProfile ? "Update Profile" : "Create Profile"}
+            </button>
+            <button
+              type="button"
+              onClick={resetForm}
+              disabled={isSubmitting}
+              className="px-4 py-2 text-sm font-medium text-gray-700 dark:text-gray-300 bg-white dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-600 transition-colors disabled:opacity-50"
+            >
+              Cancel
+            </button>
+          </div>
+        </form>
+      )}
+
+      {/* Profiles List */}
+      {profiles.length === 0 && !isCreating && (
+        <div className="p-8 text-center border border-gray-200 dark:border-gray-700 rounded-lg">
+          <p className="text-gray-500 dark:text-gray-400 mb-4">
+            No student profiles yet. Create one to get started!
+          </p>
+          <button
+            onClick={handleCreate}
+            className="px-4 py-2 text-sm font-medium text-white bg-indigo-600 hover:bg-indigo-700 rounded-lg transition-colors"
+          >
+            Create First Profile
+          </button>
+        </div>
+      )}
+
+      {profiles.length > 0 && !isCreating && !editingProfile && (
+        <div className="space-y-2">
+          {profiles.map((profile) => (
+            <div
+              key={profile.id}
+              className="p-4 border border-gray-200 dark:border-gray-700 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-800 transition-colors"
+            >
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-3">
+                  {profile.avatar_url ? (
+                    <img
+                      src={profile.avatar_url}
+                      alt={profile.name}
+                      className="w-10 h-10 rounded-full"
+                    />
+                  ) : (
+                    <div className="w-10 h-10 rounded-full bg-indigo-100 dark:bg-indigo-900/30 flex items-center justify-center text-sm font-medium text-indigo-700 dark:text-indigo-300">
+                      {profile.name.charAt(0).toUpperCase()}
+                    </div>
+                  )}
+                  <div>
+                    <div className="font-medium text-gray-900 dark:text-white">
+                      {profile.name}
+                    </div>
+                    <div className="text-sm text-gray-500 dark:text-gray-400">
+                      {profile.grade_level ? `${profile.grade_level.charAt(0).toUpperCase() + profile.grade_level.slice(1)} • ` : ""}
+                      {profile.difficulty_preference.charAt(0).toUpperCase() + profile.difficulty_preference.slice(1)} difficulty
+                    </div>
+                  </div>
+                </div>
+                <div className="flex items-center gap-2">
+                  <button
+                    onClick={() => handleEdit(profile)}
+                    className="px-3 py-1.5 text-sm font-medium text-gray-700 dark:text-gray-300 bg-white dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-600 transition-colors"
+                  >
+                    Edit
+                  </button>
+                  <button
+                    onClick={() => handleDelete(profile.id)}
+                    disabled={isSubmitting}
+                    className="px-3 py-1.5 text-sm font-medium text-red-600 dark:text-red-400 bg-white dark:bg-gray-700 border border-red-300 dark:border-red-700 rounded-lg hover:bg-red-50 dark:hover:bg-red-900/20 transition-colors disabled:opacity-50"
+                  >
+                    Delete
+                  </button>
+                </div>
+              </div>
+            </div>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
+
