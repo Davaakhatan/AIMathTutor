@@ -101,11 +101,16 @@ export default function ProfileManager() {
         // Create new profile
         const newProfile = await createStudentProfile(formData);
         showToast("Profile created successfully", "success");
-        // Optionally set as active
+        // Refresh profiles first to get the new profile
+        await refreshProfiles();
+        // Then set as active (this will also reload data)
         await setActiveProfile(newProfile.id);
       }
       
-      await refreshProfiles();
+      // Only refresh if not creating (already refreshed above)
+      if (editingProfile) {
+        await refreshProfiles();
+      }
       resetForm();
     } catch (error) {
       logger.error("Error saving profile", { error });
