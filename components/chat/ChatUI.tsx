@@ -295,6 +295,7 @@ const ChatUI = memo(function ChatUI({
     } finally {
       setIsLoading(false);
     }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [sessionId, voiceEnabled, enableStretchFeatures, difficultyMode, isLoading, apiKey]);
 
   // Handle whiteboard drawing send

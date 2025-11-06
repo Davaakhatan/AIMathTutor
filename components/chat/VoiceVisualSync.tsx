@@ -82,7 +82,9 @@ export default function VoiceVisualSync({
     // Cleanup on unmount
     return () => {
       visualSyncManager.stopSync(messageId);
-      if (utteranceRef.current) {
+      // Capture the current utterance ref value to avoid stale closure
+      const currentUtterance = utteranceRef.current;
+      if (currentUtterance) {
         window.speechSynthesis.cancel();
       }
     };
