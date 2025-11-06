@@ -418,7 +418,9 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
     try {
       setUserDataLoading(true);
-      const data = await loadUserData(user.id);
+      // Load data for the active profile (or user if no profile)
+      const activeProfileId = activeProfile?.id || null;
+      const data = await loadUserData(user.id, activeProfileId);
       
       // Cache in localStorage for fast access
       if (data.xpData) {

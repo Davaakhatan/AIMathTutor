@@ -346,10 +346,11 @@ export async function setActiveStudentProfile(profileId: string | null): Promise
 }
 
 /**
- * Get the effective user ID for data queries
- * Returns the active student profile ID if set, otherwise the user ID
+ * Get the effective profile ID for data queries
+ * Returns the active student profile ID if set, otherwise null (use user_id)
+ * This determines which profile's data to load/save
  */
-export async function getEffectiveUserId(): Promise<string | null> {
+export async function getEffectiveProfileId(): Promise<string | null> {
   try {
     const supabase = await getSupabaseClient();
     const { data: { user } } = await supabase.auth.getUser();
@@ -366,20 +367,18 @@ export async function getEffectiveUserId(): Promise<string | null> {
       .single();
 
     if (!profile) {
-      return user.id; // Fallback to user ID
+      return null; // No profile = use user_id
     }
 
-    // If user is a student, use their own ID
+    // If user is a student, they use their own user_id (no profile)
     if (profile.role === "student") {
-      return user.id;
+      return null; // Use user_id
     }
 
-    // If parent/teacher has an active profile, use that profile ID
-    // For now, we'll still use user_id but track which profile is active
-    // In the future, we can add student_profile_id to data tables
-    return user.id;
+    // If parent/teacher has an active profile, return that profile ID
+    return profile.current_student_profile_id || null;
   } catch (error) {
-    logger.error("Error in getEffectiveUserId", {
+    logger.error("Error in getEffectiveProfileId", {
       error: error instanceof Error ? error.message : String(error),
     });
     return null;

@@ -6,6 +6,7 @@
 
 import { getSupabaseClient } from "@/lib/supabase";
 import { logger } from "@/lib/logger";
+import { getEffectiveProfileId } from "@/services/studentProfileService";
 
 // ============================================
 // XP DATA
@@ -20,16 +21,30 @@ export interface XPData {
 }
 
 /**
- * Get XP data from Supabase for authenticated user
+ * Get XP data from Supabase for authenticated user or active profile
  */
-export async function getXPData(userId: string): Promise<XPData | null> {
+export async function getXPData(userId: string, profileId?: string | null): Promise<XPData | null> {
   try {
     const supabase = await getSupabaseClient();
-    const { data, error } = await supabase
+    
+    // Use profile ID if provided, otherwise get from active profile
+    const effectiveProfileId = profileId !== undefined 
+      ? profileId 
+      : await getEffectiveProfileId();
+    
+    let query = supabase
       .from("xp_data")
-      .select("*")
-      .eq("user_id", userId)
-      .single();
+      .select("*");
+    
+    if (effectiveProfileId) {
+      // Query by profile ID
+      query = query.eq("student_profile_id", effectiveProfileId);
+    } else {
+      // Query by user ID (no active profile)
+      query = query.eq("user_id", userId).is("student_profile_id", null);
+    }
+    
+    const { data, error } = await query.single();
 
     if (error) {
       if (error.code === "PGRST116") {
@@ -54,12 +69,16 @@ export async function getXPData(userId: string): Promise<XPData | null> {
 }
 
 /**
- * Create default XP data for new user
+ * Create default XP data for new user or profile
  */
-async function createDefaultXPData(userId: string): Promise<XPData> {
+async function createDefaultXPData(userId: string, profileId?: string | null): Promise<XPData> {
   try {
     const supabase = await getSupabaseClient();
-    const defaultData = {
+    const effectiveProfileId = profileId !== undefined 
+      ? profileId 
+      : await getEffectiveProfileId();
+    
+    const defaultData: any = {
       user_id: userId,
       total_xp: 0,
       level: 1,
@@ -67,6 +86,10 @@ async function createDefaultXPData(userId: string): Promise<XPData> {
       xp_history: [],
       recent_gains: [],
     };
+    
+    if (effectiveProfileId) {
+      defaultData.student_profile_id = effectiveProfileId;
+    }
 
     const { data, error } = await supabase
       .from("xp_data")
@@ -101,17 +124,30 @@ async function createDefaultXPData(userId: string): Promise<XPData> {
 /**
  * Update XP data in Supabase
  */
-export async function updateXPData(userId: string, xpData: Partial<XPData>): Promise<boolean> {
+export async function updateXPData(userId: string, xpData: Partial<XPData>, profileId?: string | null): Promise<boolean> {
   try {
     const supabase = await getSupabaseClient();
+    const effectiveProfileId = profileId !== undefined 
+      ? profileId 
+      : await getEffectiveProfileId();
+    
+    const updateData: any = {
+      user_id: userId,
+      ...xpData,
+      updated_at: new Date().toISOString(),
+    };
+    
+    if (effectiveProfileId) {
+      updateData.student_profile_id = effectiveProfileId;
+    }
+    
+    // Determine conflict resolution based on whether we have a profile
+    const conflictColumn = effectiveProfileId ? "student_profile_id" : "user_id";
+    
     const { error } = await supabase
       .from("xp_data")
-      .upsert({
-        user_id: userId,
-        ...xpData,
-        updated_at: new Date().toISOString(),
-      }, {
-        onConflict: "user_id",
+      .upsert(updateData, {
+        onConflict: conflictColumn,
       });
 
     if (error) {
@@ -139,19 +175,28 @@ export interface StreakData {
 /**
  * Get streak data from Supabase
  */
-export async function getStreakData(userId: string): Promise<StreakData | null> {
+export async function getStreakData(userId: string, profileId?: string | null): Promise<StreakData | null> {
   try {
     const supabase = await getSupabaseClient();
-    const { data, error } = await supabase
+    const effectiveProfileId = profileId !== undefined 
+      ? profileId 
+      : await getEffectiveProfileId();
+    
+    let query = supabase
       .from("streaks")
-      .select("*")
-      .eq("user_id", userId)
-      .single();
+      .select("*");
+    
+    if (effectiveProfileId) {
+      query = query.eq("student_profile_id", effectiveProfileId);
+    } else {
+      query = query.eq("user_id", userId).is("student_profile_id", null);
+    }
+    
+    const { data, error } = await query.single();
 
     if (error) {
       if (error.code === "PGRST116") {
-        // No streak data yet - create default
-        return await createDefaultStreakData(userId);
+        return await createDefaultStreakData(userId, effectiveProfileId);
       }
       logger.error("Error fetching streak data", { error: error.message, userId });
       return null;
@@ -171,15 +216,19 @@ export async function getStreakData(userId: string): Promise<StreakData | null> 
 /**
  * Create default streak data
  */
-async function createDefaultStreakData(userId: string): Promise<StreakData> {
+async function createDefaultStreakData(userId: string, profileId?: string | null): Promise<StreakData> {
   try {
     const supabase = await getSupabaseClient();
-    const defaultData = {
+    const defaultData: any = {
       user_id: userId,
       current_streak: 0,
       longest_streak: 0,
       last_study_date: null,
     };
+    
+    if (profileId) {
+      defaultData.student_profile_id = profileId;
+    }
 
     const { data, error } = await supabase
       .from("streaks")
@@ -210,17 +259,29 @@ async function createDefaultStreakData(userId: string): Promise<StreakData> {
 /**
  * Update streak data in Supabase
  */
-export async function updateStreakData(userId: string, streakData: Partial<StreakData>): Promise<boolean> {
+export async function updateStreakData(userId: string, streakData: Partial<StreakData>, profileId?: string | null): Promise<boolean> {
   try {
     const supabase = await getSupabaseClient();
+    const effectiveProfileId = profileId !== undefined 
+      ? profileId 
+      : await getEffectiveProfileId();
+    
+    const updateData: any = {
+      user_id: userId,
+      ...streakData,
+      updated_at: new Date().toISOString(),
+    };
+    
+    if (effectiveProfileId) {
+      updateData.student_profile_id = effectiveProfileId;
+    }
+    
+    const conflictColumn = effectiveProfileId ? "student_profile_id" : "user_id";
+    
     const { error } = await supabase
       .from("streaks")
-      .upsert({
-        user_id: userId,
-        ...streakData,
-        updated_at: new Date().toISOString(),
-      }, {
-        onConflict: "user_id",
+      .upsert(updateData, {
+        onConflict: conflictColumn,
       });
 
     if (error) {
@@ -258,13 +319,24 @@ export interface ProblemData {
 /**
  * Get problems from Supabase
  */
-export async function getProblems(userId: string, limit = 100): Promise<ProblemData[]> {
+export async function getProblems(userId: string, limit = 100, profileId?: string | null): Promise<ProblemData[]> {
   try {
     const supabase = await getSupabaseClient();
-    const { data, error } = await supabase
+    const effectiveProfileId = profileId !== undefined 
+      ? profileId 
+      : await getEffectiveProfileId();
+    
+    let query = supabase
       .from("problems")
-      .select("*")
-      .eq("user_id", userId)
+      .select("*");
+    
+    if (effectiveProfileId) {
+      query = query.eq("student_profile_id", effectiveProfileId);
+    } else {
+      query = query.eq("user_id", userId).is("student_profile_id", null);
+    }
+    
+    const { data, error } = await query
       .order("created_at", { ascending: false })
       .limit(limit);
 
@@ -297,26 +369,36 @@ export async function getProblems(userId: string, limit = 100): Promise<ProblemD
 /**
  * Save problem to Supabase
  */
-export async function saveProblem(userId: string, problem: ProblemData): Promise<string | null> {
+export async function saveProblem(userId: string, problem: ProblemData, profileId?: string | null): Promise<string | null> {
   try {
     const supabase = await getSupabaseClient();
+    const effectiveProfileId = profileId !== undefined 
+      ? profileId 
+      : await getEffectiveProfileId();
+    
+    const insertData: any = {
+      user_id: userId,
+      text: problem.text,
+      type: problem.type,
+      difficulty: problem.difficulty,
+      image_url: problem.image_url,
+      parsed_data: problem.parsed_data,
+      is_bookmarked: problem.is_bookmarked || false,
+      is_generated: problem.is_generated || false,
+      source: problem.source,
+      solved_at: problem.solved_at,
+      attempts: problem.attempts || 0,
+      hints_used: problem.hints_used || 0,
+      time_spent: problem.time_spent || 0,
+    };
+    
+    if (effectiveProfileId) {
+      insertData.student_profile_id = effectiveProfileId;
+    }
+    
     const { data, error } = await supabase
       .from("problems")
-      .insert({
-        user_id: userId,
-        text: problem.text,
-        type: problem.type,
-        difficulty: problem.difficulty,
-        image_url: problem.image_url,
-        parsed_data: problem.parsed_data,
-        is_bookmarked: problem.is_bookmarked || false,
-        is_generated: problem.is_generated || false,
-        source: problem.source,
-        solved_at: problem.solved_at,
-        attempts: problem.attempts || 0,
-        hints_used: problem.hints_used || 0,
-        time_spent: problem.time_spent || 0,
-      })
+      .insert(insertData)
       .select()
       .single();
 
@@ -374,13 +456,24 @@ export interface AchievementData {
 /**
  * Get achievements from Supabase
  */
-export async function getAchievements(userId: string): Promise<AchievementData[]> {
+export async function getAchievements(userId: string, profileId?: string | null): Promise<AchievementData[]> {
   try {
     const supabase = await getSupabaseClient();
-    const { data, error } = await supabase
+    const effectiveProfileId = profileId !== undefined 
+      ? profileId 
+      : await getEffectiveProfileId();
+    
+    let query = supabase
       .from("achievements")
-      .select("*")
-      .eq("user_id", userId)
+      .select("*");
+    
+    if (effectiveProfileId) {
+      query = query.eq("student_profile_id", effectiveProfileId);
+    } else {
+      query = query.eq("user_id", userId).is("student_profile_id", null);
+    }
+    
+    const { data, error } = await query
       .order("unlocked_at", { ascending: false });
 
     if (error) {
@@ -404,26 +497,36 @@ export async function getAchievements(userId: string): Promise<AchievementData[]
 /**
  * Unlock achievement in Supabase
  */
-export async function unlockAchievement(userId: string, achievement: AchievementData): Promise<boolean> {
+export async function unlockAchievement(userId: string, achievement: AchievementData, profileId?: string | null): Promise<boolean> {
   try {
     const supabase = await getSupabaseClient();
+    const effectiveProfileId = profileId !== undefined 
+      ? profileId 
+      : await getEffectiveProfileId();
+    
+    const insertData: any = {
+      user_id: userId,
+      achievement_type: achievement.achievement_type,
+      title: achievement.title,
+      description: achievement.description,
+      icon: achievement.icon,
+      unlocked_at: achievement.unlocked_at || new Date().toISOString(),
+    };
+    
+    if (effectiveProfileId) {
+      insertData.student_profile_id = effectiveProfileId;
+    }
+    
     const { error } = await supabase
       .from("achievements")
-      .insert({
-        user_id: userId,
-        achievement_type: achievement.achievement_type,
-        title: achievement.title,
-        description: achievement.description,
-        icon: achievement.icon,
-        unlocked_at: achievement.unlocked_at || new Date().toISOString(),
-      })
+      .insert(insertData)
       .select()
       .single();
 
-    if (error) {
+      if (error) {
       // If already exists, that's okay (UNIQUE constraint)
       if (error.code === "23505") {
-        logger.debug("Achievement already unlocked", { userId, achievement_type: achievement.achievement_type });
+        logger.debug("Achievement already unlocked", { userId, profileId: effectiveProfileId, achievement_type: achievement.achievement_type });
         return true;
       }
       logger.error("Error unlocking achievement", { error: error.message, userId });
@@ -464,13 +567,24 @@ export interface StudySession {
 /**
  * Get study sessions from Supabase
  */
-export async function getStudySessions(userId: string, limit = 100): Promise<StudySession[]> {
+export async function getStudySessions(userId: string, limit = 100, profileId?: string | null): Promise<StudySession[]> {
   try {
     const supabase = await getSupabaseClient();
-    const { data, error } = await supabase
+    const effectiveProfileId = profileId !== undefined 
+      ? profileId 
+      : await getEffectiveProfileId();
+    
+    let query = supabase
       .from("study_sessions")
-      .select("*")
-      .eq("user_id", userId)
+      .select("*");
+    
+    if (effectiveProfileId) {
+      query = query.eq("student_profile_id", effectiveProfileId);
+    } else {
+      query = query.eq("user_id", userId).is("student_profile_id", null);
+    }
+    
+    const { data, error } = await query
       .order("start_time", { ascending: false })
       .limit(limit);
 
@@ -496,19 +610,29 @@ export async function getStudySessions(userId: string, limit = 100): Promise<Stu
 /**
  * Save study session to Supabase
  */
-export async function saveStudySession(userId: string, session: StudySession): Promise<string | null> {
+export async function saveStudySession(userId: string, session: StudySession, profileId?: string | null): Promise<string | null> {
   try {
     const supabase = await getSupabaseClient();
+    const effectiveProfileId = profileId !== undefined 
+      ? profileId 
+      : await getEffectiveProfileId();
+    
+    const insertData: any = {
+      user_id: userId,
+      start_time: session.start_time,
+      end_time: session.end_time,
+      duration: session.duration,
+      problems_solved: session.problems_solved,
+      xp_earned: session.xp_earned,
+    };
+    
+    if (effectiveProfileId) {
+      insertData.student_profile_id = effectiveProfileId;
+    }
+    
     const { data, error } = await supabase
       .from("study_sessions")
-      .insert({
-        user_id: userId,
-        start_time: session.start_time,
-        end_time: session.end_time,
-        duration: session.duration,
-        problems_solved: session.problems_solved,
-        xp_earned: session.xp_earned,
-      })
+      .insert(insertData)
       .select()
       .single();
 
@@ -540,13 +664,24 @@ export interface DailyGoal {
 /**
  * Get daily goals from Supabase
  */
-export async function getDailyGoals(userId: string, limit = 30): Promise<DailyGoal[]> {
+export async function getDailyGoals(userId: string, limit = 30, profileId?: string | null): Promise<DailyGoal[]> {
   try {
     const supabase = await getSupabaseClient();
-    const { data, error } = await supabase
+    const effectiveProfileId = profileId !== undefined 
+      ? profileId 
+      : await getEffectiveProfileId();
+    
+    let query = supabase
       .from("daily_goals")
-      .select("*")
-      .eq("user_id", userId)
+      .select("*");
+    
+    if (effectiveProfileId) {
+      query = query.eq("student_profile_id", effectiveProfileId);
+    } else {
+      query = query.eq("user_id", userId).is("student_profile_id", null);
+    }
+    
+    const { data, error } = await query
       .order("date", { ascending: false })
       .limit(limit);
 
@@ -572,20 +707,32 @@ export async function getDailyGoals(userId: string, limit = 30): Promise<DailyGo
 /**
  * Save or update daily goal in Supabase
  */
-export async function saveDailyGoal(userId: string, goal: DailyGoal): Promise<string | null> {
+export async function saveDailyGoal(userId: string, goal: DailyGoal, profileId?: string | null): Promise<string | null> {
   try {
     const supabase = await getSupabaseClient();
+    const effectiveProfileId = profileId !== undefined 
+      ? profileId 
+      : await getEffectiveProfileId();
+    
+    const upsertData: any = {
+      user_id: userId,
+      date: goal.date,
+      problems_goal: goal.problems_goal,
+      time_goal: goal.time_goal,
+      problems_completed: goal.problems_completed,
+      time_completed: goal.time_completed,
+    };
+    
+    if (effectiveProfileId) {
+      upsertData.student_profile_id = effectiveProfileId;
+    }
+    
+    const conflictColumns = effectiveProfileId ? "student_profile_id,date" : "user_id,date";
+    
     const { data, error } = await supabase
       .from("daily_goals")
-      .upsert({
-        user_id: userId,
-        date: goal.date,
-        problems_goal: goal.problems_goal,
-        time_goal: goal.time_goal,
-        problems_completed: goal.problems_completed,
-        time_completed: goal.time_completed,
-      }, {
-        onConflict: "user_id,date",
+      .upsert(upsertData, {
+        onConflict: conflictColumns,
       })
       .select()
       .single();
@@ -618,16 +765,21 @@ export interface UserData {
 /**
  * Load all user data from Supabase at once (optimized)
  */
-export async function loadUserData(userId: string): Promise<UserData> {
+export async function loadUserData(userId: string, profileId?: string | null): Promise<UserData> {
   try {
+    // Use provided profileId or get from active profile
+    const effectiveProfileId = profileId !== undefined 
+      ? profileId 
+      : await getEffectiveProfileId();
+    
     // Load all data in parallel for speed
     const [xpData, streakData, problems, achievements, studySessions, dailyGoals] = await Promise.all([
-      getXPData(userId),
-      getStreakData(userId),
-      getProblems(userId),
-      getAchievements(userId),
-      getStudySessions(userId),
-      getDailyGoals(userId),
+      getXPData(userId, effectiveProfileId),
+      getStreakData(userId, effectiveProfileId),
+      getProblems(userId, 100, effectiveProfileId),
+      getAchievements(userId, effectiveProfileId),
+      getStudySessions(userId, 100, effectiveProfileId),
+      getDailyGoals(userId, 30, effectiveProfileId),
     ]);
 
     return {
