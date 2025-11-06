@@ -53,23 +53,18 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       isLoadingProfilesRef.current = true;
       setProfilesLoading(true);
       
-      // Load profiles with individual error handling (don't fail both if one fails)
+      // Load profiles first, then get active profile from the list (optimized - one less query)
       let profilesList: StudentProfile[] = [];
       let active: StudentProfile | null = null;
       
       try {
         profilesList = await getStudentProfiles();
+        // Get active profile using the profiles list we just fetched (avoids extra query)
+        active = await getActiveStudentProfile(profilesList);
       } catch (error) {
-        logger.error("Error fetching student profiles list", { error });
+        logger.error("Error fetching student profiles", { error });
         // Continue even if this fails - we'll just have an empty list
         profilesList = [];
-      }
-      
-      try {
-        active = await getActiveStudentProfile();
-      } catch (error) {
-        logger.error("Error fetching active student profile", { error });
-        // Continue even if this fails - no active profile
         active = null;
       }
       

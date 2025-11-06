@@ -112,12 +112,13 @@ export default function ProfileManager() {
     }
   };
 
-  if (profilesLoading && !loadError) {
+  // Show empty state immediately while loading (non-blocking)
+  if (profilesLoading && !loadError && profiles.length === 0) {
     return (
       <div className="p-4 text-center text-gray-500 dark:text-gray-400">
         <div className="mb-2">Loading profiles...</div>
         <div className="text-xs text-gray-400 dark:text-gray-500">
-          If this takes too long, check the browser console for errors
+          This should only take a moment
         </div>
       </div>
     );

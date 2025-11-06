@@ -114,8 +114,9 @@ export async function getStudentProfile(profileId: string): Promise<StudentProfi
 
 /**
  * Get the active student profile for the current user
+ * Optimized: accepts profiles list to avoid extra query
  */
-export async function getActiveStudentProfile(): Promise<StudentProfile | null> {
+export async function getActiveStudentProfile(profilesList?: StudentProfile[]): Promise<StudentProfile | null> {
   try {
     const supabase = await getSupabaseClient();
     const { data: { user } } = await supabase.auth.getUser();
@@ -124,7 +125,24 @@ export async function getActiveStudentProfile(): Promise<StudentProfile | null> 
       return null;
     }
 
-    // Get user's profile to find current_student_profile_id
+    // If we already have the profiles list, use it instead of querying
+    if (profilesList) {
+      // Get user's profile to find current_student_profile_id
+      const { data: profile } = await supabase
+        .from("profiles")
+        .select("current_student_profile_id, role")
+        .eq("id", user.id)
+        .single();
+
+      if (!profile || !profile.current_student_profile_id) {
+        return null;
+      }
+
+      // Find the active profile from the list we already have
+      return profilesList.find(p => p.id === profile.current_student_profile_id) || null;
+    }
+
+    // Fallback: original logic if profiles list not provided
     const { data: profile, error: profileError } = await supabase
       .from("profiles")
       .select("current_student_profile_id, role")
@@ -136,15 +154,7 @@ export async function getActiveStudentProfile(): Promise<StudentProfile | null> 
       return null;
     }
 
-    // If user is a student, they use their own profile
-    if (profile.role === "student") {
-      // For students, we can return a default profile or null
-      // In the future, we can create a student_profile for them
-      return null;
-    }
-
-    // If no active profile selected, return null
-    if (!profile.current_student_profile_id) {
+    if (profile.role === "student" || !profile.current_student_profile_id) {
       return null;
     }
 
