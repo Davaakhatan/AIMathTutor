@@ -532,6 +532,215 @@ export class DialogueManager {
   }
 
   /**
+   * Process a user message and get streaming tutor response
+   */
+  async *processMessageStreaming(
+    sessionId: string,
+    userMessage: string,
+    difficultyMode: "elementary" | "middle" | "high" | "advanced" = "middle",
+    clientApiKey?: string,
+    whiteboardImage?: string
+  ): AsyncGenerator<string, void, unknown> {
+    // Add user message to context
+    const userMsg: Message = {
+      id: uuidv4(),
+      role: "user",
+      content: userMessage,
+      timestamp: Date.now(),
+    };
+
+    contextManager.addMessage(sessionId, userMsg);
+
+    // Get conversation context
+    const context = contextManager.getContext(sessionId);
+    if (!context) {
+      throw new Error(`Session ${sessionId} not found or has no problem`);
+    }
+
+    // Analyze sentiment from the user's message
+    const sentimentAnalysis = analyzeSentiment(userMessage);
+
+    // Build prompt with context (including sentiment analysis)
+    let prompt = socraticPromptEngine.buildContext(
+      context.problem,
+      context.messages,
+      context.stuckCount,
+      difficultyMode,
+      sentimentAnalysis
+    );
+    
+    // If whiteboard image is present, REPLACE the problem context with drawing-focused instructions
+    if (whiteboardImage) {
+      const recentMessages = context.messages.slice(-2);
+      prompt = "🚨 CRITICAL: The student has shared a whiteboard drawing. " +
+        "COMPLETELY IGNORE any problem text, equations, or algebra mentioned anywhere in the conversation. " +
+        "The ONLY thing that matters is what you see in the whiteboard drawing image.\n\n" +
+        "Look at the drawing image and identify:\n" +
+        "- What shapes are drawn (triangle, rectangle, circle, etc.)\n" +
+        "- What labels, numbers, and variables are written on it\n" +
+        "- Any text written on the drawing (like 'Find x')\n\n" +
+        "Work ONLY with what's in the drawing. If the student drew a triangle with side 3 and wrote 'Find x', " +
+        "help them find x in that triangle using geometry (Pythagorean theorem, trigonometry, etc.) - NOT algebra.\n\n" +
+        (recentMessages.length > 0 ? "Recent messages (for context only - ignore any math problems mentioned):\n" +
+        recentMessages.map(msg => {
+          const role = msg.role === "user" ? "Student" : "Tutor";
+          const content = msg.content.length > 150 
+            ? msg.content.substring(0, 150) + "..." 
+            : msg.content;
+          return `${role}: ${content}`;
+        }).join("\n") : "");
+    }
+
+    try {
+      // Validate student response first
+      const validation = responseValidator.validateResponse(
+        userMessage,
+        context.problem,
+        context.messages
+      );
+
+      // Adjust temperature based on stuck count
+      const temperature = context.stuckCount >= 2 ? 0.8 : 0.7;
+
+      // Use client-provided API key if available, otherwise use default
+      const client = clientApiKey 
+        ? createOpenAIClient(clientApiKey)
+        : openai;
+
+      // Build user message content
+      const userContent: any[] = [
+        {
+          type: "text",
+          text: prompt,
+        },
+      ];
+
+      // Add whiteboard image if provided
+      if (whiteboardImage) {
+        let imageUrl = whiteboardImage;
+        if (whiteboardImage.startsWith('data:image')) {
+          imageUrl = whiteboardImage;
+        } else {
+          imageUrl = `data:image/png;base64,${whiteboardImage}`;
+        }
+        
+        userContent.push({
+          type: "image_url",
+          image_url: {
+            url: imageUrl,
+            detail: "high",
+          },
+        });
+      }
+
+      // Call OpenAI API with streaming
+      const stream = await client.chat.completions.create({
+        model: "gpt-4o",
+        messages: [
+          {
+            role: "system",
+            content: socraticPromptEngine.generateSystemPrompt(difficultyMode) + 
+              (whiteboardImage ? "\n\n" +
+                "═══════════════════════════════════════════════════════════════\n" +
+                "🚨 CRITICAL: WHITEBOARD DRAWING IS PRESENT IN THIS MESSAGE 🚨\n" +
+                "═══════════════════════════════════════════════════════════════\n\n" +
+                "**YOU MUST ANALYZE THE WHITEBOARD DRAWING BEFORE RESPONDING TO ANYTHING ELSE.**\n\n" +
+                "**STEP 1: IMMEDIATE VISUAL ANALYSIS**\n" +
+                "Look at the whiteboard drawing image NOW. You MUST identify:\n" +
+                "- ALL geometric shapes (triangles, rectangles, circles, lines, angles)\n" +
+                "- ALL text labels, numbers, letters, variables (like x, y, z)\n" +
+                "- ALL vertex labels (A, B, C, D, etc.) if present\n" +
+                "- ALL measurements, dimensions, arrows, annotations\n" +
+                "- Spatial relationships and arrangement\n\n" +
+                "**STEP 2: YOUR RESPONSE MUST START WITH ACKNOWLEDGING THE DRAWING**\n" +
+                "Your FIRST sentence MUST acknowledge exactly what you see in the drawing. Describe:\n" +
+                "- The shapes you see (triangle, rectangle, circle, etc.)\n" +
+                "- ALL labels, numbers, and variables visible in the drawing\n" +
+                "- The exact measurements and variables as they appear\n" +
+                "- Example format: 'I can see your drawing! You've drawn a [shape] with [describe what you see].'\n\n" +
+                "**STEP 3: WORK WITH WHAT THEY ACTUALLY DREW**\n" +
+                "Analyze the drawing and work with the ACTUAL elements visible:\n" +
+                "- If it's a triangle, identify which sides/angles are labeled and with what values/variables\n" +
+                "- Use appropriate mathematical principles (Pythagorean theorem, trigonometry, etc.) based on what's shown\n" +
+                "- Reference the SPECIFIC labels, numbers, and variables as they appear in the drawing\n" +
+                "- Make the drawing the PRIMARY focus of your response\n\n" +
+                "**STEP 4: IF PROBLEM TEXT SEEMS UNRELATED**\n" +
+                "If the problem text mentions something different than what's in the drawing:\n" +
+                "- Acknowledge what you see in the drawing first\n" +
+                "- State that you'll work with what they drew, not the unrelated problem text\n" +
+                "- Focus entirely on the drawing\n\n" +
+                "**STEP 5: REFERENCE SPECIFIC ELEMENTS FROM THE DRAWING**\n" +
+                "Throughout your response, constantly reference the actual elements from the drawing:\n" +
+                "- Use the exact labels, numbers, and variables as they appear\n" +
+                "- Reference specific parts: 'The side you labeled as...', 'The variable x you wrote...', etc.\n\n" +
+                "**STEP 6: COLLABORATIVE DRAWING SUGGESTIONS**\n" +
+                "When guiding the student, provide specific, actionable drawing suggestions:\n" +
+                "- Use phrases like 'Let's add a height line here' or 'Try drawing a perpendicular line'\n" +
+                "- Be specific: 'Draw a triangle with sides labeled 6 m, x, and 10 m'\n" +
+                "- Suggest labels: 'Add a label \"x\" here' or 'Label the hypotenuse as \"c\"'\n" +
+                "- Guide step-by-step: 'First draw the base, then add the height line'\n" +
+                "- Make it conversational: 'Let's work together - why don't you add a line from point A to point B?'\n\n" +
+                "═══════════════════════════════════════════════════════════════\n" +
+                "**🚨 CRITICAL RULES WHEN DRAWING IS PRESENT:**\n" +
+                "1. **IGNORE ALL PROBLEM TEXT** - If the problem text mentions algebra equations, fractions, or anything else that's NOT in the drawing, COMPLETELY IGNORE IT.\n" +
+                "2. **THE DRAWING IS THE ONLY SOURCE OF TRUTH** - Work ONLY with what you see in the drawing image.\n" +
+                "3. **DO NOT mention algebra, equations, fractions, or any math concepts** unless they appear in the drawing itself.\n" +
+                "4. **If they drew a triangle with side 3 and 'Find x' written on it, help them find x in that triangle** - NOT in any algebra equation.\n" +
+                "5. **ANALYZE THE DRAWING DYNAMICALLY** - Work with whatever shapes, labels, numbers, and variables are actually visible in the drawing.\n" +
+                "═══════════════════════════════════════════════════════════════\n" : "") +
+              "\n\n**EXAMPLE DRAWINGS**: If the student is stuck or would benefit from a visual example, you can provide a drawing example. " +
+              "When suggesting an example, you can describe it clearly (e.g., 'Here's how to set up this problem: draw a right triangle with base 5 and height 3'). " +
+              "For geometry problems, visual examples are especially helpful.",
+          },
+          {
+            role: "user",
+            content: userContent,
+          },
+        ],
+        temperature,
+        max_tokens: 250,
+        stream: true,
+      });
+
+      // Collect full response for validation and storage
+      let fullResponse = "";
+
+      // Stream chunks
+      for await (const chunk of stream) {
+        const content = chunk.choices[0]?.delta?.content || "";
+        if (content) {
+          fullResponse += content;
+          yield content;
+        }
+      }
+
+      // Validate and store the complete response
+      const tutorResponse = fullResponse.trim();
+
+      if (!tutorResponse || tutorResponse.length < 5) {
+        throw new Error("Received invalid response from tutor. Please try again.");
+      }
+
+      // Create tutor message
+      const tutorMsg: Message = {
+        id: uuidv4(),
+        role: "tutor",
+        content: tutorResponse,
+        timestamp: Date.now(),
+      };
+
+      // Add to context
+      contextManager.addMessage(sessionId, tutorMsg);
+    } catch (error) {
+      logger.error("Error in streaming message", {
+        error: error instanceof Error ? error.message : String(error),
+        sessionId,
+      });
+      throw error;
+    }
+  }
+
+  /**
    * Get conversation history
    */
   getHistory(sessionId: string): Message[] {

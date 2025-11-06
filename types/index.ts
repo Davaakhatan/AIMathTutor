@@ -22,6 +22,7 @@ export interface Message {
   content: string;
   timestamp: number;
   mathContent?: string; // LaTeX equations
+  isStreaming?: boolean; // Indicates if message is currently being streamed
 }
 
 // Session-related types
@@ -60,6 +61,7 @@ export interface ChatRequest {
   difficultyMode?: "elementary" | "middle" | "high" | "advanced";
   apiKey?: string; // Optional: Client-provided API key as fallback
   whiteboardImage?: string; // Base64 image data URL from whiteboard
+  stream?: boolean; // Enable streaming responses
 }
 
 export interface ChatResponse {

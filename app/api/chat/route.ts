@@ -229,7 +229,23 @@ export async function POST(request: NextRequest) {
     // Process user message
     const difficultyMode = body.difficultyMode || "middle";
     
+    // Check if streaming is requested
+    const stream = body.stream === true;
+    
     try {
+      // If streaming is requested, use streaming response
+      if (stream) {
+        return await handleStreamingResponse(
+          body.sessionId,
+          body.message,
+          difficultyMode as "elementary" | "middle" | "high" | "advanced",
+          clientApiKey,
+          body.whiteboardImage,
+          rateLimit
+        );
+      }
+      
+      // Otherwise, use regular response
       const tutorResponse = await dialogueManager.processMessage(
         body.sessionId,
         body.message,
@@ -346,6 +362,92 @@ export async function POST(request: NextRequest) {
     return NextResponse.json(
       errorResponse,
       { status: statusCode }
+    );
+  }
+}
+
+/**
+ * Handle streaming response from OpenAI
+ */
+async function handleStreamingResponse(
+  sessionId: string,
+  userMessage: string,
+  difficultyMode: "elementary" | "middle" | "high" | "advanced",
+  clientApiKey: string | undefined,
+  whiteboardImage: string | undefined,
+  rateLimit: { allowed: boolean; remaining: number; resetAt: number }
+): Promise<Response> {
+  try {
+    // Create a ReadableStream for streaming
+    const stream = new ReadableStream({
+      async start(controller) {
+        try {
+          // Use dialogueManager to get streaming response
+          const streamResponse = await dialogueManager.processMessageStreaming(
+            sessionId,
+            userMessage,
+            difficultyMode,
+            clientApiKey,
+            whiteboardImage
+          );
+
+          // Stream the response chunks
+          for await (const chunk of streamResponse) {
+            const data = JSON.stringify({ 
+              type: "chunk", 
+              content: chunk,
+              done: false 
+            }) + "\n";
+            controller.enqueue(new TextEncoder().encode(data));
+          }
+
+          // Send completion signal
+          const done = JSON.stringify({ 
+            type: "done",
+            done: true 
+          }) + "\n";
+          controller.enqueue(new TextEncoder().encode(done));
+          controller.close();
+        } catch (error) {
+          const errorMsg = error instanceof Error ? error.message : "Streaming error";
+          const errorData = JSON.stringify({ 
+            type: "error", 
+            error: errorMsg 
+          }) + "\n";
+          controller.enqueue(new TextEncoder().encode(errorData));
+          controller.close();
+        }
+      },
+    });
+
+    // Return streaming response
+    const response = new Response(stream, {
+      headers: {
+        "Content-Type": "text/event-stream",
+        "Cache-Control": "no-cache",
+        "Connection": "keep-alive",
+      },
+    });
+
+    // Add rate limit headers
+    const headers = createRateLimitHeaders(20, rateLimit.remaining, rateLimit.resetAt);
+    Object.entries(headers).forEach(([key, value]) => {
+      response.headers.set(key, value);
+    });
+
+    return response;
+  } catch (error) {
+    logger.error("Error in streaming response", {
+      error: error instanceof Error ? error.message : String(error),
+      sessionId,
+    });
+    
+    return NextResponse.json(
+      {
+        success: false,
+        error: error instanceof Error ? error.message : "Streaming failed",
+      } as ChatResponse,
+      { status: 500 }
     );
   }
 }

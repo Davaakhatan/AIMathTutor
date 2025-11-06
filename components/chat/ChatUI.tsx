@@ -236,6 +236,152 @@ const ChatUI = memo(function ChatUI({
             console.log("No whiteboard image to send");
           }
 
+          // Try streaming first (enabled by default for better UX)
+          const useStreaming = true; // Can be made configurable later
+          
+          if (useStreaming) {
+            try {
+              // Add streaming flag to request
+              requestBody.stream = true;
+              
+              const response = await fetch("/api/chat", {
+                method: "POST",
+                headers: {
+                  "Content-Type": "application/json",
+                },
+                body: JSON.stringify(requestBody),
+                signal: controller.signal,
+              });
+
+              clearTimeout(timeoutId);
+
+              if (!response.ok) {
+                // Fallback to non-streaming on error
+                throw new Error(`Streaming failed: ${response.status}`);
+              }
+
+              // Check if response is streaming (text/event-stream)
+              const contentType = response.headers.get("content-type");
+              if (contentType?.includes("text/event-stream")) {
+                // Handle streaming response
+                const reader = response.body?.getReader();
+                const decoder = new TextDecoder();
+                
+                if (!reader) {
+                  throw new Error("No reader available for streaming");
+                }
+
+                // Create placeholder message for streaming
+                const streamingMessageId = (Date.now() + 1).toString();
+                const streamingMessage: Message = {
+                  id: streamingMessageId,
+                  role: "tutor",
+                  content: "",
+                  timestamp: Date.now(),
+                  isStreaming: true,
+                };
+
+                setMessages((prev) => [...prev, streamingMessage]);
+
+                let accumulatedContent = "";
+                let buffer = "";
+
+                try {
+                  while (true) {
+                    const { done, value } = await reader.read();
+                    
+                    if (done) break;
+
+                    buffer += decoder.decode(value, { stream: true });
+                    const lines = buffer.split("\n");
+                    buffer = lines.pop() || ""; // Keep incomplete line in buffer
+
+                    for (const line of lines) {
+                      if (!line.trim()) continue;
+                      
+                      try {
+                        const data = JSON.parse(line);
+                        
+                        if (data.type === "chunk" && data.content) {
+                          accumulatedContent += data.content;
+                          // Update message in real-time
+                          setMessages((prev) =>
+                            prev.map((msg) =>
+                              msg.id === streamingMessageId
+                                ? { ...msg, content: accumulatedContent }
+                                : msg
+                            )
+                          );
+                        } else if (data.type === "done") {
+                          // Streaming complete
+                          break;
+                        } else if (data.type === "error") {
+                          throw new Error(data.error || "Streaming error");
+                        }
+                      } catch (parseError) {
+                        // Ignore JSON parse errors for incomplete lines
+                        continue;
+                      }
+                    }
+                  }
+
+                  // Finalize message (remove streaming flag)
+                  setMessages((prev) =>
+                    prev.map((msg) =>
+                      msg.id === streamingMessageId
+                        ? {
+                            ...msg,
+                            content: accumulatedContent,
+                            isStreaming: false,
+                          }
+                        : msg
+                    )
+                  );
+
+                  // Speak tutor response if voice is enabled
+                  if (voiceEnabled && enableStretchFeatures && accumulatedContent) {
+                    speakText(accumulatedContent);
+                  }
+
+                  return; // Success, exit retry loop
+                } catch (streamError) {
+                  // Remove streaming message on error
+                  setMessages((prev) => prev.filter((msg) => msg.id !== streamingMessageId));
+                  throw streamError;
+                }
+              } else {
+                // Response is not streaming, handle as regular JSON
+                const result = await response.json();
+                if (result.success && result.response) {
+                  const tutorMessage: Message = {
+                    id: (Date.now() + 1).toString(),
+                    role: "tutor",
+                    content: result.response.text,
+                    timestamp: result.response.timestamp,
+                  };
+
+                  setMessages((prev) => [...prev, tutorMessage]);
+                  
+                  if (voiceEnabled && enableStretchFeatures) {
+                    speakText(result.response.text);
+                  }
+                  
+                  return;
+                } else {
+                  throw new Error(result.error || "Failed to get response from tutor");
+                }
+              }
+            } catch (streamError) {
+              // Fallback to non-streaming on streaming error
+              console.debug("Streaming failed, falling back to regular request", {
+                error: streamError instanceof Error ? streamError.message : String(streamError),
+              });
+              // Remove stream flag and continue with regular request
+              delete requestBody.stream;
+            }
+          }
+
+          // Regular (non-streaming) request
           const response = await fetch("/api/chat", {
             method: "POST",
             headers: {
