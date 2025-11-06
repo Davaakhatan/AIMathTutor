@@ -112,13 +112,31 @@ export default function ProfileManager() {
     }
   };
 
-  // Show empty state immediately while loading (non-blocking)
-  if (profilesLoading && !loadError && profiles.length === 0) {
+  // Show empty state immediately (non-blocking) - don't wait for loading
+  // If profiles are loading but we have no profiles yet, show empty state with create button
+  if (profilesLoading && profiles.length === 0 && !loadError) {
     return (
-      <div className="p-4 text-center text-gray-500 dark:text-gray-400">
-        <div className="mb-2">Loading profiles...</div>
-        <div className="text-xs text-gray-400 dark:text-gray-500">
-          This should only take a moment
+      <div className="space-y-4">
+        <div className="flex items-center justify-between">
+          <h3 className="text-lg font-semibold text-gray-900 dark:text-white">
+            Student Profiles
+          </h3>
+        </div>
+        <div className="p-8 text-center border border-gray-200 dark:border-gray-700 rounded-lg">
+          <div className="mb-4 text-gray-400 dark:text-gray-500">
+            <svg className="w-12 h-12 mx-auto animate-spin" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+            </svg>
+          </div>
+          <p className="text-gray-500 dark:text-gray-400 mb-4">
+            Loading profiles...
+          </p>
+          <button
+            onClick={handleCreate}
+            className="px-4 py-2 text-sm font-medium text-white bg-indigo-600 hover:bg-indigo-700 rounded-lg transition-colors"
+          >
+            Create Profile (while loading)
+          </button>
         </div>
       </div>
     );

@@ -53,42 +53,62 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       isLoadingProfilesRef.current = true;
       setProfilesLoading(true);
       
-      // Load profiles first, then get active profile from the list (optimized - one less query)
+      // Load profiles with timeout and better error handling
       let profilesList: StudentProfile[] = [];
       let active: StudentProfile | null = null;
       
       try {
-        profilesList = await getStudentProfiles();
+        // Set profiles to empty array immediately (non-blocking)
+        setProfiles([]);
+        setActiveProfileState(null);
+        
+        // Load profiles with timeout
+        const profilesPromise = getStudentProfiles();
+        const timeoutPromise = new Promise<StudentProfile[]>((_, reject) => {
+          setTimeout(() => reject(new Error("Profile loading timeout after 5 seconds")), 5000);
+        });
+        
+        try {
+          profilesList = await Promise.race([profilesPromise, timeoutPromise]);
+        } catch (error) {
+          // If timeout or error, try to get profiles without timeout
+          logger.warn("Profile loading timed out or failed, retrying without timeout", { error });
+          try {
+            profilesList = await getStudentProfiles();
+          } catch (retryError) {
+            logger.error("Error fetching student profiles after retry", { error: retryError });
+            profilesList = [];
+          }
+        }
+        
         // Get active profile using the profiles list we just fetched (avoids extra query)
-        active = await getActiveStudentProfile(profilesList);
+        try {
+          active = await getActiveStudentProfile(profilesList);
+        } catch (error) {
+          logger.warn("Error fetching active profile, continuing without it", { error });
+          active = null;
+        }
+        
+        setProfiles(profilesList);
+        setActiveProfileState(active);
+        profilesLoadedForUserRef.current = userId;
+        logger.info("Profiles loaded", { 
+          count: profilesList.length, 
+          activeProfileId: active?.id 
+        });
       } catch (error) {
-        logger.error("Error fetching student profiles", { error });
-        // Continue even if this fails - we'll just have an empty list
-        profilesList = [];
-        active = null;
+        logger.error("Error loading profiles", { 
+          error: error instanceof Error ? error.message : String(error),
+          userId 
+        });
+        // Set empty state even on error
+        setProfiles([]);
+        setActiveProfileState(null);
+        // Don't set profilesLoadedForUserRef on error, so we can retry
+      } finally {
+        setProfilesLoading(false);
+        isLoadingProfilesRef.current = false;
       }
-      
-      setProfiles(profilesList);
-      setActiveProfileState(active);
-      profilesLoadedForUserRef.current = userId;
-      logger.info("Profiles loaded", { 
-        count: profilesList.length, 
-        activeProfileId: active?.id 
-      });
-    } catch (error) {
-      logger.error("Error loading profiles", { 
-        error: error instanceof Error ? error.message : String(error),
-        userId 
-      });
-      // Don't set profilesLoadedForUserRef on error, so we can retry
-      setProfiles([]);
-      setActiveProfileState(null);
-      // Re-throw so components can handle the error
-      throw error;
-    } finally {
-      setProfilesLoading(false);
-      isLoadingProfilesRef.current = false;
-    }
   }, []);
 
   useEffect(() => {
@@ -129,11 +149,12 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
           setSession(session);
           setUser(session?.user ?? null);
           
-          // Clear localStorage data when user logs in
-          // This ensures fresh start with database data
+          // On sign in: Load profiles (don't clear localStorage - use it as cache)
+          // localStorage will be used as cache, Supabase as source of truth
           if (_event === "SIGNED_IN" && session?.user) {
-            clearUserData();
-            logger.info("Cleared localStorage data for logged-in user", { userId: session.user.id });
+            // Don't clear localStorage - use it as cache for faster loading
+            // Data will sync with Supabase in the background
+            logger.info("User signed in, loading profiles", { userId: session.user.id });
             // Load profiles after sign in (only once)
             if (profilesLoadedForUserRef.current !== session.user.id) {
               await loadProfiles(session.user.id);
@@ -201,7 +222,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
       logger.info("User signed up successfully", { userId: data.user?.id });
       
-      // Migrate localStorage data to Supabase before clearing
+      // Migrate localStorage data to Supabase (keep localStorage as cache)
       // This preserves guest progress when user signs up
       if (data.user && hasUserData()) {
         try {
@@ -219,19 +240,12 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
               errors: migrationResult.errors 
             });
           }
-          
-          // Clear localStorage after successful migration
-          clearUserData();
-          logger.info("Cleared localStorage data after migration", { userId: data.user.id });
+          // Don't clear localStorage - use it as cache for faster loading
+          logger.info("Keeping localStorage as cache", { userId: data.user.id });
         } catch (error) {
           logger.error("Data migration failed", { error, userId: data.user.id });
-          // Still clear localStorage even if migration fails (user can start fresh)
-          clearUserData();
+          // Keep localStorage even if migration fails - user can retry later
         }
-      } else if (data.user) {
-        // No localStorage data to migrate, just clear
-        clearUserData();
-        logger.info("No localStorage data to migrate, cleared anyway", { userId: data.user.id });
       }
       
       return { error: null };
@@ -264,6 +278,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       
       // Check if user has existing data in Supabase
       // If not, migrate localStorage data (first-time login after guest mode)
+      // Keep localStorage as cache for faster loading
       if (data.user) {
         try {
           const hasExisting = await hasExistingUserData(data.user.id);
@@ -285,14 +300,12 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
               });
             }
           }
-          
-          // Clear localStorage after migration (or if no migration needed)
-          clearUserData();
-          logger.info("Cleared localStorage data after sign in", { userId: data.user.id });
+          // Don't clear localStorage - use it as cache for faster loading
+          // Data will sync with Supabase in the background
+          logger.info("Keeping localStorage as cache for faster loading", { userId: data.user.id });
         } catch (error) {
           logger.error("Data migration failed on login", { error, userId: data.user.id });
-          // Still clear localStorage even if migration fails
-          clearUserData();
+          // Keep localStorage even if migration fails - user can retry later
         }
       }
       
