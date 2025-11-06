@@ -128,60 +128,63 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         // Track if we've set loading to false (to prevent duplicate calls)
         let hasSetInitialLoading = false;
         
-        // Get initial session - set loading to false immediately after session is confirmed
-        // Don't wait for onAuthStateChange which might fire later
+        // Set loading to false IMMEDIATELY - don't wait for getSession
+        // This allows the app to render instantly, then we'll update auth state in background
+        if (!hasSetInitialLoading) {
+          hasSetInitialLoading = true;
+          clearTimeout(loadingTimeout);
+          setLoading(false);
+          logger.debug("Loading set to false immediately - app will render");
+        }
+        
+        // Get initial session in background (non-blocking)
         supabase.auth.getSession().then(({ data: { session }, error }) => {
           if (error) {
             logger.error("Error getting initial session", { error });
-            clearTimeout(loadingTimeout);
-            setLoading(false);
+            // Session is already cleared, just log the error
+            return;
+          }
+          
+          // Update session state (app is already rendered)
+          logger.debug("Initial session loaded", { hasSession: !!session });
+          setSession(session);
+          setUser(session?.user ?? null);
+          
+          // Load user role and data in background (non-blocking)
+          if (session?.user) {
+            // Load role
+            supabase
+              .from("profiles")
+              .select("role")
+              .eq("id", session.user.id)
+              .single()
+              .then(({ data: profile }) => {
+                setUserRole((profile?.role as any) || null);
+              })
+              .catch((err) => {
+                logger.error("Error loading user role", { error: err });
+              });
+            
+            // Load profiles and user data in background
+            if (profilesLoadedForUserRef.current !== session.user.id) {
+              loadProfiles(session.user.id).catch((err) => {
+                logger.error("Error loading profiles on initial session", { error: err });
+              });
+            }
+            if (userDataLoadedRef.current !== session.user.id) {
+              loadUserDataFromSupabase().catch((err) => {
+                logger.error("Error loading user data on initial session", { error: err });
+              });
+            }
           } else {
-            // Session loaded - set loading to false immediately
-            // Data will load in background via onAuthStateChange
-            logger.debug("Initial session loaded", { hasSession: !!session });
-            setSession(session);
-            setUser(session?.user ?? null);
-            
-            // Set loading to false immediately - don't wait for data
-            if (!hasSetInitialLoading) {
-              hasSetInitialLoading = true;
-              clearTimeout(loadingTimeout);
-              setLoading(false);
-              logger.debug("Loading set to false immediately after session load");
-            }
-            
-            // Load user role and data in background (non-blocking)
-            if (session?.user) {
-              // Load role
-              supabase
-                .from("profiles")
-                .select("role")
-                .eq("id", session.user.id)
-                .single()
-                .then(({ data: profile }) => {
-                  setUserRole((profile?.role as any) || null);
-                })
-                .catch((err) => {
-                  logger.error("Error loading user role", { error: err });
-                });
-              
-              // Load profiles and user data in background
-              if (profilesLoadedForUserRef.current !== session.user.id) {
-                loadProfiles(session.user.id).catch((err) => {
-                  logger.error("Error loading profiles on initial session", { error: err });
-                });
-              }
-              if (userDataLoadedRef.current !== session.user.id) {
-                loadUserDataFromSupabase().catch((err) => {
-                  logger.error("Error loading user data on initial session", { error: err });
-                });
-              }
-            }
+            // No session - ensure state is cleared
+            setUserRole(null);
+            setActiveProfileState(null);
+            setProfiles([]);
           }
         }).catch((error) => {
           logger.error("Error in getSession promise", { error });
-          clearTimeout(loadingTimeout);
-          setLoading(false);
+          // Don't set loading to false again - already set above
         });
 
         // Listen for auth changes (for sign in/out events, not initial load)
@@ -398,31 +401,39 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     try {
       const supabase = await getSupabaseClient();
       
-      // Clear state immediately (optimistic update)
+      // Clear ALL state immediately (optimistic update)
       setSession(null);
       setUser(null);
+      setUserRole(null); // Clear role
       setActiveProfileState(null);
       setProfiles([]);
       profilesLoadedForUserRef.current = null;
       isLoadingProfilesRef.current = false;
+      userDataLoadedRef.current = null;
       
-      // Sign out from Supabase
+      // Clear localStorage cache
+      clearUserData();
+      
+      // Sign out from Supabase (this clears the session cookie)
       const { error } = await supabase.auth.signOut();
       if (error) {
         logger.error("Sign out error", { error });
-        throw error;
+        // Still clear state even if Supabase signOut fails
+      } else {
+        logger.info("User signed out successfully");
       }
-      logger.info("User signed out successfully");
     } catch (error) {
       logger.error("Sign out exception", { error });
-      // Even if signOut fails, clear local state
+      // Even if signOut fails, ensure all state is cleared
       setSession(null);
       setUser(null);
+      setUserRole(null);
       setActiveProfileState(null);
       setProfiles([]);
       profilesLoadedForUserRef.current = null;
       isLoadingProfilesRef.current = false;
-      throw error;
+      userDataLoadedRef.current = null;
+      clearUserData();
     }
   };
 
