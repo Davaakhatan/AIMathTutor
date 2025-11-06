@@ -30,10 +30,13 @@ export default function UserMenu() {
 
   const handleSignOut = async () => {
     try {
+      setIsOpen(false); // Close menu immediately
+      console.log("Sign out button clicked");
       await signOut();
+      console.log("Sign out completed");
       showToast("Signed out successfully", "success");
-      setIsOpen(false);
     } catch (error) {
+      console.error("Sign out error in UserMenu:", error);
       showToast("Failed to sign out. Please try again.", "error");
     }
   };

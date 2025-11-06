@@ -437,29 +437,10 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
   const signOut = async () => {
     try {
+      logger.info("Sign out initiated");
       const supabase = await getSupabaseClient();
       
-      // Sign out from Supabase FIRST (this clears the session from Supabase storage)
-      // Wait for it to complete before clearing local state
-      const { error } = await supabase.auth.signOut();
-      if (error) {
-        logger.error("Sign out error", { error });
-      } else {
-        logger.info("User signed out successfully from Supabase");
-      }
-      
-      // Clear Supabase's localStorage keys directly (in case signOut didn't clear them)
-      if (typeof window !== 'undefined') {
-        const supabaseKeys = Object.keys(localStorage).filter(key => 
-          key.startsWith('sb-') || key.includes('supabase')
-        );
-        supabaseKeys.forEach(key => {
-          localStorage.removeItem(key);
-        });
-        logger.debug("Cleared Supabase localStorage keys", { keys: supabaseKeys });
-      }
-      
-      // Clear ALL state after Supabase signOut completes
+      // Clear ALL state immediately (optimistic update)
       setSession(null);
       setUser(null);
       setUserRole(null);
@@ -472,9 +453,37 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       // Clear localStorage cache
       clearUserData();
       
+      // Sign out from Supabase (this clears the session from Supabase storage)
+      // Don't wait for it - clear state immediately for better UX
+      supabase.auth.signOut().then(({ error }) => {
+        if (error) {
+          logger.error("Sign out error from Supabase", { error });
+        } else {
+          logger.info("User signed out successfully from Supabase");
+        }
+      }).catch((err) => {
+        logger.error("Sign out promise error", { error: err });
+      });
+      
+      // Clear Supabase's localStorage keys directly (in case signOut didn't clear them)
+      if (typeof window !== 'undefined') {
+        try {
+          const supabaseKeys = Object.keys(localStorage).filter(key => 
+            key.startsWith('sb-') || key.includes('supabase')
+          );
+          supabaseKeys.forEach(key => {
+            localStorage.removeItem(key);
+          });
+          logger.debug("Cleared Supabase localStorage keys", { keys: supabaseKeys });
+        } catch (storageError) {
+          logger.error("Error clearing Supabase localStorage", { error: storageError });
+        }
+      }
+      
       logger.info("Sign out complete - all state cleared");
     } catch (error) {
       logger.error("Sign out exception", { error });
+      console.error("Sign out error:", error);
       // Even if signOut fails, ensure all state is cleared
       setSession(null);
       setUser(null);
@@ -488,12 +497,16 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       
       // Also clear Supabase localStorage keys on error
       if (typeof window !== 'undefined') {
-        const supabaseKeys = Object.keys(localStorage).filter(key => 
-          key.startsWith('sb-') || key.includes('supabase')
-        );
-        supabaseKeys.forEach(key => {
-          localStorage.removeItem(key);
-        });
+        try {
+          const supabaseKeys = Object.keys(localStorage).filter(key => 
+            key.startsWith('sb-') || key.includes('supabase')
+          );
+          supabaseKeys.forEach(key => {
+            localStorage.removeItem(key);
+          });
+        } catch (storageError) {
+          logger.error("Error clearing Supabase localStorage in catch", { error: storageError });
+        }
       }
     }
   };
