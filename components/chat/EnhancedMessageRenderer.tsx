@@ -52,7 +52,7 @@ export default function EnhancedMessageRenderer({
     });
 
     return processed;
-  }, [content, isUser]);
+  }, [content]); // isUser doesn't affect section processing
 
 
   // Toggle section expansion

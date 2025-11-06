@@ -57,7 +57,8 @@ export default function LearningPath({ onStartProblem, apiKey }: LearningPathPro
         setLearningPath(updatedPath);
       }
     }
-  }, [conceptData?.lastUpdated, learningPath]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [conceptData?.lastUpdated, learningPath?.id]); // Only depend on conceptData changes and path ID, not the full path object
 
   const handleGeneratePath = async () => {
     if (!goal.trim()) return;
@@ -113,7 +114,7 @@ export default function LearningPath({ onStartProblem, apiKey }: LearningPathPro
             Create Your Learning Path
           </h3>
           <p className="text-sm text-gray-600 dark:text-gray-400 mb-4">
-            Set a learning goal and we'll create a personalized sequence of problems to help you master it.
+            Set a learning goal and we&apos;ll create a personalized sequence of problems to help you master it.
           </p>
         </div>
         
@@ -141,8 +142,8 @@ export default function LearningPath({ onStartProblem, apiKey }: LearningPathPro
             Examples:
           </p>
           <p className="text-xs text-blue-700 dark:text-blue-300">
-            "Learn quadratic equations", "Master geometry basics", 
-            "Improve algebra skills", "Practice fractions and decimals"
+            &quot;Learn quadratic equations&quot;, &quot;Master geometry basics&quot;, 
+            &quot;Improve algebra skills&quot;, &quot;Practice fractions and decimals&quot;
           </p>
         </div>
       </div>

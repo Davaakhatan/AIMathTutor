@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, memo } from "react";
+import { useState, useEffect, useCallback, memo } from "react";
 import { useLocalStorage } from "@/hooks/useLocalStorage";
 import {
   getConceptsNeedingPractice,
@@ -35,11 +35,7 @@ const AdaptiveProblemSuggestions = memo(function AdaptiveProblemSuggestions({
   const [isExpanded, setIsExpanded] = useState(!compact);
   const [isLoading, setIsLoading] = useState(false);
 
-  useEffect(() => {
-    generateSuggestions();
-  }, [conceptData]);
-
-  const generateSuggestions = async () => {
+  const generateSuggestions = useCallback(async () => {
     setIsLoading(true);
 
     // Get concepts needing practice (mastery < 70%)
@@ -73,7 +69,11 @@ const AdaptiveProblemSuggestions = memo(function AdaptiveProblemSuggestions({
 
     setSuggestions(newSuggestions);
     setIsLoading(false);
-  };
+  }, [conceptData]);
+
+  useEffect(() => {
+    generateSuggestions();
+  }, [generateSuggestions]);
 
   const generateProblemForConcept = (
     concept: MathConcept
