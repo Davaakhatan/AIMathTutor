@@ -44,6 +44,7 @@ export interface UpdateStudentProfileInput {
 
 /**
  * Get all student profiles for the current user
+ * Model B: Students get their own profile, Parents get linked student profiles
  */
 export async function getStudentProfiles(): Promise<StudentProfile[]> {
   try {
@@ -54,18 +55,53 @@ export async function getStudentProfiles(): Promise<StudentProfile[]> {
       throw new Error("User not authenticated");
     }
 
-    const { data, error } = await supabase
-      .from("student_profiles")
-      .select("*")
-      .eq("owner_id", user.id)
-      .order("created_at", { ascending: true });
+    // Get user's role
+    const { data: profile } = await supabase
+      .from("profiles")
+      .select("role")
+      .eq("id", user.id)
+      .single();
 
-    if (error) {
-      logger.error("Error fetching student profiles", { error: error.message });
-      throw error;
+    if (!profile) {
+      return [];
     }
 
-    return (data || []) as StudentProfile[];
+    // If user is a student, return their own profile
+    if (profile.role === "student") {
+      const { data, error } = await supabase
+        .from("student_profiles")
+        .select("*")
+        .eq("owner_id", user.id)
+        .order("created_at", { ascending: true });
+
+      if (error) {
+        logger.error("Error fetching student's own profile", { error: error.message });
+        throw error;
+      }
+
+      return (data || []) as StudentProfile[];
+    }
+
+    // If user is a parent/teacher, get linked student profiles via relationships
+    const { data: relationships, error: relError } = await supabase
+      .from("profile_relationships")
+      .select(`
+        student_profile_id,
+        student_profiles:student_profile_id (*)
+      `)
+      .eq("parent_id", user.id);
+
+    if (relError) {
+      logger.error("Error fetching linked student profiles", { error: relError.message });
+      throw relError;
+    }
+
+    // Extract student profiles from relationships
+    const studentProfiles = (relationships || [])
+      .map((rel: any) => rel.student_profiles)
+      .filter((p: any) => p !== null) as StudentProfile[];
+
+    return studentProfiles;
   } catch (error) {
     logger.error("Error in getStudentProfiles", {
       error: error instanceof Error ? error.message : String(error),
@@ -114,6 +150,7 @@ export async function getStudentProfile(profileId: string): Promise<StudentProfi
 
 /**
  * Get the active student profile for the current user
+ * Model B: Students get their own profile, Parents get selected linked profile
  * Optimized: accepts profiles list to avoid extra query
  */
 export async function getActiveStudentProfile(profilesList?: StudentProfile[]): Promise<StudentProfile | null> {
@@ -125,24 +162,7 @@ export async function getActiveStudentProfile(profilesList?: StudentProfile[]): 
       return null;
     }
 
-    // If we already have the profiles list, use it instead of querying
-    if (profilesList) {
-      // Get user's profile to find current_student_profile_id
-      const { data: profile } = await supabase
-        .from("profiles")
-        .select("current_student_profile_id, role")
-        .eq("id", user.id)
-        .single();
-
-      if (!profile || !profile.current_student_profile_id) {
-        return null;
-      }
-
-      // Find the active profile from the list we already have
-      return profilesList.find(p => p.id === profile.current_student_profile_id) || null;
-    }
-
-    // Fallback: original logic if profiles list not provided
+    // Get user's profile to find role and current_student_profile_id
     const { data: profile, error: profileError } = await supabase
       .from("profiles")
       .select("current_student_profile_id, role")
@@ -154,11 +174,36 @@ export async function getActiveStudentProfile(profilesList?: StudentProfile[]): 
       return null;
     }
 
-    if (profile.role === "student" || !profile.current_student_profile_id) {
+    // If user is a student, return their own profile
+    if (profile.role === "student") {
+      // If we have the profiles list, use it
+      if (profilesList && profilesList.length > 0) {
+        return profilesList[0]; // Students typically have one profile
+      }
+
+      // Otherwise query for their profile
+      const { data: studentProfiles } = await supabase
+        .from("student_profiles")
+        .select("*")
+        .eq("owner_id", user.id)
+        .eq("is_active", true)
+        .order("created_at", { ascending: true })
+        .limit(1);
+
+      return (studentProfiles && studentProfiles.length > 0) ? (studentProfiles[0] as StudentProfile) : null;
+    }
+
+    // If user is a parent/teacher, return the selected student profile
+    if (!profile.current_student_profile_id) {
       return null;
     }
 
-    // Get the active student profile
+    // If we have the profiles list, use it
+    if (profilesList) {
+      return profilesList.find(p => p.id === profile.current_student_profile_id) || null;
+    }
+
+    // Otherwise query for the selected profile
     return await getStudentProfile(profile.current_student_profile_id);
   } catch (error) {
     logger.error("Error in getActiveStudentProfile", {
@@ -360,8 +405,8 @@ export async function setActiveStudentProfile(profileId: string | null): Promise
 
 /**
  * Get the effective profile ID for data queries
- * Returns the active student profile ID if set, otherwise null (use user_id)
- * This determines which profile's data to load/save
+ * Model B: Students use their own student_profile_id, Parents use selected student_profile_id
+ * Returns the student profile ID to use for data queries
  */
 export async function getEffectiveProfileId(): Promise<string | null> {
   try {
@@ -380,15 +425,24 @@ export async function getEffectiveProfileId(): Promise<string | null> {
       .single();
 
     if (!profile) {
-      return null; // No profile = use user_id
+      return null;
     }
 
-    // If user is a student, they use their own user_id (no profile)
+    // If user is a student, get their own student profile ID
     if (profile.role === "student") {
-      return null; // Use user_id
+      const { data: studentProfile } = await supabase
+        .from("student_profiles")
+        .select("id")
+        .eq("owner_id", user.id)
+        .eq("is_active", true)
+        .order("created_at", { ascending: true })
+        .limit(1)
+        .single();
+
+      return studentProfile?.id || null;
     }
 
-    // If parent/teacher has an active profile, return that profile ID
+    // If parent/teacher has an active profile selected, return that profile ID
     return profile.current_student_profile_id || null;
   } catch (error) {
     logger.error("Error in getEffectiveProfileId", {
