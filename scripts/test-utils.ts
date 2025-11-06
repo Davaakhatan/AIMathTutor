@@ -92,11 +92,11 @@ export async function testConversationFlow(problemText: string, studentResponses
     }
 
     // Initialize conversation
-    const session = dialogueManager.initializeConversation(parsed);
+    const session = await dialogueManager.initializeConversation(parsed);
     console.log(`\n✅ Session created: ${session.id}`);
     
     // Get initial message
-    const history = dialogueManager.getHistory(session.id);
+    const history = await dialogueManager.getHistory(session.id);
     const initialMessage = history.find(msg => msg.role === "tutor");
     if (initialMessage) {
       console.log(`\nTutor: ${initialMessage.content}`);
@@ -117,7 +117,7 @@ export async function testConversationFlow(problemText: string, studentResponses
     }
 
     // Get final context
-    const finalContext = contextManager.getContext(session.id);
+    const finalContext = await contextManager.getContext(session.id);
     if (finalContext) {
       console.log(`\n📊 Final Context:`);
       console.log(`   Messages: ${finalContext.messages.length}`);
