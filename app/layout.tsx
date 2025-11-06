@@ -7,7 +7,7 @@ export const metadata: Metadata = {
   title: "AI Math Tutor - Socratic Learning Assistant",
   description: "An AI-powered math tutor that guides students through problem-solving using the Socratic method",
   keywords: ["math tutor", "AI tutor", "Socratic method", "math learning", "problem solving"],
-  authors: [{ name: "SuperBuilders" }],
+  authors: [{ name: "Davaakhatan Zorigtbaatar", email: "zr.davaa@gmail.com" }],
   viewport: "width=device-width, initial-scale=1",
   icons: {
     icon: "/icon.svg",
