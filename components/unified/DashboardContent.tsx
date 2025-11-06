@@ -82,8 +82,15 @@ export default function DashboardContent({ onDifficultyChange }: DashboardConten
     let totalHints = 0;
     let problemsSolved = 0;
 
-    // Sort by date to calculate trends
-    const sortedProblems = [...savedProblems].sort((a, b) => a.savedAt - b.savedAt);
+    // Filter out problems with invalid dates and sort by date to calculate trends
+    const validProblems = savedProblems.filter(p => {
+      // Check if savedAt is valid (not null, undefined, 0, or invalid date)
+      if (!p.savedAt || p.savedAt <= 0) return false;
+      const testDate = new Date(p.savedAt);
+      return !isNaN(testDate.getTime());
+    });
+    
+    const sortedProblems = [...validProblems].sort((a, b) => a.savedAt - b.savedAt);
 
     sortedProblems.forEach((problem) => {
       // Count by type
@@ -94,8 +101,13 @@ export default function DashboardContent({ onDifficultyChange }: DashboardConten
       const difficulty = problem.difficulty || "medium";
       problemsByDifficulty[difficulty] = (problemsByDifficulty[difficulty] || 0) + 1;
 
-      // Daily activity
-      const date = new Date(problem.savedAt);
+      // Daily activity - validate date before using
+      const savedAt = problem.savedAt;
+      if (!savedAt || savedAt <= 0) return; // Skip if invalid
+      
+      const date = new Date(savedAt);
+      if (isNaN(date.getTime())) return; // Skip if invalid date
+      
       const dateKey = date.toISOString().split("T")[0];
       dailyActivity[dateKey] = (dailyActivity[dateKey] || 0) + 1;
 
@@ -139,7 +151,7 @@ export default function DashboardContent({ onDifficultyChange }: DashboardConten
     }
 
     setStats({
-      totalProblems: savedProblems.length,
+      totalProblems: validProblems.length,
       problemsByType,
       problemsByDifficulty,
       totalTime,
