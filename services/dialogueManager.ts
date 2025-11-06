@@ -27,6 +27,8 @@ export class DialogueManager {
     clientApiKey?: string,
     whiteboardImage?: string // Optional: Base64 whiteboard image
   ): Promise<Message> {
+    // Extract image from problem.imageUrl if present (uploaded images)
+    const uploadedImage = problem.imageUrl;
     // Verify session exists
     const session = contextManager.getSession(sessionId);
     if (!session) {
@@ -45,6 +47,7 @@ export class DialogueManager {
       logger.debug("Generating initial message with OpenAI", {
         hasClientApiKey: !!clientApiKey,
         hasEnvApiKey: !!process.env.OPENAI_API_KEY,
+        hasUploadedImage: !!uploadedImage,
       });
 
       // Call OpenAI API
@@ -58,7 +61,34 @@ export class DialogueManager {
           },
         ];
 
-        // Add whiteboard image if provided
+        // Add uploaded image if present (from problem.imageUrl)
+        if (uploadedImage) {
+          // Handle both data URLs and base64 strings
+          let imageUrl = uploadedImage;
+          if (uploadedImage.startsWith('data:image')) {
+            // Already a data URL, use as-is
+            imageUrl = uploadedImage;
+          } else {
+            // Plain base64, add data URL prefix
+            imageUrl = `data:image/png;base64,${uploadedImage}`;
+          }
+          
+          logger.debug("Adding uploaded problem image to initial message", {
+            hasImage: true,
+            imageUrlLength: imageUrl.length,
+            imageUrlPrefix: imageUrl.substring(0, 50),
+          });
+          
+          userContent.push({
+            type: "image_url",
+            image_url: {
+              url: imageUrl,
+              detail: "high", // Use high detail for better text/shape recognition
+            },
+          });
+        }
+
+        // Add whiteboard image if provided (takes precedence if both exist)
         if (whiteboardImage) {
           // Handle both data URLs and base64 strings
           let imageUrl = whiteboardImage;
@@ -90,40 +120,39 @@ export class DialogueManager {
             {
               role: "system",
               content: socraticPromptEngine.generateSystemPrompt(difficultyMode) +
-                (whiteboardImage ? "\n\n" +
+                ((uploadedImage || whiteboardImage) ? "\n\n" +
                   "═══════════════════════════════════════════════════════════════\n" +
-                  "🚨 CRITICAL: WHITEBOARD DRAWING IS PRESENT WITH THIS PROBLEM 🚨\n" +
+                  "🚨 CRITICAL: VISUAL DIAGRAM/IMAGE IS PRESENT WITH THIS PROBLEM 🚨\n" +
                   "═══════════════════════════════════════════════════════════════\n\n" +
-                  "**YOU MUST ANALYZE THE WHITEBOARD DRAWING BEFORE RESPONDING TO ANYTHING ELSE.**\n\n" +
+                  "**YOU MUST ANALYZE THE VISUAL IMAGE BEFORE RESPONDING TO ANYTHING ELSE.**\n\n" +
                   "**STEP 1: IMMEDIATE VISUAL ANALYSIS**\n" +
-                  "Look at the whiteboard drawing image NOW. You MUST identify:\n" +
+                  "Look at the image NOW. You MUST identify:\n" +
                   "- ALL geometric shapes (triangles, rectangles, circles, lines, angles)\n" +
                   "- ALL text labels, numbers, letters, variables (like x, y, z)\n" +
                   "- ALL vertex labels (A, B, C, D, etc.) if present\n" +
                   "- ALL measurements, dimensions, arrows, annotations\n" +
-                  "- Spatial relationships and arrangement\n\n" +
-                  "**STEP 2: YOUR RESPONSE MUST START WITH ACKNOWLEDGING THE DRAWING**\n" +
-                  "Your FIRST sentence MUST acknowledge exactly what you see in the drawing. Describe:\n" +
-                  "- The shapes you see (triangle, rectangle, circle, etc.)\n" +
-                  "- ALL labels, numbers, and variables visible in the drawing\n" +
-                  "- The exact measurements and variables as they appear\n" +
-                  "- Example format: 'I can see your drawing! You've drawn a [shape] with [describe what you see].'\n\n" +
-                  "**STEP 3: WORK WITH WHAT THEY ACTUALLY DREW**\n" +
-                  "Analyze the drawing and work with the ACTUAL elements visible:\n" +
-                  "- If it's a triangle, identify which sides/angles are labeled and with what values/variables\n" +
-                  "- Use appropriate mathematical principles (Pythagorean theorem, trigonometry, etc.) based on what's shown\n" +
-                  "- Reference the SPECIFIC labels, numbers, and variables as they appear in the drawing\n" +
-                  "- Make the drawing the PRIMARY focus of your response\n\n" +
-                  "**STEP 4: IF PROBLEM TEXT SEEMS UNRELATED**\n" +
-                  "If the problem text mentions something different than what's in the drawing:\n" +
-                  "- Acknowledge what you see in the drawing first\n" +
-                  "- State that you'll work with what they drew, not the unrelated problem text\n" +
-                  "- Focus entirely on the drawing\n\n" +
-                  "═══════════════════════════════════════════════════════════════\n" +
-                  "**CRITICAL RULE: IF THE PROBLEM TEXT DOESN'T MATCH THE DRAWING, IGNORE THE PROBLEM TEXT.**\n" +
-                  "**WORK ONLY WITH WHAT IS VISIBLE IN THE DRAWING. THE DRAWING IS THE REAL PROBLEM.**\n" +
-                  "**DO NOT mention calculations about elements that don't appear in the drawing (circles, arcs, angles, shaded areas, etc.).**\n" +
-                  "**ANALYZE THE DRAWING DYNAMICALLY - work with whatever shapes, labels, numbers, and variables are actually visible.**\n" +
+                  "- Spatial relationships and arrangement\n" +
+                  "- Right angle indicators (small squares at vertices)\n" +
+                  "- Any mathematical relationships visible in the diagram\n\n" +
+                  "**STEP 2: MATCH IMAGE TO PROBLEM TEXT**\n" +
+                  "Compare the image to the problem statement. The image IS the visual representation of the problem.\n" +
+                  "If the problem says 'Find the value of x' and the image shows a right triangle with sides labeled '6 m', 'x', and '10 m', " +
+                  "then you are looking at a Pythagorean Theorem problem where x is a side length.\n\n" +
+                  "**STEP 3: YOUR RESPONSE MUST START WITH ACKNOWLEDGING THE IMAGE**\n" +
+                  "Your FIRST sentence MUST acknowledge exactly what you see in the image. Describe:\n" +
+                  "- 'I can see you have a right triangle with sides labeled 6 m, x, and 10 m...'\n" +
+                  "- 'Looking at your diagram, I notice a right triangle...'\n" +
+                  "- Reference specific measurements from the image (6 m, x, 10 m)\n" +
+                  "- Identify the triangle type and which side is the hypotenuse\n\n" +
+                  "**STEP 4: USE THE IMAGE TO GUIDE YOUR TUTORING**\n" +
+                  "Reference specific elements from the image in your questions:\n" +
+                  "- 'What do you know about the side labeled 6 m?'\n" +
+                  "- 'Can you tell me about the relationship between the hypotenuse (10 m) and the other two sides?'\n" +
+                  "- 'What theorem or formula connects these three sides in a right triangle?'\n" +
+                  "- 'Which side is the hypotenuse? Which sides are the legs?'\n\n" +
+                  "**CRITICAL: DO NOT ignore the image. The image contains essential information that the text alone cannot convey.**\n" +
+                  "If the problem text mentions 'Find the value of x' and the image shows a triangle with labeled sides, " +
+                  "you MUST recognize this is a geometry problem and help the student use the appropriate theorem.\n" +
                   "═══════════════════════════════════════════════════════════════\n" : ""),
             },
             {

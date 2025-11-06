@@ -34,93 +34,157 @@ export default function ProblemProgress({ messages, problem }: ProblemProgressPr
     );
   }).length;
 
-  // Check if problem is solved by looking for completion indicators in tutor messages
-  // Must be more strict - only mark as solved if tutor explicitly confirms completion
-  // NOT just encouragement during the process
-  const isSolved = tutorMessages.some(msg => {
-    const content = msg.content.toLowerCase();
+  // Check if problem is solved by looking at the last few tutor messages
+  // Must be very strict - only mark as solved if tutor explicitly confirms FINAL completion
+  // NOT encouragement during the process or questions
+  // Check last 2-3 messages to catch cases where AI confirms then follows up
+  const recentTutorMessages = tutorMessages.slice(-3); // Check last 3 messages
+  const isSolved = recentTutorMessages.length > 0 ? (() => {
+    // Check each recent message, starting from the most recent
+    for (const tutorMessage of [...recentTutorMessages].reverse()) {
+      const content = tutorMessage.content.toLowerCase();
     
-    // Only mark as solved if tutor explicitly confirms completion with definitive phrases
-    // These phrases should only appear when the problem is actually solved
+    // EXCLUDE if the message contains questions - if AI is asking questions, problem is NOT solved
+    const hasQuestions = (
+      content.includes("?") || 
+      content.includes("what") ||
+      content.includes("can you") ||
+      content.includes("do you") ||
+      content.includes("how") ||
+      content.includes("which") ||
+      content.includes("tell me") ||
+      content.includes("let's") ||
+      /what\s+do\s+you|what\s+is|what\s+are|what\s+would/.test(content)
+    );
+    
+    // If the message asks questions, it's definitely not solved
+    if (hasQuestions) {
+      return false;
+    }
+    
+    // Only mark as solved if tutor explicitly confirms FINAL completion
+    // These phrases should ONLY appear when the problem is COMPLETELY solved
     const definitiveCompletionPhrases = [
       "you've solved it",
       "you solved it",
       "you've solved the problem",
       "you solved the problem",
+      "the problem is solved",
       "solution is correct",
       "answer is correct",
       "that's the correct answer",
       "that is the correct answer",
       "the correct solution",
-      "you got it right",
-      "you've got it",
-      "you got it",
-      "you found the answer",
-      "you found the solution",
+      "you've found the correct answer",
+      "you found the correct answer",
+      "you've found the correct solution",
       "congratulations! you solved",
-      "congratulations! it looks like you've reached",
-      "congratulations! you've reached an answer",
+      "congratulations! you've solved",
       "congratulations on solving",
-      "you've reached an answer",
-      "you've reached the answer",
-      "you reached an answer",
+      "congratulations! you've found the answer",
       "well done! you solved",
+      "well done! you've solved",
       "well done on solving",
       "excellent! you solved",
       "perfect! you solved",
-      "you've completed",
+      "you've completed the problem",
       "problem solved",
       "correctly solved",
-      "keep up the great work", // Often appears at the end of congratulations
-      "keep up the good work",
-      "congratulations!",
-      // Check if congratulations is followed by completion indicators
     ];
     
-    // Check for definitive completion phrases
+    // Check for definitive completion phrases (only if no questions)
     const hasDefinitiveCompletion = definitiveCompletionPhrases.some(phrase => 
       content.includes(phrase)
     );
     
-    // Special case: "Congratulations!" followed by completion indicators
-    // "Congratulations! It looks like you've reached an answer" should be detected
+    // Special case: "Congratulations!" followed by explicit completion indicators
     const congratulationsWithCompletion = (
       content.includes("congratulations") && 
-      (content.includes("reached") || 
-       content.includes("answer") || 
-       content.includes("solution") ||
-       content.includes("solved") ||
-       content.includes("completed"))
+      (content.includes("solved") || 
+       content.includes("completed") ||
+       content.includes("found the answer") ||
+       content.includes("found the solution"))
     );
     
-    // Check for phrases like "That's right!" or "Great work!" followed by confirmation
-    const positiveConfirmation = (
-      (content.includes("that's right") || 
-       content.includes("that is right") ||
-       content.includes("great work") ||
-       content.includes("great job") ||
-       content.includes("good work") ||
-       content.includes("excellent work")) &&
-      (content.includes("correct") || 
-       content.includes("solution") ||
-       content.includes("answer") ||
-       content.includes("solved"))
-    );
-    
-    // Also check if tutor confirms a final numerical answer
-    // Look for patterns like "yes, x = 4" or "x = 4 is correct" or "the answer is 4" in tutor's response
+    // Check if tutor confirms a final numerical answer with explicit confirmation
+    // Must be clear confirmation, not just mentioning the answer
     const confirmsFinalAnswer = (
-      /(yes|correct|right|exactly),?\s+(x|the answer|the solution|it)\s*=\s*\d+/.test(content) ||
-      /(x|the answer|the solution|it)\s*=\s*\d+.*correct/i.test(content) ||
-      /(the answer|the solution|it)\s+is\s+(the\s+)?correct/i.test(content) ||
-      /(the answer|the solution|it)\s+is\s+\d+/.test(content) ||
-      /you're right.*\d+/.test(content) ||
-      /correct.*answer.*\d+/.test(content) ||
-      /(x|the answer|the solution)\s*=\s*\d+.*is\s+(the\s+)?correct/i.test(content)
-    ) && !content.includes("?") && !content.includes("what"); // Exclude questions
+      // Patterns like "Yes, x = 8 is correct" or "Exactly! x = 8" or "That's right! x = 8"
+      /(yes|correct|right|exactly|perfect|excellent|great),?\s+(x|the answer|the solution)\s*=\s*\d+/.test(content) ||
+      /(x|the answer|the solution)\s*=\s*\d+.*(is\s+)?(correct|right|the\s+answer)/i.test(content) ||
+      /(the answer|the solution)\s+is\s+\d+.*(correct|right|exactly)/i.test(content) ||
+      // Patterns like "That's correct! x = 8" or "Perfect! The answer is 8"
+      /(that's|that is)\s+(correct|right|the\s+answer).*\d+/.test(content) ||
+      /(the answer|the solution)\s+is\s+\d+$/.test(content) // "The answer is 8" at end of message
+    ) && !hasQuestions; // Must not have questions
     
-    return hasDefinitiveCompletion || congratulationsWithCompletion || positiveConfirmation || confirmsFinalAnswer;
-  });
+    // Check for phrases that indicate the student has reached the final answer
+    // But only if they're explicit about completion
+    const reachedFinalAnswer = (
+      (content.includes("you've reached") || 
+       content.includes("you reached") ||
+       content.includes("you've found") ||
+       content.includes("you found")) &&
+      (content.includes("answer") || content.includes("solution")) &&
+      !hasQuestions
+    );
+    
+    // Check for confirmation patterns that indicate completion
+    // Patterns like "you've found that X is correct" or "which is correct" with positive feedback
+    const confirmsAnswerIsCorrect = (
+      // Patterns like "you've found that... is correct" or "which is correct"
+      (content.includes("you've found") || content.includes("you found")) &&
+      (content.includes("which is correct") || 
+       content.includes("is correct") ||
+       content.includes("correctly")) &&
+      !hasQuestions
+    );
+    
+    // Check for "well done" or similar praise combined with answer confirmation
+    const praiseWithCompletion = (
+      (content.includes("well done") ||
+       content.includes("great job") ||
+       content.includes("excellent") ||
+       content.includes("perfect") ||
+       content.includes("good work")) &&
+      (content.includes("correct") ||
+       content.includes("found") ||
+       content.includes("calculated") ||
+       content.includes("solved") ||
+       content.includes("answer")) &&
+      !hasQuestions
+    );
+    
+    // Check for explicit confirmation of correctness (e.g., "which is correct", "that's correct")
+    const explicitCorrectnessConfirmation = (
+      (content.includes("which is correct") ||
+       content.includes("that's correct") ||
+       content.includes("that is correct") ||
+       content.includes("is correct") ||
+       content.includes("correctly")) &&
+      (content.includes("found") ||
+       content.includes("calculated") ||
+       content.includes("got") ||
+       content.includes("answer") ||
+       /\d+/.test(content)) && // Has a number (likely the answer)
+      !hasQuestions
+    );
+    
+      // Only return true if we have strong evidence of completion AND no questions
+      if (
+        hasDefinitiveCompletion || 
+        congratulationsWithCompletion || 
+        confirmsFinalAnswer || 
+        reachedFinalAnswer ||
+        confirmsAnswerIsCorrect ||
+        praiseWithCompletion ||
+        explicitCorrectnessConfirmation
+      ) {
+        return true; // Found confirmation in this message
+      }
+    }
+    return false; // No confirmation found in recent messages
+  })() : false;
   
   // Track concept mastery when problem is solved
   useConceptTracking(problem, messages, isSolved);

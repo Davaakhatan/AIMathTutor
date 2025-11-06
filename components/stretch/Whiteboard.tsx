@@ -77,6 +77,9 @@ export default function Whiteboard({
     // Clear canvas
     ctx.clearRect(0, 0, canvas.width, canvas.height);
     
+    // Note: Coordinates are stored in display pixels (CSS pixels), not canvas pixels
+    // The canvas is already scaled for DPI in resizeCanvas, so we draw in display space
+    
     // Draw all freehand paths
     freehandPaths.forEach((path) => {
       if (path.points.length < 2) return;
@@ -106,11 +109,14 @@ export default function Whiteboard({
       ctx.stroke();
     }
     
-    // Draw all shapes
+    // Draw all shapes with enhanced visibility for AI recognition
     shapes.forEach((shape) => {
       ctx.strokeStyle = shape.color;
       ctx.fillStyle = shape.color;
-      ctx.lineWidth = shape.lineWidth;
+      // Use thicker lines for better AI recognition (minimum 2px)
+      ctx.lineWidth = Math.max(2, shape.lineWidth * 1.2);
+      ctx.lineCap = "round";
+      ctx.lineJoin = "round";
       ctx.beginPath();
       
       switch (shape.type) {
@@ -136,11 +142,16 @@ export default function Whiteboard({
           break;
         case "text":
           // lineWidth is stored as pixel size (already calculated)
-          const fontSize = Math.max(12, shape.lineWidth);
-          ctx.font = `${fontSize}px Arial`;
+          // Use larger, bolder font for better AI recognition
+          const fontSize = Math.max(18, shape.lineWidth * 1.2);
+          ctx.font = `bold ${fontSize}px Arial, sans-serif`;
           ctx.fillStyle = shape.color;
           ctx.textAlign = "left";
           ctx.textBaseline = "alphabetic";
+          // Add subtle text stroke for better visibility against white background
+          ctx.lineWidth = 1;
+          ctx.strokeStyle = "rgba(0, 0, 0, 0.2)";
+          ctx.strokeText(shape.text || "", shape.x, shape.y);
           ctx.fillText(shape.text || "", shape.x, shape.y);
           break;
       }
@@ -220,11 +231,22 @@ export default function Whiteboard({
     const ctx = canvas.getContext("2d");
     if (!ctx) return;
 
-    // Set canvas size
+    // Set canvas size with high DPI for better image quality
     const resizeCanvas = () => {
       const rect = canvas.getBoundingClientRect();
-      canvas.width = rect.width;
-      canvas.height = rect.height;
+      const dpr = window.devicePixelRatio || 1;
+      
+      // Set actual size in memory (scaled for device pixel ratio)
+      canvas.width = rect.width * dpr;
+      canvas.height = rect.height * dpr;
+      
+      // Scale the context to match device pixel ratio
+      ctx.scale(dpr, dpr);
+      
+      // Set display size (CSS pixels)
+      canvas.style.width = `${rect.width}px`;
+      canvas.style.height = `${rect.height}px`;
+      
       redrawCanvas();
     };
 
@@ -513,9 +535,28 @@ export default function Whiteboard({
     // Redraw to ensure all shapes are rendered before capturing
     redrawCanvas();
     
-    // Use higher quality settings for better AI detection
-    const dataURL = canvas.toDataURL("image/png", 1.0);
-    onSendDrawing(dataURL);
+    // Create a high-resolution copy for better AI recognition
+    const dpr = window.devicePixelRatio || 1;
+    const rect = canvas.getBoundingClientRect();
+    const tempCanvas = document.createElement('canvas');
+    tempCanvas.width = rect.width * dpr * 2; // 2x scale for better quality
+    tempCanvas.height = rect.height * dpr * 2;
+    const tempCtx = tempCanvas.getContext("2d");
+    
+    if (tempCtx) {
+      // Scale up the context
+      tempCtx.scale(2, 2);
+      // Draw the original canvas scaled up
+      tempCtx.drawImage(canvas, 0, 0, rect.width, rect.height);
+      
+      // Use higher quality settings for better AI detection
+      const dataURL = tempCanvas.toDataURL("image/png", 1.0);
+      onSendDrawing(dataURL);
+    } else {
+      // Fallback to original canvas
+      const dataURL = canvas.toDataURL("image/png", 1.0);
+      onSendDrawing(dataURL);
+    }
     // Clear canvas after sending (optional - user can keep drawing if they want)
     // Uncomment below if you want to auto-clear after send:
     // clearCanvas();
@@ -528,9 +569,28 @@ export default function Whiteboard({
     // Redraw to ensure all shapes are rendered before capturing
     redrawCanvas();
     
-    // Use higher quality settings for better AI detection
-    const dataURL = canvas.toDataURL("image/png", 1.0);
-    onReviewDrawing(dataURL);
+    // Create a high-resolution copy for better AI recognition
+    const dpr = window.devicePixelRatio || 1;
+    const rect = canvas.getBoundingClientRect();
+    const tempCanvas = document.createElement('canvas');
+    tempCanvas.width = rect.width * dpr * 2; // 2x scale for better quality
+    tempCanvas.height = rect.height * dpr * 2;
+    const tempCtx = tempCanvas.getContext("2d");
+    
+    if (tempCtx) {
+      // Scale up the context
+      tempCtx.scale(2, 2);
+      // Draw the original canvas scaled up
+      tempCtx.drawImage(canvas, 0, 0, rect.width, rect.height);
+      
+      // Use higher quality settings for better AI detection
+      const dataURL = tempCanvas.toDataURL("image/png", 1.0);
+      onReviewDrawing(dataURL);
+    } else {
+      // Fallback to original canvas
+      const dataURL = canvas.toDataURL("image/png", 1.0);
+      onReviewDrawing(dataURL);
+    }
   }, [hasContent, onReviewDrawing, redrawCanvas]);
 
   if (!isEnabled) {
