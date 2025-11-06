@@ -298,18 +298,21 @@ const CONCEPT_RELATIONSHIPS: Record<string, string[]> = {
   "angles": ["pythagorean_theorem", "area_triangle"],
   
   // Algebra concepts
-  "linear_equations": ["quadratic_equations", "factoring", "slope"],
-  "quadratic_equations": ["linear_equations", "factoring", "exponents"],
-  "factoring": ["linear_equations", "quadratic_equations"],
-  "exponents": ["quadratic_equations", "roots"],
-  "roots": ["exponents", "quadratic_equations"],
-  "slope": ["linear_equations"],
+  "linear_equations": ["quadratic_equations", "factoring", "slope", "multi_step"],
+  "quadratic_equations": ["linear_equations", "factoring", "exponents", "multi_step"],
+  "factoring": ["linear_equations", "quadratic_equations", "multi_step"],
+  "exponents": ["quadratic_equations", "roots", "multi_step"],
+  "roots": ["exponents", "quadratic_equations", "multi_step"],
+  "slope": ["linear_equations", "multi_step"],
+  
+  // Multi-step problems are related to many concepts
+  "multi_step": ["linear_equations", "quadratic_equations", "factoring", "exponents", "roots", "slope", "fractions", "decimals", "percentages"],
   
   // Arithmetic concepts
-  "fractions": ["decimals", "percentages", "ratios"],
-  "decimals": ["fractions", "percentages"],
-  "percentages": ["fractions", "decimals", "ratios"],
-  "ratios": ["fractions", "percentages"],
+  "fractions": ["decimals", "percentages", "ratios", "multi_step"],
+  "decimals": ["fractions", "percentages", "multi_step"],
+  "percentages": ["fractions", "decimals", "ratios", "multi_step"],
+  "ratios": ["fractions", "percentages", "multi_step"],
 };
 
 /**
