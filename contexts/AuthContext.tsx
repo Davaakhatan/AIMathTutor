@@ -125,6 +125,9 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       try {
         const supabase = await getSupabaseClient();
         
+        // Track if we've set loading to false (to prevent duplicate calls)
+        let hasSetInitialLoading = false;
+        
         // Get initial session - set loading to false immediately after session is confirmed
         // Don't wait for onAuthStateChange which might fire later
         supabase.auth.getSession().then(({ data: { session }, error }) => {
@@ -182,7 +185,6 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         });
 
         // Listen for auth changes (for sign in/out events, not initial load)
-        let hasSetInitialLoading = false;
         const {
           data: { subscription },
         } = supabase.auth.onAuthStateChange(async (_event, session) => {
