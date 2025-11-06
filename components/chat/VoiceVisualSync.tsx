@@ -83,6 +83,7 @@ export default function VoiceVisualSync({
     return () => {
       visualSyncManager.stopSync(messageId);
       // Capture the current utterance ref value to avoid stale closure
+      // eslint-disable-next-line react-hooks/exhaustive-deps
       const currentUtterance = utteranceRef.current;
       if (currentUtterance) {
         window.speechSynthesis.cancel();
