@@ -7,12 +7,16 @@ export const metadata: Metadata = {
   title: "AI Math Tutor - Socratic Learning Assistant",
   description: "An AI-powered math tutor that guides students through problem-solving using the Socratic method",
   keywords: ["math tutor", "AI tutor", "Socratic method", "math learning", "problem solving"],
-  authors: [{ name: "Davaakhatan Zorigtbaatar", email: "zr.davaa@gmail.com" }],
-  viewport: "width=device-width, initial-scale=1",
+  authors: [{ name: "Davaakhatan Zorigtbaatar" }],
   icons: {
     icon: "/icon.svg",
     apple: "/icon.svg",
   },
+};
+
+export const viewport = {
+  width: "device-width",
+  initialScale: 1,
 };
 
 export default function RootLayout({

@@ -60,7 +60,7 @@ export default function RemindersContent() {
   useEffect(() => {
     if (showReminder && "Notification" in window && Notification.permission === "granted") {
       new Notification("Time to Study! 📚", {
-        body: "It's time for your daily math practice. Keep your streak going!",
+        body: "It&apos;s time for your daily math practice. Keep your streak going!",
         icon: "/icon.svg",
       });
     }

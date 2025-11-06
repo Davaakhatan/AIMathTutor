@@ -101,7 +101,7 @@ export default function XPSystem({
         setPreviousProblemId(null);
       }
     }
-  }, [problem?.text, problem?.type, previousProblemId, problem]);
+  }, [problem?.text, problem?.type, previousProblemId, problem]); // All dependencies are intentional
 
   // Award XP when problem is solved
   useEffect(() => {
@@ -255,7 +255,7 @@ export default function XPSystem({
       setShowXPNotification(false);
     }, 3000);
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [messages, problem, previousProblemId, previousLevel, onLevelUp, solvedProblems]); // calculateLevel, calculateXPToNext, setXPData are stable
+  }, [messages, problem, previousProblemId, previousLevel, onLevelUp, solvedProblems]); // calculateLevel, calculateXPToNext, setXPData are stable functions. xpData properties are accessed directly and don't need to be in deps.
 
   // Level up celebration
   useEffect(() => {
@@ -319,7 +319,7 @@ export default function XPSystem({
     window.addEventListener("problemStarted", handleProblemStarted);
     return () => window.removeEventListener("problemStarted", handleProblemStarted);
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []); // Empty deps - only set up listener once
+  }, []); // Event listener setup only - calculateLevel, calculateXPToNext, setXPData are stable functions
 
   // Only render after client-side hydration to avoid hydration mismatch
   useEffect(() => {
@@ -336,8 +336,7 @@ export default function XPSystem({
       const count = xpData.xpHistory.filter(h => h.reason.includes("Problem solved")).length;
       setProblemsSolvedCount(count);
     }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [xpData.xpHistory.length, isMounted]); // Only depend on length to avoid unnecessary re-renders
+  }, [xpData.xpHistory, isMounted]); // Depend on full array to catch all changes
 
   // Notify parent of XP data changes (use useRef to track previous values and avoid unnecessary calls)
   const prevXPRef = useRef({ totalXP: 0, level: 1, problemsSolved: 0 });

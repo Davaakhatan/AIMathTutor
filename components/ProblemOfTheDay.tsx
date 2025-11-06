@@ -62,7 +62,7 @@ export default function ProblemOfTheDay({
         setShowCard(true);
       }
     }
-  }, [dailyProblem?.date, dailyProblem, showCard]);
+  }, [dailyProblem?.date, dailyProblem, showCard]); // dailyProblem and showCard dependencies are intentional
 
   const generateDailyProblem = async () => {
     setIsGenerating(true);
