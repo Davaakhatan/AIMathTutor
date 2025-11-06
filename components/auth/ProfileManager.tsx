@@ -112,6 +112,8 @@ export default function ProfileManager() {
         showToast("Profile created successfully", "success");
         // Refresh profiles first to get the new profile in the list
         await refreshProfiles();
+        // Wait a bit for the refresh to complete
+        await new Promise(resolve => setTimeout(resolve, 100));
         // Then set as active (this will also reload data)
         await setActiveProfile(newProfile.id);
       }
