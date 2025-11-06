@@ -58,61 +58,51 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       isLoadingProfilesRef.current = true;
       setProfilesLoading(true);
       
-      // Load profiles with timeout and better error handling
-      let profilesList: StudentProfile[] = [];
-      let active: StudentProfile | null = null;
+      // Set empty state immediately (non-blocking UI)
+      setProfiles([]);
+      setActiveProfileState(null);
       
-      try {
-        // Set empty state immediately (non-blocking UI)
-        setProfiles([]);
-        setActiveProfileState(null);
-        
-        // Load profiles - don't wait, let it happen in background
-        // This allows UI to render immediately
-        getStudentProfiles()
-          .then(async (profiles) => {
-            profilesList = profiles;
-            
-            // Get active profile using the profiles list (avoids extra query)
-            try {
-              active = await getActiveStudentProfile(profilesList);
-            } catch (error) {
-              logger.warn("Error fetching active profile", { error });
-              active = null;
-            }
-            
-            setProfiles(profilesList);
-            setActiveProfileState(active);
-            profilesLoadedForUserRef.current = userId;
-            logger.info("Profiles loaded", { 
-              count: profilesList.length, 
-              activeProfileId: active?.id 
-            });
-            setProfilesLoading(false);
-            isLoadingProfilesRef.current = false;
-          })
-          .catch((error) => {
-            logger.error("Error loading profiles", { error, userId });
-            setProfiles([]);
-            setActiveProfileState(null);
-            setProfilesLoading(false);
-            isLoadingProfilesRef.current = false;
+      // Load profiles - don't wait, let it happen in background
+      // This allows UI to render immediately
+      getStudentProfiles()
+        .then(async (profilesList) => {
+          let active: StudentProfile | null = null;
+          
+          // Get active profile using the profiles list (avoids extra query)
+          try {
+            active = await getActiveStudentProfile(profilesList);
+          } catch (error) {
+            logger.warn("Error fetching active profile", { error });
+            active = null;
+          }
+          
+          setProfiles(profilesList);
+          setActiveProfileState(active);
+          profilesLoadedForUserRef.current = userId;
+          logger.info("Profiles loaded", { 
+            count: profilesList.length, 
+            activeProfileId: active?.id 
           });
-        
-        // Don't wait - return immediately so UI can render
-        // Profiles will update when they load
-        return;
-      } catch (error) {
-        logger.error("Error in loadProfiles", { 
-          error: error instanceof Error ? error.message : String(error),
-          userId 
+          setProfilesLoading(false);
+          isLoadingProfilesRef.current = false;
+        })
+        .catch((error) => {
+          logger.error("Error loading profiles", { error, userId });
+          setProfiles([]);
+          setActiveProfileState(null);
+          setProfilesLoading(false);
+          isLoadingProfilesRef.current = false;
         });
-        setProfiles([]);
-        setActiveProfileState(null);
-      } finally {
-        // Don't set loading to false here - let the promise handle it
-        // This allows UI to show loading state while profiles load in background
-      }
+    } catch (error) {
+      logger.error("Error in loadProfiles", { 
+        error: error instanceof Error ? error.message : String(error),
+        userId 
+      });
+      setProfiles([]);
+      setActiveProfileState(null);
+      setProfilesLoading(false);
+      isLoadingProfilesRef.current = false;
+    }
   }, []);
 
   useEffect(() => {
@@ -437,6 +427,23 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       
       if (data.achievements.length > 0) {
         localStorage.setItem("aitutor-achievements", JSON.stringify(data.achievements));
+      }
+      
+      if (data.studySessions.length > 0) {
+        localStorage.setItem("aitutor-study-sessions", JSON.stringify(data.studySessions));
+      }
+      
+      if (data.dailyGoals.length > 0) {
+        // Get today's goal or most recent
+        const today = new Date().toISOString().split("T")[0];
+        const todayGoal = data.dailyGoals.find(g => g.date === today);
+        if (todayGoal) {
+          localStorage.setItem("aitutor-daily-goals", JSON.stringify({
+            problems: todayGoal.problems_goal,
+            time: todayGoal.time_goal,
+            date: todayGoal.date,
+          }));
+        }
       }
       
       userDataLoadedRef.current = user.id;

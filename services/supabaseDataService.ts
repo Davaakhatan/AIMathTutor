@@ -448,17 +448,186 @@ export interface UserData {
   achievements: AchievementData[];
 }
 
+// ============================================
+// STUDY SESSIONS
+// ============================================
+
+export interface StudySession {
+  id?: string;
+  start_time: string;
+  end_time?: string;
+  duration: number; // in seconds
+  problems_solved: number;
+  xp_earned: number;
+}
+
+/**
+ * Get study sessions from Supabase
+ */
+export async function getStudySessions(userId: string, limit = 100): Promise<StudySession[]> {
+  try {
+    const supabase = await getSupabaseClient();
+    const { data, error } = await supabase
+      .from("study_sessions")
+      .select("*")
+      .eq("user_id", userId)
+      .order("start_time", { ascending: false })
+      .limit(limit);
+
+    if (error) {
+      logger.error("Error fetching study sessions", { error: error.message, userId });
+      return [];
+    }
+
+    return (data || []).map((s: any) => ({
+      id: s.id,
+      start_time: s.start_time,
+      end_time: s.end_time,
+      duration: s.duration || 0,
+      problems_solved: s.problems_solved || 0,
+      xp_earned: s.xp_earned || 0,
+    }));
+  } catch (error) {
+    logger.error("Error in getStudySessions", { error, userId });
+    return [];
+  }
+}
+
+/**
+ * Save study session to Supabase
+ */
+export async function saveStudySession(userId: string, session: StudySession): Promise<string | null> {
+  try {
+    const supabase = await getSupabaseClient();
+    const { data, error } = await supabase
+      .from("study_sessions")
+      .insert({
+        user_id: userId,
+        start_time: session.start_time,
+        end_time: session.end_time,
+        duration: session.duration,
+        problems_solved: session.problems_solved,
+        xp_earned: session.xp_earned,
+      })
+      .select()
+      .single();
+
+    if (error) {
+      logger.error("Error saving study session", { error: error.message, userId });
+      return null;
+    }
+
+    return data.id;
+  } catch (error) {
+    logger.error("Error in saveStudySession", { error, userId });
+    return null;
+  }
+}
+
+// ============================================
+// DAILY GOALS
+// ============================================
+
+export interface DailyGoal {
+  id?: string;
+  date: string;
+  problems_goal: number;
+  time_goal: number; // in minutes
+  problems_completed: number;
+  time_completed: number; // in minutes
+}
+
+/**
+ * Get daily goals from Supabase
+ */
+export async function getDailyGoals(userId: string, limit = 30): Promise<DailyGoal[]> {
+  try {
+    const supabase = await getSupabaseClient();
+    const { data, error } = await supabase
+      .from("daily_goals")
+      .select("*")
+      .eq("user_id", userId)
+      .order("date", { ascending: false })
+      .limit(limit);
+
+    if (error) {
+      logger.error("Error fetching daily goals", { error: error.message, userId });
+      return [];
+    }
+
+    return (data || []).map((g: any) => ({
+      id: g.id,
+      date: g.date,
+      problems_goal: g.problems_goal || 5,
+      time_goal: g.time_goal || 30,
+      problems_completed: g.problems_completed || 0,
+      time_completed: g.time_completed || 0,
+    }));
+  } catch (error) {
+    logger.error("Error in getDailyGoals", { error, userId });
+    return [];
+  }
+}
+
+/**
+ * Save or update daily goal in Supabase
+ */
+export async function saveDailyGoal(userId: string, goal: DailyGoal): Promise<string | null> {
+  try {
+    const supabase = await getSupabaseClient();
+    const { data, error } = await supabase
+      .from("daily_goals")
+      .upsert({
+        user_id: userId,
+        date: goal.date,
+        problems_goal: goal.problems_goal,
+        time_goal: goal.time_goal,
+        problems_completed: goal.problems_completed,
+        time_completed: goal.time_completed,
+      }, {
+        onConflict: "user_id,date",
+      })
+      .select()
+      .single();
+
+    if (error) {
+      logger.error("Error saving daily goal", { error: error.message, userId });
+      return null;
+    }
+
+    return data.id;
+  } catch (error) {
+    logger.error("Error in saveDailyGoal", { error, userId });
+    return null;
+  }
+}
+
+// ============================================
+// LOAD ALL USER DATA
+// ============================================
+
+export interface UserData {
+  xpData: XPData | null;
+  streakData: StreakData | null;
+  problems: ProblemData[];
+  achievements: AchievementData[];
+  studySessions: StudySession[];
+  dailyGoals: DailyGoal[];
+}
+
 /**
  * Load all user data from Supabase at once (optimized)
  */
 export async function loadUserData(userId: string): Promise<UserData> {
   try {
     // Load all data in parallel for speed
-    const [xpData, streakData, problems, achievements] = await Promise.all([
+    const [xpData, streakData, problems, achievements, studySessions, dailyGoals] = await Promise.all([
       getXPData(userId),
       getStreakData(userId),
       getProblems(userId),
       getAchievements(userId),
+      getStudySessions(userId),
+      getDailyGoals(userId),
     ]);
 
     return {
@@ -466,6 +635,8 @@ export async function loadUserData(userId: string): Promise<UserData> {
       streakData,
       problems,
       achievements,
+      studySessions,
+      dailyGoals,
     };
   } catch (error) {
     logger.error("Error loading user data", { error, userId });
@@ -474,6 +645,8 @@ export async function loadUserData(userId: string): Promise<UserData> {
       streakData: null,
       problems: [],
       achievements: [],
+      studySessions: [],
+      dailyGoals: [],
     };
   }
 }
