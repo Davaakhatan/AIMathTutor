@@ -13,6 +13,7 @@ import {
   getActiveStudentProfile, 
   setActiveStudentProfile as setActiveProfile 
 } from "@/services/studentProfileService";
+import { loadUserData } from "@/services/supabaseDataService";
 
 interface AuthContextType {
   user: User | null;
@@ -21,12 +22,14 @@ interface AuthContextType {
   activeProfile: StudentProfile | null;
   profiles: StudentProfile[];
   profilesLoading: boolean;
+  userDataLoading: boolean;
   signUp: (email: string, password: string, metadata?: { username?: string; display_name?: string }) => Promise<{ error: AuthError | null }>;
   signIn: (email: string, password: string) => Promise<{ error: AuthError | null }>;
   signOut: () => Promise<void>;
   resetPassword: (email: string) => Promise<{ error: AuthError | null }>;
   refreshProfiles: () => Promise<void>;
   setActiveProfile: (profileId: string | null) => Promise<void>;
+  loadUserDataFromSupabase: () => Promise<void>;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
@@ -38,8 +41,10 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [activeProfile, setActiveProfileState] = useState<StudentProfile | null>(null);
   const [profiles, setProfiles] = useState<StudentProfile[]>([]);
   const [profilesLoading, setProfilesLoading] = useState(false);
+  const [userDataLoading, setUserDataLoading] = useState(false);
   const profilesLoadedForUserRef = useRef<string | null>(null);
   const isLoadingProfilesRef = useRef(false);
+  const userDataLoadedRef = useRef<string | null>(null);
 
   // Load student profiles for the current user
   const loadProfiles = useCallback(async (userId: string) => {
@@ -131,9 +136,12 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
           setSession(session);
           setUser(session?.user ?? null);
           
-          // Load profiles if user is logged in
+          // Load profiles and user data if user is logged in
           if (session?.user) {
-            await loadProfiles(session.user.id);
+            await Promise.all([
+              loadProfiles(session.user.id),
+              loadUserDataFromSupabase(),
+            ]);
           }
           
           setLoading(false);
@@ -149,16 +157,19 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
           setSession(session);
           setUser(session?.user ?? null);
           
-          // On sign in: Load profiles (don't clear localStorage - use it as cache)
+          // On sign in: Load profiles and user data from Supabase
           // localStorage will be used as cache, Supabase as source of truth
           if (_event === "SIGNED_IN" && session?.user) {
-            // Don't clear localStorage - use it as cache for faster loading
-            // Data will sync with Supabase in the background
-            logger.info("User signed in, loading profiles", { userId: session.user.id });
-            // Load profiles after sign in (only once)
+            logger.info("User signed in, loading data from Supabase", { userId: session.user.id });
+            // Load profiles and user data in parallel
+            const loadPromises = [];
             if (profilesLoadedForUserRef.current !== session.user.id) {
-              await loadProfiles(session.user.id);
+              loadPromises.push(loadProfiles(session.user.id));
             }
+            if (userDataLoadedRef.current !== session.user.id) {
+              loadPromises.push(loadUserDataFromSupabase());
+            }
+            await Promise.all(loadPromises);
           }
           
           if (_event === "SIGNED_OUT") {
@@ -167,6 +178,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
             setProfiles([]);
             profilesLoadedForUserRef.current = null;
             isLoadingProfilesRef.current = false;
+            userDataLoadedRef.current = null;
           }
           
           setLoading(false);
@@ -387,6 +399,62 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     }
   }, [refreshProfiles]);
 
+  // Load user data from Supabase and cache in localStorage
+  const loadUserDataFromSupabase = useCallback(async () => {
+    if (!user) return;
+    
+    // Prevent duplicate loads
+    if (userDataLoadedRef.current === user.id || userDataLoading) {
+      logger.debug("User data already loaded or loading, skipping", { userId: user.id });
+      return;
+    }
+
+    try {
+      setUserDataLoading(true);
+      const data = await loadUserData(user.id);
+      
+      // Cache in localStorage for fast access
+      if (data.xpData) {
+        localStorage.setItem("aitutor-xp", JSON.stringify({
+          totalXP: data.xpData.total_xp,
+          level: data.xpData.level,
+          xpToNextLevel: data.xpData.xp_to_next_level,
+          xpHistory: data.xpData.xp_history,
+          recentGains: data.xpData.recent_gains,
+        }));
+      }
+      
+      if (data.streakData) {
+        localStorage.setItem("aitutor-streak", JSON.stringify({
+          currentStreak: data.streakData.current_streak,
+          longestStreak: data.streakData.longest_streak,
+          lastStudyDate: data.streakData.last_study_date ? new Date(data.streakData.last_study_date).getTime() : 0,
+        }));
+      }
+      
+      if (data.problems.length > 0) {
+        localStorage.setItem("aitutor-problem-history", JSON.stringify(data.problems));
+      }
+      
+      if (data.achievements.length > 0) {
+        localStorage.setItem("aitutor-achievements", JSON.stringify(data.achievements));
+      }
+      
+      userDataLoadedRef.current = user.id;
+      logger.info("User data loaded from Supabase and cached", { 
+        userId: user.id,
+        hasXP: !!data.xpData,
+        hasStreak: !!data.streakData,
+        problemsCount: data.problems.length,
+        achievementsCount: data.achievements.length,
+      });
+    } catch (error) {
+      logger.error("Error loading user data from Supabase", { error, userId: user.id });
+    } finally {
+      setUserDataLoading(false);
+    }
+  }, [user, userDataLoading]);
+
   return (
     <AuthContext.Provider
       value={{
@@ -402,6 +470,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         resetPassword,
         refreshProfiles,
         setActiveProfile: handleSetActiveProfile,
+        loadUserDataFromSupabase,
+        userDataLoading,
       }}
     >
       {children}
