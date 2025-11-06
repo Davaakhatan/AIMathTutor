@@ -39,11 +39,24 @@ export default function ProgressVisualization({
 
   // Calculate timeline data
   const timelineData = useMemo(() => {
-    const problems = [...savedProblems].sort((a, b) => a.savedAt - b.savedAt);
+    // Filter out problems with invalid dates
+    const validProblems = savedProblems.filter(p => {
+      if (!p.savedAt || p.savedAt <= 0) return false;
+      const testDate = new Date(p.savedAt);
+      return !isNaN(testDate.getTime());
+    });
+    
+    const problems = [...validProblems].sort((a, b) => a.savedAt - b.savedAt);
     const timeline: Array<{ date: string; count: number; concepts: string[] }> = [];
 
     problems.forEach((problem) => {
-      const date = new Date(problem.savedAt);
+      // Validate date before using
+      const savedAt = problem.savedAt;
+      if (!savedAt || savedAt <= 0) return; // Skip if invalid
+      
+      const date = new Date(savedAt);
+      if (isNaN(date.getTime())) return; // Skip if invalid date
+      
       const dateKey = date.toISOString().split("T")[0];
       const existing = timeline.find((t) => t.date === dateKey);
 
@@ -336,6 +349,9 @@ function TimelineView({
       <div className="space-y-2">
         {data.map((entry, index) => {
           const date = new Date(entry.date);
+          // Skip if invalid date
+          if (isNaN(date.getTime())) return null;
+          
           const dayName = date.toLocaleDateString("en-US", { weekday: "short" });
           const dayMonth = date.toLocaleDateString("en-US", { day: "numeric", month: "short" });
           const height = Math.max(20, (entry.count / maxCount) * 100);
