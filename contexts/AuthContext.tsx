@@ -195,7 +195,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const signUp = async (
     email: string,
     password: string,
-    metadata?: { username?: string; display_name?: string }
+    metadata?: { username?: string; display_name?: string; role?: "student" | "parent" | "teacher" }
   ) => {
     try {
       const supabase = await getSupabaseClient();
@@ -206,6 +206,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
           data: {
             username: metadata?.username || email.split("@")[0],
             display_name: metadata?.display_name || email.split("@")[0],
+            role: metadata?.role || "student", // Default to student if not specified
           },
         },
       });

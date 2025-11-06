@@ -14,6 +14,7 @@ export default function SignUpForm({ onSuccess, onSwitchToLogin }: SignUpFormPro
   const [password, setPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
   const [username, setUsername] = useState("");
+  const [role, setRole] = useState<"student" | "parent" | "teacher">("student");
   const [loading, setLoading] = useState(false);
   const { signUp } = useAuth();
   const { showToast } = useToast();
@@ -37,6 +38,7 @@ export default function SignUpForm({ onSuccess, onSwitchToLogin }: SignUpFormPro
       const { error } = await signUp(email, password, {
         username: username || email.split("@")[0],
         display_name: username || email.split("@")[0],
+        role: role, // Pass role to signup
       });
 
       if (error) {
@@ -59,6 +61,28 @@ export default function SignUpForm({ onSuccess, onSwitchToLogin }: SignUpFormPro
 
   return (
     <form onSubmit={handleSubmit} className="space-y-4">
+      <div>
+        <label htmlFor="role" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+          I am a
+        </label>
+        <select
+          id="role"
+          value={role}
+          onChange={(e) => setRole(e.target.value as "student" | "parent" | "teacher")}
+          className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 dark:bg-gray-800 dark:text-white"
+          disabled={loading}
+        >
+          <option value="student">Student</option>
+          <option value="parent">Parent</option>
+          <option value="teacher">Teacher</option>
+        </select>
+        <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">
+          {role === "student" && "You'll get your own profile to track your progress"}
+          {role === "parent" && "You can link to your child's account to view their progress"}
+          {role === "teacher" && "You can link to student accounts to monitor their progress"}
+        </p>
+      </div>
+
       <div>
         <label htmlFor="username" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
           Username (optional)
