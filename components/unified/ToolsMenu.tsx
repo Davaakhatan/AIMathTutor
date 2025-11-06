@@ -3,6 +3,7 @@
 import { useState, useEffect, useRef } from "react";
 import { useLocalStorage } from "@/hooks/useLocalStorage";
 import { useAuth } from "@/contexts/AuthContext";
+import { usePanel } from "@/contexts/PanelContext";
 import { ParsedProblem } from "@/types";
 
 interface SavedProblem extends ParsedProblem {
@@ -19,6 +20,7 @@ interface ToolsMenuProps {
  */
 export default function ToolsMenu({ onSelectProblem }: ToolsMenuProps) {
   const { user } = useAuth();
+  const { activePanel, setActivePanel, isAnyPanelOpen } = usePanel();
   const [isOpen, setIsOpen] = useState(false);
   const [activeTab, setActiveTab] = useState<"search" | "tips" | "formulas">("search");
   const panelRef = useRef<HTMLDivElement>(null);
@@ -33,6 +35,26 @@ export default function ToolsMenu({ onSelectProblem }: ToolsMenuProps) {
   const buttonIndex = 2; // Third button
   const topOffset = `calc(max(1rem, env(safe-area-inset-top, 1rem)) + 4rem + 7rem)`;
   const rightOffset = 'max(1rem, env(safe-area-inset-right, 1rem))';
+
+  // Sync local state with panel context
+  useEffect(() => {
+    if (isOpen) {
+      setActivePanel("tools");
+    } else {
+      if (activePanel === "tools") {
+        setActivePanel(null);
+      }
+    }
+  }, [isOpen, activePanel, setActivePanel]);
+
+  const handleClose = () => {
+    setIsOpen(false);
+    setQuery("");
+    setActivePanel(null);
+  };
+
+  // Adjust z-index: buttons behind panel when another panel is open
+  const buttonZIndex = isAnyPanelOpen && activePanel !== "tools" ? 20 : 40;
 
   const allProblems = [...bookmarks.map((b) => ({ ...b, isBookmarked: true })), ...savedProblems.map((p) => ({ ...p, isBookmarked: false }))];
   
@@ -137,8 +159,7 @@ export default function ToolsMenu({ onSelectProblem }: ToolsMenuProps) {
 
     const handleClickOutside = (event: MouseEvent) => {
       if (panelRef.current && !panelRef.current.contains(event.target as Node)) {
-        setIsOpen(false);
-        setQuery("");
+        handleClose();
       }
     };
 
@@ -167,8 +188,7 @@ export default function ToolsMenu({ onSelectProblem }: ToolsMenuProps) {
         }
       }
       if (e.key === "Escape" && isOpen) {
-        setIsOpen(false);
-        setQuery("");
+        handleClose();
       }
     };
 
@@ -184,7 +204,8 @@ export default function ToolsMenu({ onSelectProblem }: ToolsMenuProps) {
           position: 'fixed', 
           top: topOffset, 
           right: rightOffset, 
-          zIndex: 40 
+          zIndex: buttonZIndex,
+          transition: 'z-index 0.2s ease-in-out'
         }}
         className="bg-gray-900 dark:bg-gray-700 text-white rounded-full p-3 shadow-lg hover:bg-gray-800 dark:hover:bg-gray-600 active:scale-95 transition-all focus:outline-none focus:ring-2 focus:ring-gray-400 dark:focus:ring-gray-500 focus:ring-offset-2 touch-device:min-h-[48px] touch-device:min-w-[48px] relative"
         aria-label="Open tools menu"
@@ -249,10 +270,7 @@ export default function ToolsMenu({ onSelectProblem }: ToolsMenuProps) {
           </button>
         </div>
         <button
-          onClick={() => {
-            setIsOpen(false);
-            setQuery("");
-          }}
+          onClick={handleClose}
           className="ml-2 text-gray-400 dark:text-gray-500 hover:text-gray-600 dark:hover:text-gray-300 transition-colors p-1"
           aria-label="Close menu"
         >
@@ -295,8 +313,7 @@ export default function ToolsMenu({ onSelectProblem }: ToolsMenuProps) {
                       if (onSelectProblem) {
                         onSelectProblem(problem);
                       }
-                      setIsOpen(false);
-                      setQuery("");
+                      handleClose();
                     }}
                     className="w-full text-left p-3 bg-gray-50 dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors group"
                   >

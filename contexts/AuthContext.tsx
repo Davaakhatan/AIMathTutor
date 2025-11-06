@@ -5,7 +5,8 @@ import { createContext, useContext, useEffect, useState } from "react";
 import type { User, Session, AuthError } from "@supabase/supabase-js";
 import { getSupabaseClient } from "@/lib/supabase";
 import { logger } from "@/lib/logger";
-import { clearUserData } from "@/lib/localStorageUtils";
+import { clearUserData, hasUserData } from "@/lib/localStorageUtils";
+import { migrateLocalStorageToSupabase, hasExistingUserData } from "@/services/dataMigration";
 
 interface AuthContextType {
   user: User | null;
@@ -114,11 +115,37 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
       logger.info("User signed up successfully", { userId: data.user?.id });
       
-      // Clear localStorage data on successful sign up
-      // This ensures new user starts fresh with database data
-      if (data.user) {
+      // Migrate localStorage data to Supabase before clearing
+      // This preserves guest progress when user signs up
+      if (data.user && hasUserData()) {
+        try {
+          logger.info("Migrating localStorage data to Supabase", { userId: data.user.id });
+          const migrationResult = await migrateLocalStorageToSupabase(data.user.id);
+          
+          if (migrationResult.success) {
+            logger.info("Data migration successful", { 
+              userId: data.user.id, 
+              migrated: migrationResult.migrated 
+            });
+          } else {
+            logger.warn("Data migration completed with errors", { 
+              userId: data.user.id, 
+              errors: migrationResult.errors 
+            });
+          }
+          
+          // Clear localStorage after successful migration
+          clearUserData();
+          logger.info("Cleared localStorage data after migration", { userId: data.user.id });
+        } catch (error) {
+          logger.error("Data migration failed", { error, userId: data.user.id });
+          // Still clear localStorage even if migration fails (user can start fresh)
+          clearUserData();
+        }
+      } else if (data.user) {
+        // No localStorage data to migrate, just clear
         clearUserData();
-        logger.info("Cleared localStorage data after sign up", { userId: data.user.id });
+        logger.info("No localStorage data to migrate, cleared anyway", { userId: data.user.id });
       }
       
       return { error: null };
@@ -149,11 +176,38 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
       logger.info("User signed in successfully", { userId: data.user?.id });
       
-      // Clear localStorage data on successful sign in
-      // This ensures user starts fresh with database data
+      // Check if user has existing data in Supabase
+      // If not, migrate localStorage data (first-time login after guest mode)
       if (data.user) {
-        clearUserData();
-        logger.info("Cleared localStorage data after sign in", { userId: data.user.id });
+        try {
+          const hasExisting = await hasExistingUserData(data.user.id);
+          
+          if (!hasExisting && hasUserData()) {
+            // User has no Supabase data but has localStorage data - migrate it
+            logger.info("Migrating localStorage data to Supabase on first login", { userId: data.user.id });
+            const migrationResult = await migrateLocalStorageToSupabase(data.user.id);
+            
+            if (migrationResult.success) {
+              logger.info("Data migration successful on login", { 
+                userId: data.user.id, 
+                migrated: migrationResult.migrated 
+              });
+            } else {
+              logger.warn("Data migration completed with errors on login", { 
+                userId: data.user.id, 
+                errors: migrationResult.errors 
+              });
+            }
+          }
+          
+          // Clear localStorage after migration (or if no migration needed)
+          clearUserData();
+          logger.info("Cleared localStorage data after sign in", { userId: data.user.id });
+        } catch (error) {
+          logger.error("Data migration failed on login", { error, userId: data.user.id });
+          // Still clear localStorage even if migration fails
+          clearUserData();
+        }
       }
       
       return { error: null };

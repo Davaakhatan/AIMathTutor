@@ -41,6 +41,7 @@ import { ParsedProblem, Message } from "@/types";
 import { normalizeProblemText } from "@/lib/textUtils";
 import { logger } from "@/lib/logger";
 import { AuthProvider, useAuth } from "@/contexts/AuthContext";
+import { PanelProvider } from "@/contexts/PanelContext";
 
 function HomeContentInternal() {
   const [isMounted, setIsMounted] = useState(false);
@@ -765,7 +766,9 @@ export default function Home() {
         </div>
       }>
         <AuthProvider>
-          <HomeContentInternal />
+          <PanelProvider>
+            <HomeContentInternal />
+          </PanelProvider>
         </AuthProvider>
       </Suspense>
     </div>

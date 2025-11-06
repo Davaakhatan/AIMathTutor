@@ -2,6 +2,7 @@
 
 import { useState, useEffect, useRef } from "react";
 import { useAuth } from "@/contexts/AuthContext";
+import { usePanel } from "@/contexts/PanelContext";
 import AchievementsContent from "./AchievementsContent";
 import LeaderboardContent from "./LeaderboardContent";
 
@@ -22,6 +23,7 @@ export default function GamificationHub({
   currentStreak,
 }: GamificationHubProps) {
   const { user } = useAuth();
+  const { activePanel, setActivePanel, isAnyPanelOpen } = usePanel();
   const [isOpen, setIsOpen] = useState(false);
   const [activeTab, setActiveTab] = useState<"achievements" | "leaderboard">("achievements");
   const panelRef = useRef<HTMLDivElement>(null);
@@ -31,19 +33,38 @@ export default function GamificationHub({
   const topOffset = `calc(max(1rem, env(safe-area-inset-top, 1rem)) + 4rem + 3.5rem)`;
   const rightOffset = 'max(1rem, env(safe-area-inset-right, 1rem))';
 
+  // Sync local state with panel context
+  useEffect(() => {
+    if (isOpen) {
+      setActivePanel("gamification");
+    } else {
+      if (activePanel === "gamification") {
+        setActivePanel(null);
+      }
+    }
+  }, [isOpen, activePanel, setActivePanel]);
+
+  const handleClose = () => {
+    setIsOpen(false);
+    setActivePanel(null);
+  };
+
   // Close on outside click
   useEffect(() => {
     if (!isOpen) return;
 
     const handleClickOutside = (event: MouseEvent) => {
       if (panelRef.current && !panelRef.current.contains(event.target as Node)) {
-        setIsOpen(false);
+        handleClose();
       }
     };
 
     document.addEventListener("mousedown", handleClickOutside);
     return () => document.removeEventListener("mousedown", handleClickOutside);
   }, [isOpen]);
+
+  // Adjust z-index: buttons behind panel when another panel is open
+  const buttonZIndex = isAnyPanelOpen && activePanel !== "gamification" ? 20 : 30;
 
   if (!isOpen) {
     return (
@@ -53,7 +74,8 @@ export default function GamificationHub({
           position: 'fixed', 
           top: topOffset, 
           right: rightOffset, 
-          zIndex: 30 
+          zIndex: buttonZIndex,
+          transition: 'z-index 0.2s ease-in-out'
         }}
         className="bg-gray-900 dark:bg-gray-700 text-white rounded-full p-3 shadow-lg hover:bg-gray-800 dark:hover:bg-gray-600 active:scale-95 transition-all focus:outline-none focus:ring-2 focus:ring-gray-400 dark:focus:ring-gray-500 focus:ring-offset-2 touch-device:min-h-[48px] touch-device:min-w-[48px] relative"
         aria-label="Open gamification hub"
@@ -108,7 +130,7 @@ export default function GamificationHub({
           </button>
         </div>
         <button
-          onClick={() => setIsOpen(false)}
+          onClick={handleClose}
           className="ml-2 text-gray-400 dark:text-gray-500 hover:text-gray-600 dark:hover:text-gray-300 transition-colors p-1"
           aria-label="Close menu"
         >
