@@ -375,18 +375,36 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     await loadProfiles(user.id);
   }, [user, loadProfiles]);
 
-  // Set active profile
+  // Set active profile - optimized for speed
   const handleSetActiveProfile = useCallback(async (profileId: string | null) => {
     try {
-      await setActiveProfile(profileId);
-      // Refresh profiles to get updated active profile
-      await refreshProfiles();
-      logger.info("Active profile updated", { profileId });
+      // Optimistically update UI immediately (don't wait for database)
+      const newActiveProfile = profileId 
+        ? profiles.find(p => p.id === profileId) || null
+        : null;
+      setActiveProfileState(newActiveProfile);
+      
+      // Update database in background (don't wait)
+      setActiveProfile(profileId)
+        .then(() => {
+          logger.info("Active profile updated in database", { profileId });
+        })
+        .catch((error) => {
+          logger.error("Error updating active profile in database", { error, profileId });
+          // Revert on error - reload profiles to get correct state
+          refreshProfiles().catch((refreshError) => {
+            logger.error("Error refreshing profiles after failed update", { refreshError });
+          });
+        });
+      
+      logger.info("Active profile updated (optimistic)", { profileId });
     } catch (error) {
       logger.error("Error setting active profile", { error, profileId });
+      // Revert on error
+      await refreshProfiles();
       throw error;
     }
-  }, [refreshProfiles]);
+  }, [profiles, refreshProfiles]);
 
   // Load user data from Supabase and cache in localStorage
   const loadUserDataFromSupabase = useCallback(async () => {
