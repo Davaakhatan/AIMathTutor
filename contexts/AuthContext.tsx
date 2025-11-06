@@ -63,56 +63,55 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       let active: StudentProfile | null = null;
       
       try {
-        // Set profiles to empty array immediately (non-blocking)
+        // Set empty state immediately (non-blocking UI)
         setProfiles([]);
         setActiveProfileState(null);
         
-        // Load profiles with timeout
-        const profilesPromise = getStudentProfiles();
-        const timeoutPromise = new Promise<StudentProfile[]>((_, reject) => {
-          setTimeout(() => reject(new Error("Profile loading timeout after 5 seconds")), 5000);
-        });
+        // Load profiles - don't wait, let it happen in background
+        // This allows UI to render immediately
+        getStudentProfiles()
+          .then(async (profiles) => {
+            profilesList = profiles;
+            
+            // Get active profile using the profiles list (avoids extra query)
+            try {
+              active = await getActiveStudentProfile(profilesList);
+            } catch (error) {
+              logger.warn("Error fetching active profile", { error });
+              active = null;
+            }
+            
+            setProfiles(profilesList);
+            setActiveProfileState(active);
+            profilesLoadedForUserRef.current = userId;
+            logger.info("Profiles loaded", { 
+              count: profilesList.length, 
+              activeProfileId: active?.id 
+            });
+            setProfilesLoading(false);
+            isLoadingProfilesRef.current = false;
+          })
+          .catch((error) => {
+            logger.error("Error loading profiles", { error, userId });
+            setProfiles([]);
+            setActiveProfileState(null);
+            setProfilesLoading(false);
+            isLoadingProfilesRef.current = false;
+          });
         
-        try {
-          profilesList = await Promise.race([profilesPromise, timeoutPromise]);
-        } catch (error) {
-          // If timeout or error, try to get profiles without timeout
-          logger.warn("Profile loading timed out or failed, retrying without timeout", { error });
-          try {
-            profilesList = await getStudentProfiles();
-          } catch (retryError) {
-            logger.error("Error fetching student profiles after retry", { error: retryError });
-            profilesList = [];
-          }
-        }
-        
-        // Get active profile using the profiles list we just fetched (avoids extra query)
-        try {
-          active = await getActiveStudentProfile(profilesList);
-        } catch (error) {
-          logger.warn("Error fetching active profile, continuing without it", { error });
-          active = null;
-        }
-        
-        setProfiles(profilesList);
-        setActiveProfileState(active);
-        profilesLoadedForUserRef.current = userId;
-        logger.info("Profiles loaded", { 
-          count: profilesList.length, 
-          activeProfileId: active?.id 
-        });
+        // Don't wait - return immediately so UI can render
+        // Profiles will update when they load
+        return;
       } catch (error) {
-        logger.error("Error loading profiles", { 
+        logger.error("Error in loadProfiles", { 
           error: error instanceof Error ? error.message : String(error),
           userId 
         });
-        // Set empty state even on error
         setProfiles([]);
         setActiveProfileState(null);
-        // Don't set profilesLoadedForUserRef on error, so we can retry
       } finally {
-        setProfilesLoading(false);
-        isLoadingProfilesRef.current = false;
+        // Don't set loading to false here - let the promise handle it
+        // This allows UI to show loading state while profiles load in background
       }
   }, []);
 
