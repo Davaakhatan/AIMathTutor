@@ -23,7 +23,8 @@ interface AuthContextType {
   profiles: StudentProfile[];
   profilesLoading: boolean;
   userDataLoading: boolean;
-  signUp: (email: string, password: string, metadata?: { username?: string; display_name?: string }) => Promise<{ error: AuthError | null }>;
+  userRole: "student" | "parent" | "teacher" | "admin" | null;
+  signUp: (email: string, password: string, metadata?: { username?: string; display_name?: string; role?: "student" | "parent" | "teacher" }) => Promise<{ error: AuthError | null }>;
   signIn: (email: string, password: string) => Promise<{ error: AuthError | null }>;
   signOut: () => Promise<void>;
   resetPassword: (email: string) => Promise<{ error: AuthError | null }>;
@@ -42,6 +43,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [profiles, setProfiles] = useState<StudentProfile[]>([]);
   const [profilesLoading, setProfilesLoading] = useState(false);
   const [userDataLoading, setUserDataLoading] = useState(false);
+  const [userRole, setUserRole] = useState<"student" | "parent" | "teacher" | "admin" | null>(null);
   const profilesLoadedForUserRef = useRef<string | null>(null);
   const isLoadingProfilesRef = useRef(false);
   const userDataLoadedRef = useRef<string | null>(null);
@@ -125,12 +127,22 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
           setSession(session);
           setUser(session?.user ?? null);
           
-          // Load profiles and user data if user is logged in
+          // Load user role and profiles/data if user is logged in
           if (session?.user) {
+            const { data: profile } = await supabase
+              .from("profiles")
+              .select("role")
+              .eq("id", session.user.id)
+              .single();
+            
+            setUserRole((profile?.role as any) || null);
+            
             await Promise.all([
               loadProfiles(session.user.id),
               loadUserDataFromSupabase(),
             ]);
+          } else {
+            setUserRole(null);
           }
           
           setLoading(false);
@@ -145,6 +157,20 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
           // Update session and user state first
           setSession(session);
           setUser(session?.user ?? null);
+          
+          // Load user role if user is logged in
+          if (session?.user) {
+            const supabase = await getSupabaseClient();
+            const { data: profile } = await supabase
+              .from("profiles")
+              .select("role")
+              .eq("id", session.user.id)
+              .single();
+            
+            setUserRole((profile?.role as any) || null);
+          } else {
+            setUserRole(null);
+          }
           
           // On sign in: Load profiles and user data from Supabase
           // localStorage will be used as cache, Supabase as source of truth
@@ -165,6 +191,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
             // Clear profile state on sign out
             setActiveProfileState(null);
             setProfiles([]);
+            setUserRole(null);
             profilesLoadedForUserRef.current = null;
             isLoadingProfilesRef.current = false;
             userDataLoadedRef.current = null;
@@ -499,6 +526,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         activeProfile,
         profiles,
         profilesLoading,
+        userRole,
         signUp,
         signIn,
         signOut,
