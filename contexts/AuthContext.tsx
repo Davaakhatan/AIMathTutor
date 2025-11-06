@@ -1,21 +1,32 @@
 "use client";
 
-import { createContext, useContext, useEffect, useState } from "react";
+import { createContext, useContext, useEffect, useState, useCallback } from "react";
 // Use type-only imports to avoid loading the module
 import type { User, Session, AuthError } from "@supabase/supabase-js";
 import { getSupabaseClient } from "@/lib/supabase";
 import { logger } from "@/lib/logger";
 import { clearUserData, hasUserData } from "@/lib/localStorageUtils";
 import { migrateLocalStorageToSupabase, hasExistingUserData } from "@/services/dataMigration";
+import type { StudentProfile } from "@/services/studentProfileService";
+import { 
+  getStudentProfiles, 
+  getActiveStudentProfile, 
+  setActiveStudentProfile as setActiveProfile 
+} from "@/services/studentProfileService";
 
 interface AuthContextType {
   user: User | null;
   session: Session | null;
   loading: boolean;
+  activeProfile: StudentProfile | null;
+  profiles: StudentProfile[];
+  profilesLoading: boolean;
   signUp: (email: string, password: string, metadata?: { username?: string; display_name?: string }) => Promise<{ error: AuthError | null }>;
   signIn: (email: string, password: string) => Promise<{ error: AuthError | null }>;
   signOut: () => Promise<void>;
   resetPassword: (email: string) => Promise<{ error: AuthError | null }>;
+  refreshProfiles: () => Promise<void>;
+  setActiveProfile: (profileId: string | null) => Promise<void>;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
@@ -24,6 +35,32 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [user, setUser] = useState<User | null>(null);
   const [session, setSession] = useState<Session | null>(null);
   const [loading, setLoading] = useState(true);
+  const [activeProfile, setActiveProfileState] = useState<StudentProfile | null>(null);
+  const [profiles, setProfiles] = useState<StudentProfile[]>([]);
+  const [profilesLoading, setProfilesLoading] = useState(false);
+
+  // Load student profiles for the current user
+  const loadProfiles = useCallback(async (userId: string) => {
+    try {
+      setProfilesLoading(true);
+      const [profilesList, active] = await Promise.all([
+        getStudentProfiles(),
+        getActiveStudentProfile(),
+      ]);
+      setProfiles(profilesList);
+      setActiveProfileState(active);
+      logger.info("Profiles loaded", { 
+        count: profilesList.length, 
+        activeProfileId: active?.id 
+      });
+    } catch (error) {
+      logger.error("Error loading profiles", { error });
+      setProfiles([]);
+      setActiveProfileState(null);
+    } finally {
+      setProfilesLoading(false);
+    }
+  }, []);
 
   useEffect(() => {
     // Only run on client side
@@ -38,19 +75,25 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         const supabase = await getSupabaseClient();
         
         // Get initial session
-        supabase.auth.getSession().then(({ data: { session }, error }) => {
+        supabase.auth.getSession().then(async ({ data: { session }, error }) => {
           if (error) {
             logger.error("Error getting initial session", { error });
           }
           setSession(session);
           setUser(session?.user ?? null);
+          
+          // Load profiles if user is logged in
+          if (session?.user) {
+            await loadProfiles(session.user.id);
+          }
+          
           setLoading(false);
         });
 
         // Listen for auth changes
         const {
           data: { subscription },
-        } = supabase.auth.onAuthStateChange((_event, session) => {
+        } = supabase.auth.onAuthStateChange(async (_event, session) => {
           logger.debug("Auth state changed", { event: _event, hasSession: !!session });
           
           // Clear localStorage data when user logs in
@@ -58,6 +101,14 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
           if (_event === "SIGNED_IN" && session?.user) {
             clearUserData();
             logger.info("Cleared localStorage data for logged-in user", { userId: session.user.id });
+            // Load profiles after sign in
+            await loadProfiles(session.user.id);
+          }
+          
+          if (_event === "SIGNED_OUT") {
+            // Clear profile state on sign out
+            setActiveProfileState(null);
+            setProfiles([]);
           }
           
           setSession(session);
@@ -82,7 +133,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     return () => {
       if (cleanup) cleanup();
     };
-  }, []);
+  }, [loadProfiles]);
 
   const signUp = async (
     email: string,
@@ -252,16 +303,40 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     }
   };
 
+  // Refresh profiles list
+  const refreshProfiles = useCallback(async () => {
+    if (!user) return;
+    await loadProfiles(user.id);
+  }, [user, loadProfiles]);
+
+  // Set active profile
+  const handleSetActiveProfile = useCallback(async (profileId: string | null) => {
+    try {
+      await setActiveProfile(profileId);
+      // Refresh profiles to get updated active profile
+      await refreshProfiles();
+      logger.info("Active profile updated", { profileId });
+    } catch (error) {
+      logger.error("Error setting active profile", { error, profileId });
+      throw error;
+    }
+  }, [refreshProfiles]);
+
   return (
     <AuthContext.Provider
       value={{
         user,
         session,
         loading,
+        activeProfile,
+        profiles,
+        profilesLoading,
         signUp,
         signIn,
         signOut,
         resetPassword,
+        refreshProfiles,
+        setActiveProfile: handleSetActiveProfile,
       }}
     >
       {children}

@@ -3,9 +3,10 @@
 import { useState, useRef, useEffect } from "react";
 import { useAuth } from "@/contexts/AuthContext";
 import { useToast } from "@/hooks/useToast";
+import ProfileSwitcher from "./ProfileSwitcher";
 
 export default function UserMenu() {
-  const { user, signOut } = useAuth();
+  const { user, signOut, profiles } = useAuth();
   const [isOpen, setIsOpen] = useState(false);
   const menuRef = useRef<HTMLDivElement>(null);
   const { showToast } = useToast();
@@ -71,6 +72,16 @@ export default function UserMenu() {
             <p className="text-sm font-medium text-gray-900 dark:text-white">{displayName}</p>
             <p className="text-xs text-gray-500 dark:text-gray-400 truncate">{email}</p>
           </div>
+
+          {/* Profile Switcher - only show if user has profiles */}
+          {profiles.length > 0 && (
+            <div className="px-4 py-3 border-b border-gray-200 dark:border-gray-700">
+              <p className="text-xs font-medium text-gray-500 dark:text-gray-400 mb-2 uppercase tracking-wide">
+                Student Profiles
+              </p>
+              <ProfileSwitcher />
+            </div>
+          )}
 
           <div className="py-2">
             <button
