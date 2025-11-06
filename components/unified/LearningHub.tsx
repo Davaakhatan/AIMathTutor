@@ -27,11 +27,11 @@ export default function LearningHub({ onSelectProblem, onDifficultyChange, apiKe
   const [activeTab, setActiveTab] = useState<"dashboard" | "history" | "practice" | "suggestions" | "path">("dashboard");
   const panelRef = useRef<HTMLDivElement>(null);
   
-  // Calculate vertical position when user is logged in (stack below UserMenu)
-  // UserMenu is ~48px height + 1rem top = ~64px, buttons are 48px each + 8px gap
-  const buttonIndex = 0; // First button after UserMenu
-  const topOffset = user ? `calc(max(1rem, env(safe-area-inset-top, 1rem)) + 4rem + 0rem)` : 'max(1rem, env(safe-area-inset-top, 1rem))';
-  const rightOffset = user ? 'max(1rem, env(safe-area-inset-right, 1rem))' : 'clamp(1rem, 10rem, calc(100vw - 4rem))';
+  // Calculate vertical position - stack below UserMenu (logged in) or AuthButton (guest mode)
+  // Both UserMenu and AuthButton are ~48px height + 1rem top = ~64px, buttons are 48px each + 8px gap
+  const buttonIndex = 0; // First button
+  const topOffset = `calc(max(1rem, env(safe-area-inset-top, 1rem)) + 4rem + 0rem)`;
+  const rightOffset = 'max(1rem, env(safe-area-inset-right, 1rem))';
 
   // Close on outside click
   useEffect(() => {

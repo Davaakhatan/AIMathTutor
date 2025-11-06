@@ -24,10 +24,10 @@ export default function SettingsMenu({ onXPDataChange }: SettingsMenuProps) {
   const [xpData] = useLocalStorage<any>("aitutor-xp", { totalXP: 0, level: 1, problemsSolved: 0 });
   const [notifications] = useLocalStorage<any[]>("aitutor-notifications", []);
   
-  // Calculate vertical position when user is logged in (stack below UserMenu)
-  const buttonIndex = 3; // Fourth button after UserMenu
-  const topOffset = user ? `calc(max(1rem, env(safe-area-inset-top, 1rem)) + 4rem + 10.5rem)` : 'max(1rem, env(safe-area-inset-top, 1rem))';
-  const rightOffset = user ? 'max(1rem, env(safe-area-inset-right, 1rem))' : 'max(1rem, env(safe-area-inset-right, 1rem))';
+  // Calculate vertical position - stack below UserMenu (logged in) or AuthButton (guest mode)
+  const buttonIndex = 3; // Fourth button
+  const topOffset = `calc(max(1rem, env(safe-area-inset-top, 1rem)) + 4rem + 10.5rem)`;
+  const rightOffset = 'max(1rem, env(safe-area-inset-right, 1rem))';
   
   // Only calculate after mount to avoid hydration mismatch
   const unreadCount = isMounted ? notifications.filter((n: any) => !n.read).length : 0;

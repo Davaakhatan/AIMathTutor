@@ -5,6 +5,7 @@ import { createContext, useContext, useEffect, useState } from "react";
 import type { User, Session, AuthError } from "@supabase/supabase-js";
 import { getSupabaseClient } from "@/lib/supabase";
 import { logger } from "@/lib/logger";
+import { clearUserData } from "@/lib/localStorageUtils";
 
 interface AuthContextType {
   user: User | null;
@@ -50,6 +51,14 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
           data: { subscription },
         } = supabase.auth.onAuthStateChange((_event, session) => {
           logger.debug("Auth state changed", { event: _event, hasSession: !!session });
+          
+          // Clear localStorage data when user logs in
+          // This ensures fresh start with database data
+          if (_event === "SIGNED_IN" && session?.user) {
+            clearUserData();
+            logger.info("Cleared localStorage data for logged-in user", { userId: session.user.id });
+          }
+          
           setSession(session);
           setUser(session?.user ?? null);
           setLoading(false);
@@ -104,6 +113,14 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       }
 
       logger.info("User signed up successfully", { userId: data.user?.id });
+      
+      // Clear localStorage data on successful sign up
+      // This ensures new user starts fresh with database data
+      if (data.user) {
+        clearUserData();
+        logger.info("Cleared localStorage data after sign up", { userId: data.user.id });
+      }
+      
       return { error: null };
     } catch (error) {
       logger.error("Sign up exception", { error });
@@ -131,6 +148,14 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       }
 
       logger.info("User signed in successfully", { userId: data.user?.id });
+      
+      // Clear localStorage data on successful sign in
+      // This ensures user starts fresh with database data
+      if (data.user) {
+        clearUserData();
+        logger.info("Cleared localStorage data after sign in", { userId: data.user.id });
+      }
+      
       return { error: null };
     } catch (error) {
       logger.error("Sign in exception", { error });

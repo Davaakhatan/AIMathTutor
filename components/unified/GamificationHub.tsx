@@ -26,10 +26,10 @@ export default function GamificationHub({
   const [activeTab, setActiveTab] = useState<"achievements" | "leaderboard">("achievements");
   const panelRef = useRef<HTMLDivElement>(null);
   
-  // Calculate vertical position when user is logged in (stack below UserMenu)
-  const buttonIndex = 1; // Second button after UserMenu
-  const topOffset = user ? `calc(max(1rem, env(safe-area-inset-top, 1rem)) + 4rem + 3.5rem)` : 'max(1rem, env(safe-area-inset-top, 1rem))';
-  const rightOffset = user ? 'max(1rem, env(safe-area-inset-right, 1rem))' : 'clamp(1rem, 13rem, calc(100vw - 4rem))';
+  // Calculate vertical position - stack below UserMenu (logged in) or AuthButton (guest mode)
+  const buttonIndex = 1; // Second button
+  const topOffset = `calc(max(1rem, env(safe-area-inset-top, 1rem)) + 4rem + 3.5rem)`;
+  const rightOffset = 'max(1rem, env(safe-area-inset-right, 1rem))';
 
   // Close on outside click
   useEffect(() => {
