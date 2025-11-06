@@ -112,6 +112,7 @@ export async function getStudentProfiles(): Promise<StudentProfile[]> {
 
 /**
  * Get a specific student profile by ID
+ * Model B: Students can get their own profile, Parents can get linked profiles
  */
 export async function getStudentProfile(profileId: string): Promise<StudentProfile | null> {
   try {
@@ -122,16 +123,59 @@ export async function getStudentProfile(profileId: string): Promise<StudentProfi
       throw new Error("User not authenticated");
     }
 
+    // Get user's role
+    const { data: profile } = await supabase
+      .from("profiles")
+      .select("role")
+      .eq("id", user.id)
+      .single();
+
+    if (!profile) {
+      return null;
+    }
+
+    // If user is a student, check if they own this profile
+    if (profile.role === "student") {
+      const { data, error } = await supabase
+        .from("student_profiles")
+        .select("*")
+        .eq("id", profileId)
+        .eq("owner_id", user.id)
+        .single();
+
+      if (error) {
+        if (error.code === "PGRST116") {
+          return null;
+        }
+        logger.error("Error fetching student profile", { error: error.message, profileId });
+        throw error;
+      }
+
+      return data as StudentProfile;
+    }
+
+    // If user is a parent/teacher, check if they have a relationship with this profile
+    const { data: relationship } = await supabase
+      .from("profile_relationships")
+      .select("student_profile_id")
+      .eq("parent_id", user.id)
+      .eq("student_profile_id", profileId)
+      .single();
+
+    if (!relationship) {
+      // No relationship found - parent doesn't have access
+      return null;
+    }
+
+    // Get the student profile (RLS will allow if relationship exists)
     const { data, error } = await supabase
       .from("student_profiles")
       .select("*")
       .eq("id", profileId)
-      .eq("owner_id", user.id)
       .single();
 
     if (error) {
       if (error.code === "PGRST116") {
-        // Not found
         return null;
       }
       logger.error("Error fetching student profile", { error: error.message, profileId });
