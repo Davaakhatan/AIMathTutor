@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { useAuth } from "@/contexts/AuthContext";
 import { 
   createStudentProfile, 
@@ -101,14 +101,19 @@ export default function ProfileManager() {
       
       if (editingProfile) {
         // Update existing profile
-        await updateStudentProfile(editingProfile.id, formData as UpdateStudentProfileInput);
+        const updatedProfile = await updateStudentProfile(editingProfile.id, formData as UpdateStudentProfileInput);
         showToast("Profile updated successfully", "success");
         // Always refresh profiles to show updated data
         await refreshProfiles();
         // If this was the active profile, reload user data
         if (activeProfile?.id === editingProfile.id) {
+          // Reset user data loaded flag to force reload
+          userDataLoadedRef.current = null;
           await loadUserDataFromSupabase();
         }
+        // Close edit form
+        setEditingProfile(null);
+        setIsCreating(false);
       } else {
         // Create new profile
         const newProfile = await createStudentProfile(formData);
@@ -116,9 +121,11 @@ export default function ProfileManager() {
         // Refresh profiles first to get the new profile in the list
         await refreshProfiles();
         // Wait a bit for the refresh to complete
-        await new Promise(resolve => setTimeout(resolve, 100));
+        await new Promise(resolve => setTimeout(resolve, 200));
         // Then set as active (this will also reload data)
         await setActiveProfile(newProfile.id);
+        // Close create form
+        setIsCreating(false);
       }
       
       resetForm();

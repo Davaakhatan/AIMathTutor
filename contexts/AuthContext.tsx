@@ -447,6 +447,9 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   // Refresh profiles list
   const refreshProfiles = useCallback(async () => {
     if (!user) return;
+    // Reset the loaded flag to force a fresh load
+    profilesLoadedForUserRef.current = null;
+    isLoadingProfilesRef.current = false;
     await loadProfiles(user.id);
   }, [user, loadProfiles]);
 
