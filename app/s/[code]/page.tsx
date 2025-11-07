@@ -10,9 +10,11 @@ import { getShareByCode, trackShareClick } from "@/services/shareService";
  * 
  * This page shows:
  * 1. A quick 5-question challenge (micro-task)
- * 2. Works for unauthenticated users
+ * 2. Works for unauthenticated users (NO AuthProvider required)
  * 3. Tracks completion and conversion
  * 4. After completion, prompts for signup
+ * 
+ * NOTE: This page does NOT use useAuth() - it works without authentication
  */
 export default function DeepLinkPage() {
   const params = useParams();
