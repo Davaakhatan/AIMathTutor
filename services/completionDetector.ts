@@ -135,11 +135,18 @@ function checkStudentProvidedAnswer(
   for (const msg of userMessages.reverse()) {
     const content = msg.content.toLowerCase().trim();
     
-    // Pattern 1: Just a number (e.g., "7" or "x = 7")
-    const numberPattern = /(?:^|\s)(?:x|y|z|answer|solution)\s*[=:]\s*([-]?\d+\.?\d*)|^[-]?\d+\.?\d*$/;
-    const numberMatch = content.match(numberPattern);
-    if (numberMatch) {
-      return { found: true, answer: numberMatch[0] };
+    // Pattern 1: Just a number (e.g., "7", "27", "x = 7")
+    // Match standalone numbers or variable assignments
+    const standaloneNumber = /^[-]?\d+\.?\d*$/; // Just a number like "27" or "-5"
+    if (standaloneNumber.test(content)) {
+      return { found: true, answer: content };
+    }
+    
+    // Pattern 1b: Variable assignment (e.g., "x = 7")
+    const variablePattern = /(?:^|\s)(?:x|y|z|answer|solution)\s*[=:]\s*([-]?\d+\.?\d*)/;
+    const variableMatch = content.match(variablePattern);
+    if (variableMatch && variableMatch[1]) {
+      return { found: true, answer: variableMatch[1] };
     }
 
     // Pattern 2: "The answer is X" or "It's X"

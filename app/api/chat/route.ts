@@ -8,6 +8,16 @@ import { getSupabaseAdmin } from "@/lib/supabase-admin";
 import { eventBus } from "@/lib/eventBus";
 import { orchestrator } from "@/services/orchestrator";
 
+// Ensure orchestrator is initialized (in case module load didn't trigger it)
+if (typeof window === "undefined") {
+  // Force initialization check
+  const handlerCount = eventBus.getHandlerCount("problem_completed");
+  if (handlerCount === 0) {
+    console.log("⚠️ Orchestrator not initialized, initializing now...");
+    orchestrator.initialize();
+  }
+}
+
 export async function POST(request: NextRequest) {
   try {
     // Rate limiting
