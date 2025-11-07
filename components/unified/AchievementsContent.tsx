@@ -22,22 +22,35 @@ export default function AchievementsContent() {
 
   // Check achievements periodically based on stats
   useEffect(() => {
+    // Calculate problems solved from problem history (more reliable than xpData.problemsSolved)
+    const problemsSolved = problemHistory.length || 0;
+    
+    // Get problem types from history
+    const problemTypes = problemHistory.map((p: any) => p.type || p.problem_type || "unknown").filter(Boolean);
+    
     const stats = {
-      problemsSolved: xpData.problemsSolved || problemHistory.length,
-      currentStreak: streakData.currentStreak || 0,
+      problemsSolved: problemsSolved,
+      currentStreak: streakData?.currentStreak || 0,
       hintsUsed: 0, // TODO: Track hints used
-      problemTypes: problemHistory.map((p: any) => p.type || "unknown").filter(Boolean),
+      problemTypes: problemTypes,
       voiceUsageCount: 0, // TODO: Track voice usage
       whiteboardUsageCount: 0, // TODO: Track whiteboard usage
     };
 
+    console.log("[AchievementsContent] Checking achievements with stats:", stats);
+    console.log("[AchievementsContent] Current unlocked:", unlockedAchievements);
+
     const newlyUnlocked = checkAchievements(unlockedAchievements, stats);
     
+    console.log("[AchievementsContent] Newly unlocked:", newlyUnlocked);
+    
     if (newlyUnlocked.length > 0) {
+      console.log("[AchievementsContent] Unlocking achievements:", newlyUnlocked);
       newlyUnlocked.forEach(achievementId => {
         const achievement = allAchievements.find(a => a.id === achievementId);
-        if (achievement) {
-          setUnlockedAchievements([...unlockedAchievements, achievementId]);
+        if (achievement && !unlockedAchievements.includes(achievementId)) {
+          const updated = [...unlockedAchievements, achievementId];
+          setUnlockedAchievements(updated);
           setNewAchievement(achievement);
           setTimeout(() => setNewAchievement(null), 5000);
           // Dispatch event
@@ -46,10 +59,11 @@ export default function AchievementsContent() {
               detail: achievementId,
             })
           );
+          console.log("[AchievementsContent] Unlocked achievement:", achievementId, achievement.name);
         }
       });
     }
-  }, [xpData.problemsSolved, problemHistory.length, streakData.currentStreak, unlockedAchievements, setUnlockedAchievements]);
+  }, [problemHistory.length, streakData?.currentStreak, unlockedAchievements, setUnlockedAchievements]);
 
   // Listen for achievement events (from other components)
   useEffect(() => {
