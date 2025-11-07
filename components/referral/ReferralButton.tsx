@@ -15,8 +15,9 @@ export default function ReferralButton() {
   const panelRef = useRef<HTMLDivElement>(null);
 
   // Calculate position - stack below other buttons
-  // Button index: 5 (after SettingsMenu which is 4)
-  const buttonIndex = 5;
+  // Button index: 4 (after SettingsMenu which is 3)
+  // Following the same pattern: 4rem base + (buttonIndex * 3.5rem)
+  const buttonIndex = 4;
   const topOffset = `calc(max(1rem, env(safe-area-inset-top, 1rem)) + 4rem + ${buttonIndex * 3.5}rem)`;
   const rightOffset = 'max(1rem, env(safe-area-inset-right, 1rem))';
 
@@ -92,8 +93,8 @@ export default function ReferralButton() {
         right: rightOffset, 
         zIndex: 60,
         maxWidth: 'calc(100vw - 2rem - env(safe-area-inset-left, 0px) - env(safe-area-inset-right, 0px))',
-        height: 'calc(100vh - max(1rem, env(safe-area-inset-top, 1rem)) - 4rem - 17.5rem - 1rem)',
-        maxHeight: 'calc(100vh - max(1rem, env(safe-area-inset-top, 1rem)) - 4rem - 17.5rem - 1rem)'
+        height: 'calc(100vh - max(1rem, env(safe-area-inset-top, 1rem)) - 4rem - 14rem - 1rem)',
+        maxHeight: 'calc(100vh - max(1rem, env(safe-area-inset-top, 1rem)) - 4rem - 14rem - 1rem)'
       }}
       className="bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-700 rounded-lg shadow-xl w-96 max-w-[calc(100vw-2rem)] flex flex-col transition-all duration-200"
     >
