@@ -117,9 +117,36 @@ export async function POST(request: NextRequest) {
       .single();
 
     if (createError) {
-      logger.error("Error creating relationship", { error: createError });
+      logger.error("Error creating relationship", { 
+        error: createError,
+        errorCode: createError.code,
+        errorMessage: createError.message,
+        errorDetails: createError.details,
+        errorHint: createError.hint,
+        userId,
+        studentProfileId,
+      });
+      
+      // Provide more specific error messages
+      if (createError.code === "23505") {
+        return NextResponse.json(
+          { error: "You are already connected to this student." },
+          { status: 409 }
+        );
+      }
+      
+      if (createError.code === "23503") {
+        return NextResponse.json(
+          { error: "Invalid student profile. Please check the connection code." },
+          { status: 400 }
+        );
+      }
+
       return NextResponse.json(
-        { error: "Failed to connect to student. Please try again." },
+        { 
+          error: "Failed to connect to student. Please try again.",
+          details: createError.message 
+        },
         { status: 500 }
       );
     }
