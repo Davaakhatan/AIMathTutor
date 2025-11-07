@@ -44,14 +44,54 @@ export default function ReferralDashboard() {
       const statsResponse = await fetch(`/api/referral/stats?userId=${user.id}`);
       if (statsResponse.ok) {
         const statsData = await statsResponse.json();
-        setStats(statsData.stats);
+        if (statsData.success && statsData.stats) {
+          setStats(statsData.stats);
+        } else {
+          logger.error("Invalid stats response", { statsData });
+          // Create default stats if API returns invalid data
+          setStats({
+            totalReferrals: 0,
+            completedReferrals: 0,
+            totalRewardsEarned: 0,
+            referralCode: "",
+            referralUrl: "",
+            totalSignups: 0,
+          });
+        }
+      } else {
+        const errorData = await statsResponse.json().catch(() => ({}));
+        logger.error("Stats API error", { status: statsResponse.status, error: errorData });
+        // Create default stats on error
+        setStats({
+          totalReferrals: 0,
+          completedReferrals: 0,
+          totalRewardsEarned: 0,
+          referralCode: "",
+          referralUrl: "",
+          totalSignups: 0,
+        });
       }
 
       // Get referrals list
-      const referralsList = await getUserReferrals(user.id);
-      setReferrals(referralsList);
+      try {
+        const referralsList = await getUserReferrals(user.id);
+        setReferrals(referralsList || []);
+      } catch (referralsError) {
+        logger.error("Error loading referrals list", { error: referralsError });
+        setReferrals([]);
+      }
     } catch (error) {
       logger.error("Error loading referral data", { error });
+      // Set default stats on error
+      setStats({
+        totalReferrals: 0,
+        completedReferrals: 0,
+        totalRewardsEarned: 0,
+        referralCode: "",
+        referralUrl: "",
+        totalSignups: 0,
+      });
+      setReferrals([]);
     } finally {
       setLoading(false);
     }
