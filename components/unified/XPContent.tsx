@@ -150,7 +150,7 @@ export default function XPContent({ onXPDataChange }: XPContentProps) {
       </div>
 
       {/* Recent XP Gains */}
-      {xpData.recentGains.length > 0 && (
+      {xpData.recentGains && xpData.recentGains.length > 0 && (
         <div>
           <h4 className="text-sm font-medium text-gray-900 dark:text-gray-100 mb-2">Recent XP Gains</h4>
           <div className="space-y-2 max-h-48 overflow-y-auto">

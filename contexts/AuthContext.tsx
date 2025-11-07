@@ -834,12 +834,12 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       
       // Cache in localStorage for fast access
       if (data.xpData) {
-        localStorage.setItem("aitutor-xp", JSON.stringify({
-          totalXP: data.xpData.total_xp,
-          level: data.xpData.level,
-          xpToNextLevel: data.xpData.xp_to_next_level,
-          xpHistory: data.xpData.xp_history,
-          recentGains: data.xpData.recent_gains,
+          localStorage.setItem("aitutor-xp", JSON.stringify({
+            totalXP: data.xpData.total_xp,
+            level: data.xpData.level,
+            xpToNextLevel: data.xpData.xp_to_next_level,
+            xpHistory: data.xpData.xp_history || [],
+            recentGains: data.xpData.recent_gains || [], // Note: recent_gains doesn't exist in DB, always default to []
         }));
       }
       
