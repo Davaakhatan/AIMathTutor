@@ -3,18 +3,21 @@
 import { useEffect, useState } from "react";
 import { useRouter, useParams } from "next/navigation";
 import { getShareByCode, trackShareClick } from "@/services/shareService";
-import { logger } from "@/lib/logger";
 
 /**
- * Share page - displays share card and allows sharing
+ * Share page - displays share card with a related challenge
  * Route: /share/[code]
  * 
- * This page shows the share card visually and provides sharing options
+ * This page shows:
+ * 1. The achievement/share info
+ * 2. A related challenge or problem to try
+ * 3. Clear CTAs to start the challenge
  */
 export default function SharePage() {
   const params = useParams();
   const router = useRouter();
   const [shareData, setShareData] = useState<any>(null);
+  const [challenge, setChallenge] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const shareCode = params.code as string;
@@ -43,6 +46,17 @@ export default function SharePage() {
         }
 
         setShareData(data);
+
+        // Generate a related challenge based on the share type
+        try {
+          const challengeText = await generateRelatedChallenge(data);
+          setChallenge(challengeText);
+        } catch (challengeError) {
+          console.error("[SharePage] Error generating challenge:", challengeError);
+          // Use a default challenge if generation fails
+          setChallenge(getDefaultChallenge(data));
+        }
+
         setLoading(false);
       } catch (err) {
         // Safely extract error info to avoid TypeError
@@ -62,12 +76,77 @@ export default function SharePage() {
       }
     };
 
+    // Generate a related challenge based on share data
+    const generateRelatedChallenge = async (data: any): Promise<string> => {
+      // For achievement shares, generate a related problem
+      if (data.share_type === "achievement" && data.metadata?.achievement_type) {
+        const achievementType = data.metadata.achievement_type;
+        
+        // Map achievement types to problem types
+        const problemPrompts: Record<string, string> = {
+          first_problem: "Solve a beginner-friendly algebra problem",
+          independent: "Try solving a problem on your own",
+          hint_master: "Solve a problem using strategic hints",
+          speed_demon: "Solve a problem quickly and efficiently",
+          perfectionist: "Solve a problem with zero mistakes",
+          streak_7: "Maintain your momentum with a new challenge",
+          streak_30: "Keep your streak going with an advanced problem",
+          level_5: "Tackle a problem at your level",
+          level_10: "Challenge yourself with a higher-level problem",
+        };
+
+        const prompt = problemPrompts[achievementType] || "Solve a math problem";
+        
+        try {
+          const response = await fetch("/api/generate-problem", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+              type: "custom",
+              difficulty: "middle",
+              prompt: prompt,
+            }),
+          });
+
+          if (response.ok) {
+            const result = await response.json();
+            if (result.problem) {
+              return result.problem;
+            }
+          }
+        } catch (e) {
+          console.error("[SharePage] Error fetching generated problem:", e);
+        }
+      }
+
+      // Default challenge
+      return getDefaultChallenge(data);
+    };
+
+    // Get a default challenge based on share type
+    const getDefaultChallenge = (data: any): string => {
+      if (data.share_type === "achievement") {
+        return "Solve a math problem and unlock your own achievement!";
+      } else if (data.share_type === "streak") {
+        return "Start your own study streak by solving a problem today!";
+      } else if (data.share_type === "progress") {
+        return "Continue your learning journey with a new challenge!";
+      } else if (data.share_type === "problem") {
+        return data.metadata?.problem_text || "Try solving this problem!";
+      }
+      return "Try solving a math problem and see how far you can go!";
+    };
+
     loadShare();
   }, [shareCode]);
 
   const handleTryNow = () => {
-    // Redirect to deep link
-    router.push(`/s/${shareCode}`);
+    // Redirect to main app with challenge pre-filled
+    if (challenge) {
+      router.push(`/?share=${shareCode}&problem=${encodeURIComponent(challenge)}&try=true`);
+    } else {
+      router.push(`/s/${shareCode}`);
+    }
   };
 
   if (loading) {
@@ -99,45 +178,67 @@ export default function SharePage() {
 
   return (
     <div className="min-h-screen flex items-center justify-center bg-[#fafafa] dark:bg-[#0a0a0a] p-4">
-      <div className="max-w-2xl w-full bg-white dark:bg-gray-900 rounded-lg shadow-lg p-8 text-center">
-        <h1 className="text-2xl font-bold text-gray-900 dark:text-gray-100 mb-6">
-          {shareData.share_type === "achievement" && "Achievement Unlocked!"}
-          {shareData.share_type === "streak" && "Study Streak!"}
-          {shareData.share_type === "progress" && "Learning Progress!"}
-          {shareData.share_type === "problem" && "Problem Solved!"}
-          {shareData.share_type === "challenge" && "Challenge!"}
-        </h1>
+      <div className="max-w-2xl w-full bg-white dark:bg-gray-900 rounded-lg shadow-lg p-8">
+        {/* Achievement/Share Header */}
+        <div className="text-center mb-8">
+          <h1 className="text-2xl font-bold text-gray-900 dark:text-gray-100 mb-4">
+            {shareData.share_type === "achievement" && "Achievement Unlocked!"}
+            {shareData.share_type === "streak" && "Study Streak!"}
+            {shareData.share_type === "progress" && "Learning Progress!"}
+            {shareData.share_type === "problem" && "Problem Solved!"}
+            {shareData.share_type === "challenge" && "Challenge Completed!"}
+          </h1>
 
-        <div className="mb-6">
-          {shareData.metadata.achievement_title && (
+          {shareData.metadata?.achievement_title && (
             <p className="text-xl text-gray-700 dark:text-gray-300 mb-2">
               {shareData.metadata.achievement_title}
             </p>
           )}
-          {shareData.metadata.streak_days && (
+          {shareData.metadata?.streak_days && (
             <p className="text-xl text-gray-700 dark:text-gray-300 mb-2">
               {shareData.metadata.streak_days} day streak!
             </p>
           )}
-          {shareData.metadata.level && (
+          {shareData.metadata?.level && (
             <p className="text-xl text-gray-700 dark:text-gray-300 mb-2">
               Level {shareData.metadata.level} reached!
             </p>
           )}
         </div>
 
-        <div className="flex gap-4 justify-center">
+        {/* Challenge Section */}
+        <div className="bg-gray-50 dark:bg-gray-800 rounded-lg p-6 mb-6">
+          <h2 className="text-lg font-semibold text-gray-900 dark:text-gray-100 mb-3">
+            Your Challenge:
+          </h2>
+          {challenge ? (
+            <div className="bg-white dark:bg-gray-900 rounded p-4 border border-gray-200 dark:border-gray-700">
+              <p className="text-gray-800 dark:text-gray-200 whitespace-pre-wrap">
+                {challenge}
+              </p>
+            </div>
+          ) : (
+            <div className="bg-white dark:bg-gray-900 rounded p-4 border border-gray-200 dark:border-gray-700">
+              <p className="text-gray-600 dark:text-gray-400 italic">
+                Generating your challenge...
+              </p>
+            </div>
+          )}
+        </div>
+
+        {/* CTA Buttons */}
+        <div className="flex flex-col sm:flex-row gap-4 justify-center">
           <button
             onClick={handleTryNow}
             className="px-6 py-3 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 transition-colors font-medium"
           >
-            Try Now
+            Try This Challenge
           </button>
           <button
             onClick={() => router.push("/")}
             className="px-6 py-3 bg-gray-200 dark:bg-gray-700 text-gray-900 dark:text-gray-100 rounded-lg hover:bg-gray-300 dark:hover:bg-gray-600 transition-colors"
           >
-            Learn More
+            Explore More
           </button>
         </div>
       </div>
