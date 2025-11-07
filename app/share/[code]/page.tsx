@@ -28,8 +28,10 @@ export default function SharePage() {
 
     const loadShare = async () => {
       try {
-        // Track click
-        await trackShareClick(shareCode);
+        // Track click (don't wait for it - non-blocking)
+        trackShareClick(shareCode).catch((err) => {
+          logger.error("Error tracking share click", { error: err, shareCode });
+        });
 
         // Get share data
         const data = await getShareByCode(shareCode);
@@ -43,7 +45,11 @@ export default function SharePage() {
         setShareData(data);
         setLoading(false);
       } catch (err) {
-        logger.error("Error loading share", { error: err, shareCode });
+        logger.error("Error loading share", { 
+          error: err instanceof Error ? err.message : String(err),
+          errorType: err instanceof Error ? err.constructor.name : typeof err,
+          shareCode 
+        });
         setError("Failed to load share");
         setLoading(false);
       }

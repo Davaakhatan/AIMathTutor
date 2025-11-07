@@ -33,8 +33,10 @@ export default function DeepLinkPage() {
 
     const handleDeepLink = async () => {
       try {
-        // Track click
-        await trackShareClick(shareCode);
+        // Track click (don't wait - non-blocking)
+        trackShareClick(shareCode).catch((err) => {
+          logger.error("Error tracking share click", { error: err, shareCode });
+        });
 
         // Get share data
         const shareData = await getShareByCode(shareCode);

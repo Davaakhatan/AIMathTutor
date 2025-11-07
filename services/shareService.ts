@@ -112,14 +112,23 @@ export async function getShareByCode(shareCode: string): Promise<ShareData | nul
     
     if (!response.ok) {
       if (response.status === 404) {
+        logger.debug("Share not found", { shareCode, status: response.status });
         return null; // Not found
       }
-      logger.error("Error fetching share by code", { shareCode, status: response.status });
+      const errorText = await response.text().catch(() => "Unknown error");
+      logger.error("Error fetching share by code", { shareCode, status: response.status, errorText });
       return null;
     }
     
-    const result = await response.json();
-    if (result.success && result.share) {
+    let result;
+    try {
+      result = await response.json();
+    } catch (jsonError) {
+      logger.error("Error parsing JSON response", { error: jsonError, shareCode, responseStatus: response.status });
+      return null;
+    }
+    
+    if (result && result.success && result.share) {
       // Check if expired
       if (result.share.expires_at && new Date(result.share.expires_at) < new Date()) {
         logger.warn("Share code expired", { shareCode, expiresAt: result.share.expires_at });
@@ -128,9 +137,31 @@ export async function getShareByCode(shareCode: string): Promise<ShareData | nul
       return result.share as ShareData;
     }
     
+    logger.warn("Share API returned unexpected format", { shareCode, result });
     return null;
   } catch (error) {
-    logger.error("Error in getShareByCode", { error, shareCode });
+    // Safely extract error information
+    let errorMessage = "Unknown error";
+    let errorType = "Unknown";
+    
+    try {
+      if (error instanceof Error) {
+        errorMessage = error.message || String(error);
+        errorType = error.constructor.name || "Error";
+      } else if (error) {
+        errorMessage = String(error);
+        errorType = typeof error;
+      }
+    } catch (e) {
+      // If we can't even stringify the error, just use defaults
+      errorMessage = "Error object could not be serialized";
+    }
+    
+    logger.error("Error in getShareByCode", { 
+      error: errorMessage,
+      errorType: errorType,
+      shareCode 
+    });
     return null;
   }
 }
