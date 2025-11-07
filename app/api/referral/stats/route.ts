@@ -41,27 +41,40 @@ export async function GET(request: NextRequest) {
     if (codeError && codeError.code === "PGRST116") {
       // No code found - try to create one
       try {
+        logger.info("No referral code found, creating one", { userId });
         const { data: newCode, error: rpcError } = await (supabase.rpc as any)(
           "get_or_create_referral_code",
           { p_user_id: userId }
         );
         
+        if (rpcError) {
+          logger.error("RPC error creating referral code", { error: rpcError, userId });
+        }
+        
         if (!rpcError && newCode) {
+          logger.info("Referral code created via RPC", { userId, code: newCode });
           // Fetch the newly created code
-          const { data: fetchedCode } = await supabase
+          const { data: fetchedCode, error: fetchError } = await supabase
             .from("referral_codes")
             .select("code, total_signups, total_rewards_earned")
             .eq("user_id", userId)
             .eq("is_active", true)
             .single();
           
-          finalCodeData = fetchedCode as CodeData;
+          if (fetchError) {
+            logger.error("Error fetching newly created code", { error: fetchError, userId });
+          } else {
+            finalCodeData = fetchedCode as CodeData;
+            logger.info("Successfully fetched new referral code", { userId, code: finalCodeData?.code });
+          }
+        } else if (!newCode) {
+          logger.warn("RPC returned no code", { userId });
         }
       } catch (createError) {
-        logger.error("Error creating referral code", { error: createError, userId });
+        logger.error("Exception creating referral code", { error: createError, userId });
       }
     } else if (codeError) {
-      logger.error("Error fetching referral code", { error: codeError, userId });
+      logger.error("Error fetching referral code", { error: codeError, userId, code: codeError.code });
     }
 
     // Get referral counts
