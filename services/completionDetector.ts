@@ -109,8 +109,11 @@ export function detectProblemCompletion(
   // ============================================
   // 6. Final determination
   // ============================================
-  // Need high score (>= 70) AND student must have provided answer
-  const isCompleted = score >= 70 && studentProvidedAnswer.found;
+  // Need reasonable score (>= 60) AND student must have provided answer
+  // Lowered from 70 to 60 because:
+  // - Student answer (40) + Completion phrase (25) = 65 (was just below threshold)
+  // - We want to be more lenient when student clearly provided answer and AI confirmed
+  const isCompleted = score >= 60 && studentProvidedAnswer.found;
   
   let confidence: "low" | "medium" | "high" = "low";
   if (score >= 80 && studentProvidedAnswer.found) confidence = "high";
