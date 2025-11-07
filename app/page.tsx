@@ -21,6 +21,7 @@ import LearningHub from "@/components/unified/LearningHub";
 import ShareProblem from "@/components/ShareProblem";
 import BookmarkButton from "@/components/BookmarkButton";
 import SettingsMenu from "@/components/unified/SettingsMenu";
+import ReferralButton from "@/components/referral/ReferralButton";
 import StudyStreak from "@/components/StudyStreak";
 import PrintView from "@/components/PrintView";
 import ProblemDifficultyIndicator from "@/components/ProblemDifficultyIndicator";

@@ -9,7 +9,6 @@ import NotificationsContent from "./NotificationsContent";
 import XPContent from "./XPContent";
 import RemindersContent from "./RemindersContent";
 import ProfileManager from "@/components/auth/ProfileManager";
-import ReferralDashboard from "@/components/referral/ReferralDashboard";
 
 interface SettingsMenuProps {
   onXPDataChange?: (data: { totalXP: number; level: number; problemsSolved: number }) => void;
@@ -24,7 +23,7 @@ export default function SettingsMenu({ onXPDataChange, isGuestMode, onSignUpClic
   const { user } = useAuth();
   const { activePanel, setActivePanel, isAnyPanelOpen } = usePanel();
   const [isOpen, setIsOpen] = useState(false);
-  const [activeTab, setActiveTab] = useState<"settings" | "notifications" | "xp" | "reminders" | "profiles" | "referrals">("settings");
+  const [activeTab, setActiveTab] = useState<"settings" | "notifications" | "xp" | "reminders" | "profiles">("settings");
   const panelRef = useRef<HTMLDivElement>(null);
   const [isMounted, setIsMounted] = useState(false);
   const [xpData] = useLocalStorage<any>("aitutor-xp", { totalXP: 0, level: 1, problemsSolved: 0 });
@@ -185,28 +184,16 @@ export default function SettingsMenu({ onXPDataChange, isGuestMode, onSignUpClic
             Reminders
           </button>
           {user && (
-            <>
-              <button
-                onClick={() => setActiveTab("profiles")}
-                className={`flex-1 px-2 py-1.5 text-xs font-medium rounded-md transition-colors ${
-                  activeTab === "profiles"
-                    ? "bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100 shadow-sm"
-                    : "text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-gray-100"
-                }`}
-              >
-                Profiles
-              </button>
-              <button
-                onClick={() => setActiveTab("referrals")}
-                className={`flex-1 px-2 py-1.5 text-xs font-medium rounded-md transition-colors ${
-                  activeTab === "referrals"
-                    ? "bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100 shadow-sm"
-                    : "text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-gray-100"
-                }`}
-              >
-                Referrals
-              </button>
-            </>
+            <button
+              onClick={() => setActiveTab("profiles")}
+              className={`flex-1 px-2 py-1.5 text-xs font-medium rounded-md transition-colors ${
+                activeTab === "profiles"
+                  ? "bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100 shadow-sm"
+                  : "text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-gray-100"
+              }`}
+            >
+              Profiles
+            </button>
           )}
         </div>
         <button
@@ -229,11 +216,6 @@ export default function SettingsMenu({ onXPDataChange, isGuestMode, onSignUpClic
         {activeTab === "profiles" && user && (
           <div className="p-4 pb-6">
             <ProfileManager />
-          </div>
-        )}
-        {activeTab === "referrals" && user && (
-          <div className="overflow-y-auto" style={{ maxHeight: 'calc(100vh - 12rem)' }}>
-            <ReferralDashboard />
           </div>
         )}
       </div>
