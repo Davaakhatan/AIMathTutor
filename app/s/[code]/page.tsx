@@ -8,6 +8,7 @@ import ProblemProgress from "@/components/ProblemProgress";
 import { ParsedProblem, Message } from "@/types";
 import { normalizeProblemText } from "@/lib/textUtils";
 import { logger } from "@/lib/logger";
+import { AuthProvider } from "@/contexts/AuthContext";
 
 /**
  * Deep link page - "Try This Challenge" - Solve the challenge problem
@@ -345,65 +346,67 @@ export default function DeepLinkPage() {
 
   // Show chat interface with challenge problem
   return (
-    <div className="min-h-screen bg-[#fafafa] dark:bg-[#0a0a0a] p-4">
-      <div className="max-w-4xl mx-auto">
-        {/* Header */}
-        <div className="mb-4 text-center">
-          <h1 className="text-2xl font-bold text-gray-900 dark:text-gray-100 mb-2">
-            Try This Challenge
-          </h1>
-          <p className="text-gray-600 dark:text-gray-400">
-            Solve this problem with the help of your AI tutor
-          </p>
-        </div>
-
-        {/* Challenge Problem Display */}
-        {challengeProblem && (
-          <div className="mb-4 p-4 bg-white dark:bg-gray-900 rounded-lg border border-gray-200 dark:border-gray-700">
-            <h2 className="text-lg font-semibold text-gray-900 dark:text-gray-100 mb-2">
-              Problem:
-            </h2>
-            <p className="text-gray-800 dark:text-gray-200">
-              {challengeProblem.text}
+    <AuthProvider>
+      <div className="min-h-screen bg-[#fafafa] dark:bg-[#0a0a0a] p-4">
+        <div className="max-w-4xl mx-auto">
+          {/* Header */}
+          <div className="mb-4 text-center">
+            <h1 className="text-2xl font-bold text-gray-900 dark:text-gray-100 mb-2">
+              Try This Challenge
+            </h1>
+            <p className="text-gray-600 dark:text-gray-400">
+              Solve this problem with the help of your AI tutor
             </p>
           </div>
-        )}
 
-        {/* Chat Interface */}
-        {sessionId && challengeProblem ? (
-          <div className="space-y-4">
-            <ChatUI
-              sessionId={sessionId}
-              initialMessages={initialMessages}
-              problem={challengeProblem}
-              enableStretchFeatures={false}
-              difficultyMode={difficultyMode}
-              voiceEnabled={false}
-              onMessagesChange={setAllMessages}
-              onRestart={() => {
-                // Restart the challenge
-                setSessionId(null);
-                setInitialMessages([]);
-                setAllMessages([]);
-                setIsInitializing(false);
-              }}
-            />
+          {/* Challenge Problem Display */}
+          {challengeProblem && (
+            <div className="mb-4 p-4 bg-white dark:bg-gray-900 rounded-lg border border-gray-200 dark:border-gray-700">
+              <h2 className="text-lg font-semibold text-gray-900 dark:text-gray-100 mb-2">
+                Problem:
+              </h2>
+              <p className="text-gray-800 dark:text-gray-200">
+                {challengeProblem.text}
+              </p>
+            </div>
+          )}
 
-            {/* Problem Progress */}
-            {allMessages.length > 0 && (
-              <ProblemProgress
-                messages={allMessages}
+          {/* Chat Interface */}
+          {sessionId && challengeProblem ? (
+            <div className="space-y-4">
+              <ChatUI
+                sessionId={sessionId}
+                initialMessages={initialMessages}
                 problem={challengeProblem}
+                enableStretchFeatures={false}
                 difficultyMode={difficultyMode}
+                voiceEnabled={false}
+                onMessagesChange={setAllMessages}
+                onRestart={() => {
+                  // Restart the challenge
+                  setSessionId(null);
+                  setInitialMessages([]);
+                  setAllMessages([]);
+                  setIsInitializing(false);
+                }}
               />
-            )}
-          </div>
-        ) : (
-          <div className="text-center py-8">
-            <p className="text-gray-600 dark:text-gray-400">Preparing your challenge...</p>
-          </div>
-        )}
+
+              {/* Problem Progress */}
+              {allMessages.length > 0 && (
+                <ProblemProgress
+                  messages={allMessages}
+                  problem={challengeProblem}
+                  difficultyMode={difficultyMode}
+                />
+              )}
+            </div>
+          ) : (
+            <div className="text-center py-8">
+              <p className="text-gray-600 dark:text-gray-400">Preparing your challenge...</p>
+            </div>
+          )}
+        </div>
       </div>
-    </div>
+    </AuthProvider>
   );
 }
