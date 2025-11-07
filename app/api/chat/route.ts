@@ -353,9 +353,19 @@ export async function POST(request: NextRequest) {
     // Check if streaming is requested
     const stream = body.stream === true;
     
+    console.log("📨 [CHAT ROUTE] Processing message:", {
+      stream,
+      hasMessage: !!body.message,
+      hasSessionId: !!body.sessionId,
+      hasProblem: !!body.problem,
+      userId: userId || "MISSING",
+      profileId: body.profileId || "MISSING",
+    });
+    
     try {
       // If streaming is requested, use streaming response
       if (stream) {
+        console.log("🌊 [CHAT ROUTE] Using STREAMING (completion check NOT available)");
         return await handleStreamingResponse(
           body.sessionId,
           body.message,
@@ -366,6 +376,8 @@ export async function POST(request: NextRequest) {
           userId // Pass userId for session persistence
         );
       }
+      
+      console.log("💬 [CHAT ROUTE] Using REGULAR response (completion check WILL run)");
       
       // Otherwise, use regular response
       const tutorResponse = await dialogueManager.processMessage(
