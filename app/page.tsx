@@ -642,6 +642,14 @@ function HomeContentInternal() {
             />
           ))}
 
+          {/* Parent/Teacher View Indicator */}
+          {user && (userRole === "parent" || userRole === "teacher") && activeProfile && (
+            <div className="fixed top-4 left-1/2 transform -translate-x-1/2 z-30 px-4 py-2 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg shadow-lg">
+              <p className="text-sm font-medium text-gray-900 dark:text-gray-100">
+                Viewing: <span className="font-semibold">{activeProfile.name}</span>
+              </p>
+            </div>
+          )}
 
           {/* Unified Learning Hub (Dashboard + History + Practice) */}
           <LearningHub 
