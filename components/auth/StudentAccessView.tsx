@@ -44,10 +44,50 @@ export default function StudentAccessView() {
         setTimeout(() => reject(new Error("Loading timed out")), 10000);
       });
 
-      const relationships = await Promise.race([
-        getStudentRelationships(activeProfile.id),
-        timeoutPromise,
-      ]);
+      // Use API route to bypass client-side RLS issues
+      const controller = new AbortController();
+      const fetchTimeout = setTimeout(() => controller.abort(), 10000); // 10 second timeout
+
+      let relationships: any[] = [];
+      
+      try {
+        const { user } = await import("@/lib/supabase").then(m => m.getCurrentUser());
+        if (!user) {
+          throw new Error("User not authenticated");
+        }
+
+        const response = await fetch("/api/get-student-relationships", {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({
+            studentProfileId: activeProfile.id,
+            userId: user.id,
+          }),
+          signal: controller.signal,
+        });
+
+        clearTimeout(fetchTimeout);
+
+        if (!response.ok) {
+          const errorData = await response.json().catch(() => ({ error: "Unknown error" }));
+          throw new Error(errorData.error || `HTTP ${response.status}`);
+        }
+
+        const data = await response.json();
+        if (data.success && Array.isArray(data.relationships)) {
+          relationships = data.relationships;
+        } else {
+          relationships = [];
+        }
+      } catch (fetchError: any) {
+        clearTimeout(fetchTimeout);
+        if (fetchError.name === "AbortError") {
+          throw new Error("Loading timed out");
+        }
+        throw fetchError;
+      }
 
       if (relationships.length === 0) {
         setLinkedParents([]);
