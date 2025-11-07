@@ -40,9 +40,19 @@ export async function GET(request: NextRequest) {
       );
     }
 
+    type ProfileData = { name: string } | null;
+    const typedData = data as ProfileData;
+
+    if (!typedData) {
+      return NextResponse.json(
+        { error: "Profile not found" },
+        { status: 404 }
+      );
+    }
+
     return NextResponse.json({
       success: true,
-      name: data.name,
+      name: typedData.name,
     });
   } catch (error) {
     logger.error("Error in get-profile-name route", { error });

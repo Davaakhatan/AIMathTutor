@@ -44,7 +44,7 @@ export async function POST(request: NextRequest) {
     if (clientApiKey && isValidApiKeyFormat(clientApiKey)) {
       apiKeyToUse = clientApiKey.trim();
       logger.info("Using client-provided API key for problem generation", {
-        clientApiKeyLength: apiKeyToUse.length,
+        clientApiKeyLength: apiKeyToUse?.length || 0,
       });
     } else if (clientApiKey && !isValidApiKeyFormat(clientApiKey)) {
       logger.warn("Client-provided API key has invalid format, falling back to environment variable", {
@@ -82,9 +82,9 @@ export async function POST(request: NextRequest) {
     }
     
     // Final validation of the key we're about to use
-    if (!isValidApiKeyFormat(apiKeyToUse)) {
+    if (!apiKeyToUse || !isValidApiKeyFormat(apiKeyToUse)) {
       logger.error("API key format is invalid for problem generation", {
-        apiKeyPrefix: apiKeyToUse.substring(0, Math.min(10, apiKeyToUse.length)),
+        apiKeyPrefix: apiKeyToUse ? apiKeyToUse.substring(0, Math.min(10, apiKeyToUse.length)) : "undefined",
       });
       return NextResponse.json(
         {
@@ -110,8 +110,8 @@ Requirements:
 - For equations, include the equation clearly
 - For word problems, make them realistic and engaging`;
 
-    // Use the determined API key
-    const client = createOpenAIClient(apiKeyToUse);
+    // Use the determined API key (we know it's defined at this point due to validation above)
+    const client = createOpenAIClient(apiKeyToUse!);
 
     let response;
     try {

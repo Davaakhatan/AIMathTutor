@@ -29,15 +29,18 @@ export async function POST(request: NextRequest) {
       .eq("id", profileId)
       .single();
 
-    if (checkError) {
-      console.error("[API] Error checking profile:", checkError.message);
+    type Profile = { owner_id: string } | null;
+    const typedProfile = profile as Profile;
+
+    if (checkError || !typedProfile) {
+      console.error("[API] Error checking profile:", checkError?.message);
       return NextResponse.json(
-        { error: "Profile not found", details: checkError.message },
+        { error: "Profile not found", details: checkError?.message },
         { status: 404 }
       );
     }
 
-    if (profile.owner_id !== userId) {
+    if (typedProfile.owner_id !== userId) {
       return NextResponse.json(
         { error: "Unauthorized: Profile does not belong to user" },
         { status: 403 }
@@ -70,9 +73,12 @@ export async function POST(request: NextRequest) {
     const totalDuration = Date.now() - startTime;
     console.log("[API] Profile updated successfully in", totalDuration, "ms");
 
+    type UpdatedProfile = { id: string; [key: string]: any };
+    const typedUpdatedProfile = updatedProfile as UpdatedProfile | null;
+
     return NextResponse.json({
       success: true,
-      profile: updatedProfile,
+      profile: typedUpdatedProfile,
     });
   } catch (error) {
     const totalDuration = Date.now() - startTime;

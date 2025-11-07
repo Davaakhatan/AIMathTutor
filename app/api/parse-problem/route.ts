@@ -42,7 +42,7 @@ export async function POST(request: NextRequest) {
     if (clientApiKey && isValidApiKeyFormat(clientApiKey)) {
       apiKeyToUse = clientApiKey.trim();
       logger.info("Using client-provided API key for parse-problem", {
-        clientApiKeyLength: apiKeyToUse.length,
+        clientApiKeyLength: apiKeyToUse?.length || 0,
       });
     } else if (clientApiKey && !isValidApiKeyFormat(clientApiKey)) {
       logger.warn("Client-provided API key has invalid format, falling back to environment variable", {
@@ -81,7 +81,7 @@ export async function POST(request: NextRequest) {
     // Final validation of the key we're about to use (only for image parsing)
     if (body.type === "image" && apiKeyToUse && !isValidApiKeyFormat(apiKeyToUse)) {
       logger.error("API key format is invalid for image parsing", {
-        apiKeyPrefix: apiKeyToUse.substring(0, Math.min(10, apiKeyToUse.length)),
+        apiKeyPrefix: apiKeyToUse ? apiKeyToUse.substring(0, Math.min(10, apiKeyToUse.length)) : "undefined",
       });
       return NextResponse.json(
         {

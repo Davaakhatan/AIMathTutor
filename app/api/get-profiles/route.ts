@@ -27,6 +27,9 @@ export async function POST(request: NextRequest) {
       .eq("id", userId)
       .single();
 
+    type Profile = { id: string; role: string; current_student_profile_id?: string | null; [key: string]: any } | null;
+    let typedProfile = profile as Profile;
+
     if (profileError && profileError.code !== "PGRST116") {
       console.error("[API] Error fetching user profile:", profileError.message);
       return NextResponse.json(
@@ -36,7 +39,7 @@ export async function POST(request: NextRequest) {
     }
 
     // If profile doesn't exist, create it (should have been created by trigger on signup)
-    if (!profile) {
+    if (!typedProfile) {
       console.log("[API] User profile not found, creating one...", { userId });
       try {
         const { data: newProfile, error: createError } = await supabase
@@ -44,7 +47,7 @@ export async function POST(request: NextRequest) {
           .insert({
             id: userId,
             role: "student", // Default to student
-          })
+          } as any)
           .select()
           .single();
 
@@ -66,8 +69,8 @@ export async function POST(request: NextRequest) {
                 { status: 500 }
               );
             }
-            profile = fetchedProfile;
-            console.log("[API] Profile fetched after race condition", { userId, role: profile?.role });
+            typedProfile = fetchedProfile as Profile;
+            console.log("[API] Profile fetched after race condition", { userId, role: typedProfile?.role });
           } else {
             return NextResponse.json(
               { error: "Failed to create user profile", details: createError.message, code: createError.code },
@@ -75,8 +78,8 @@ export async function POST(request: NextRequest) {
             );
           }
         } else {
-          profile = newProfile;
-          console.log("[API] User profile created successfully", { userId, role: profile.role });
+          typedProfile = newProfile as Profile;
+          console.log("[API] User profile created successfully", { userId, role: typedProfile?.role });
         }
       } catch (error: any) {
         console.error("[API] Exception creating user profile:", error);
@@ -88,7 +91,7 @@ export async function POST(request: NextRequest) {
     }
 
     // If still no profile after creation attempt, return empty
-    if (!profile) {
+    if (!typedProfile) {
       console.warn("[API] Could not create or fetch user profile", { userId });
       return NextResponse.json({
         success: true,
@@ -99,9 +102,10 @@ export async function POST(request: NextRequest) {
     }
 
     // Get student profiles based on role
-    let studentProfiles = [];
+    type StudentProfile = { id: string; name: string; [key: string]: any };
+    let studentProfiles: StudentProfile[] = [];
     
-    if (profile.role === "student") {
+    if (typedProfile && typedProfile.role === "student") {
       // Students get their own profiles
       console.log("[API] Fetching student profiles for student user", { userId, owner_id: userId });
       const { data, error } = await supabase
@@ -118,7 +122,7 @@ export async function POST(request: NextRequest) {
         );
       }
 
-      studentProfiles = data || [];
+      studentProfiles = (data as StudentProfile[]) || [];
       console.log("[API] Found student profiles", { count: studentProfiles.length, profileIds: studentProfiles.map(p => p.id) });
     } else {
       // Parents/Teachers get linked profiles via profile_relationships
@@ -126,6 +130,9 @@ export async function POST(request: NextRequest) {
         .from("profile_relationships")
         .select("student_profile_id")
         .eq("parent_id", userId);
+
+      type Relationship = { student_profile_id: string };
+      const typedRelationships = relationships as Relationship[] | null;
 
       if (relError) {
         console.error("[API] Error fetching relationships:", relError.message);
@@ -135,8 +142,8 @@ export async function POST(request: NextRequest) {
         );
       }
 
-      if (relationships && relationships.length > 0) {
-        const profileIds = relationships.map(r => r.student_profile_id);
+      if (typedRelationships && typedRelationships.length > 0) {
+        const profileIds = typedRelationships.map(r => r.student_profile_id);
         const { data, error } = await supabase
           .from("student_profiles")
           .select("*")
@@ -151,7 +158,7 @@ export async function POST(request: NextRequest) {
           );
         }
 
-        studentProfiles = data || [];
+        studentProfiles = (data as StudentProfile[]) || [];
       }
     }
 
@@ -159,33 +166,33 @@ export async function POST(request: NextRequest) {
     // For students: default to their first profile if none selected
     // For parents/teachers: default to null (Personal view) - they must explicitly select a student
     let activeProfileId: string | null = null;
-    if (profile.role === "student") {
-      activeProfileId = profile.current_student_profile_id || 
+    if (typedProfile && typedProfile.role === "student") {
+      activeProfileId = typedProfile.current_student_profile_id || 
         (studentProfiles.length > 0 ? studentProfiles[0].id : null);
-    } else {
+    } else if (typedProfile) {
       // Parents/teachers: use current_student_profile_id if set AND it exists in linked profiles
       // Otherwise, default to null (Personal view)
-      if (profile.current_student_profile_id) {
+      if (typedProfile.current_student_profile_id) {
         // Validate that the active profile ID exists in the linked profiles
-        const profileExists = studentProfiles.some(p => p.id === profile.current_student_profile_id);
+        const profileExists = studentProfiles.some(p => p.id === typedProfile.current_student_profile_id);
         if (profileExists) {
-          activeProfileId = profile.current_student_profile_id;
+          activeProfileId = typedProfile.current_student_profile_id;
         } else {
           // Invalid activeProfileId - reset to null
           console.log("[API] Invalid activeProfileId for parent/teacher, resetting to null", {
-            activeProfileId: profile.current_student_profile_id,
+            activeProfileId: typedProfile.current_student_profile_id,
             linkedProfileIds: studentProfiles.map(p => p.id),
             userId
           });
           activeProfileId = null;
           // Update database to clear invalid activeProfileId (in background, don't wait)
-          supabase
-            .from("profiles")
+          (supabase
+            .from("profiles") as any)
             .update({ current_student_profile_id: null })
             .eq("id", userId)
-            .then(({ error }) => {
-              if (error) {
-                console.error("[API] Error clearing invalid activeProfileId", { error: error.message });
+            .then((result: { error?: any }) => {
+              if (result.error) {
+                console.error("[API] Error clearing invalid activeProfileId", { error: result.error.message });
               } else {
                 console.log("[API] Cleared invalid activeProfileId in database");
               }
@@ -200,27 +207,27 @@ export async function POST(request: NextRequest) {
     console.log("[API] Returning profiles:", {
       count: studentProfiles.length,
       activeProfileId,
-      userRole: profile.role,
+      userRole: typedProfile?.role,
       userId,
       profileNames: studentProfiles.map(p => p.name),
-      hasProfileEntry: !!profile,
-      profileCreated: profile ? "existing" : "new",
+      hasProfileEntry: !!typedProfile,
+      profileCreated: typedProfile ? "existing" : "new",
     });
     
     // Log warning if no profiles found for a student user (might indicate an issue)
-    if (profile.role === "student" && studentProfiles.length === 0) {
+    if (typedProfile && typedProfile.role === "student" && studentProfiles.length === 0) {
       console.warn("[API] No student profiles found for student user", { 
         userId, 
-        userRole: profile.role,
+        userRole: typedProfile.role,
         note: "This is normal if user hasn't created any profiles yet"
       });
     }
 
     // For parents/teachers: No profiles is normal if they haven't linked any students yet
-    if ((profile.role === "parent" || profile.role === "teacher") && studentProfiles.length === 0) {
+    if (typedProfile && (typedProfile.role === "parent" || typedProfile.role === "teacher") && studentProfiles.length === 0) {
       console.log("[API] No linked students found for parent/teacher", { 
         userId, 
-        userRole: profile.role,
+        userRole: typedProfile.role,
         note: "This is normal - parents/teachers link to student accounts via profile_relationships"
       });
     }
@@ -229,7 +236,7 @@ export async function POST(request: NextRequest) {
       success: true,
       profiles: studentProfiles,
       activeProfileId,
-      userRole: profile.role,
+      userRole: typedProfile?.role || null,
     });
   } catch (error) {
     console.error("[API] Error in get-profiles route:", error);

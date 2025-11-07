@@ -273,6 +273,7 @@ export default function DeepLinkPage() {
     };
 
     initializeChat();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [challengeProblem, difficultyMode]);
 
   // Check if problem is solved and track conversion
@@ -361,7 +362,7 @@ export default function DeepLinkPage() {
             Great job! You solved it! 🎉
           </h1>
           <p className="text-lg text-gray-700 dark:text-gray-300 mb-6">
-            You've completed the challenge! Want to solve more problems?
+            You&apos;ve completed the challenge! Want to solve more problems?
           </p>
           
           <div className="bg-indigo-50 dark:bg-indigo-900/20 rounded-lg p-6 mb-6">

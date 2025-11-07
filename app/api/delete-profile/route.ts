@@ -29,15 +29,18 @@ export async function POST(request: NextRequest) {
       .eq("id", profileId)
       .single();
 
-    if (checkError) {
-      console.error("[API] Error checking profile:", checkError.message);
+    type Profile = { owner_id: string } | null;
+    const typedProfile = profile as Profile;
+
+    if (checkError || !typedProfile) {
+      console.error("[API] Error checking profile:", checkError?.message);
       return NextResponse.json(
-        { error: "Profile not found", details: checkError.message },
+        { error: "Profile not found", details: checkError?.message },
         { status: 404 }
       );
     }
 
-    if (profile.owner_id !== userId) {
+    if (typedProfile.owner_id !== userId) {
       return NextResponse.json(
         { error: "Unauthorized: Profile does not belong to user" },
         { status: 403 }
@@ -51,9 +54,12 @@ export async function POST(request: NextRequest) {
       .eq("id", userId)
       .single();
 
-    if (userProfile?.current_student_profile_id === profileId) {
-      await supabase
-        .from("profiles")
+    type UserProfile = { current_student_profile_id: string | null } | null;
+    const typedUserProfile = userProfile as UserProfile;
+
+    if (typedUserProfile?.current_student_profile_id === profileId) {
+      await (supabase
+        .from("profiles") as any)
         .update({ current_student_profile_id: null })
         .eq("id", userId);
     }

@@ -26,14 +26,17 @@ export async function POST(request: NextRequest) {
       .eq("id", studentProfileId)
       .single();
 
-    if (profileError || !profile) {
+    type Profile = { owner_id: string } | null;
+    const typedProfile = profile as Profile;
+
+    if (profileError || !typedProfile) {
       return NextResponse.json(
         { error: "Student profile not found" },
         { status: 404 }
       );
     }
 
-    if (profile.owner_id !== userId) {
+    if (typedProfile.owner_id !== userId) {
       return NextResponse.json(
         { error: "Access denied - profile does not belong to user" },
         { status: 403 }

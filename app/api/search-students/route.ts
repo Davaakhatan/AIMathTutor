@@ -31,7 +31,10 @@ export async function POST(request: NextRequest) {
       .eq("id", userId)
       .single();
 
-    if (!profile || (profile.role !== "parent" && profile.role !== "teacher")) {
+    type Profile = { role: string } | null;
+    const typedProfile = profile as Profile;
+
+    if (!typedProfile || (typedProfile.role !== "parent" && typedProfile.role !== "teacher")) {
       return NextResponse.json(
         { error: "Only parents and teachers can search for students" },
         { status: 403 }

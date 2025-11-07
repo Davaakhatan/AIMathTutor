@@ -26,7 +26,10 @@ export async function POST(request: NextRequest) {
       .eq("id", userId)
       .single();
 
-    if (!profile || (profile.role !== "parent" && profile.role !== "teacher")) {
+    type ProfileWithRole = { role: string } | null;
+    const typedProfile = profile as ProfileWithRole;
+
+    if (!typedProfile || (typedProfile.role !== "parent" && typedProfile.role !== "teacher")) {
       return NextResponse.json(
         { error: "Only parents and teachers can connect to students" },
         { status: 403 }
@@ -71,7 +74,10 @@ export async function POST(request: NextRequest) {
       .eq("id", studentProfileId)
       .single();
 
-    if (profileError || !studentProfile) {
+    type StudentProfile = { id: string; owner_id: string; name: string } | null;
+    const typedStudentProfile = studentProfile as StudentProfile;
+
+    if (profileError || !typedStudentProfile) {
       return NextResponse.json(
         { error: "Student profile not found. Please check the link code." },
         { status: 404 }
@@ -91,14 +97,17 @@ export async function POST(request: NextRequest) {
       // Continue anyway - might be a permission issue, but we'll try to create
     }
 
-    if (existingRels && existingRels.length > 0) {
+    type Relationship = { id: string };
+    const typedRels = existingRels as Relationship[] | null;
+
+    if (typedRels && typedRels.length > 0) {
       return NextResponse.json({
         success: true,
         message: "Already connected to this student",
-        relationshipId: existingRels[0].id,
+        relationshipId: typedRels[0].id,
         studentProfile: {
-          id: studentProfile.id,
-          name: studentProfile.name,
+          id: typedStudentProfile.id,
+          name: typedStudentProfile.name,
         },
       });
     }
@@ -157,19 +166,29 @@ export async function POST(request: NextRequest) {
       );
     }
 
+    type NewRelationship = { id: string };
+    const typedNewRelationship = newRelationship as NewRelationship | null;
+
+    if (!typedNewRelationship) {
+      return NextResponse.json(
+        { error: "Failed to create relationship" },
+        { status: 500 }
+      );
+    }
+
     logger.info("Parent connected to student via link", {
       parentId: userId,
       studentProfileId,
-      relationshipId: newRelationship.id,
+      relationshipId: typedNewRelationship.id,
     });
 
     return NextResponse.json({
       success: true,
-      message: `Successfully connected to ${studentProfile.name}`,
-      relationshipId: newRelationship.id,
+      message: `Successfully connected to ${typedStudentProfile.name}`,
+      relationshipId: typedNewRelationship.id,
       studentProfile: {
-        id: studentProfile.id,
-        name: studentProfile.name,
+        id: typedStudentProfile.id,
+        name: typedStudentProfile.name,
       },
     });
   } catch (error) {

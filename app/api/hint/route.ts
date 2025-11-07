@@ -28,7 +28,7 @@ export async function POST(request: NextRequest) {
     if (clientApiKey && isValidApiKeyFormat(clientApiKey)) {
       apiKeyToUse = clientApiKey.trim();
       logger.info("Using client-provided API key for hint", {
-        clientApiKeyLength: apiKeyToUse.length,
+        clientApiKeyLength: apiKeyToUse?.length || 0,
       });
     } else if (clientApiKey && !isValidApiKeyFormat(clientApiKey)) {
       logger.warn("Client-provided API key has invalid format, falling back to environment variable", {
@@ -63,9 +63,9 @@ export async function POST(request: NextRequest) {
     }
     
     // Final validation of the key we're about to use
-    if (!isValidApiKeyFormat(apiKeyToUse)) {
+    if (!apiKeyToUse || !isValidApiKeyFormat(apiKeyToUse)) {
       logger.error("API key format is invalid for hint generation", {
-        apiKeyPrefix: apiKeyToUse.substring(0, Math.min(10, apiKeyToUse.length)),
+        apiKeyPrefix: apiKeyToUse ? apiKeyToUse.substring(0, Math.min(10, apiKeyToUse.length)) : "undefined",
       });
       return NextResponse.json(
         {
@@ -105,8 +105,8 @@ ${conversationHistory && conversationHistory.length > 0 ? `Recent conversation:\
 
 Provide a level ${hintLevel} hint: ${hintPrompts[Math.min(hintLevel - 1, hintPrompts.length - 1)]}`;
 
-    // Use the determined API key
-    const client = createOpenAIClient(apiKeyToUse);
+    // Use the determined API key (we know it's defined at this point due to validation above)
+    const client = createOpenAIClient(apiKeyToUse!);
 
     let response;
     try {

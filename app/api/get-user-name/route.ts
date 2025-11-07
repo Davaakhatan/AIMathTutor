@@ -24,14 +24,17 @@ export async function GET(request: NextRequest) {
     const { data: profileData } = await supabase
       .from("student_profiles")
       .select("name")
-      .eq("user_id", userId)
+      .eq("owner_id", userId)
       .limit(1)
       .single();
 
-    if (profileData?.name) {
+    type ProfileData = { name: string } | null;
+    const typedProfileData = profileData as ProfileData;
+
+    if (typedProfileData?.name) {
       return NextResponse.json({
         success: true,
-        name: profileData.name,
+        name: typedProfileData.name,
       });
     }
 

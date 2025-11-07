@@ -47,7 +47,7 @@ export async function POST(request: NextRequest) {
         .insert({
           id: userId,
           role: "student", // Default to student
-        });
+        } as any);
 
       if (createProfileError) {
         // If it's a duplicate key error, that's OK - profile was created between check and insert
@@ -63,7 +63,9 @@ export async function POST(request: NextRequest) {
         console.log("[API] User profile created successfully");
       }
     } else {
-      console.log("[API] User profile exists", { role: userProfile.role });
+      type UserProfile = { id: string; role: string };
+      const typedUserProfile = userProfile as UserProfile;
+      console.log("[API] User profile exists", { role: typedUserProfile.role });
     }
 
     // Generate profile ID
@@ -87,7 +89,7 @@ export async function POST(request: NextRequest) {
           language: "en",
           settings: {},
           is_active: true,
-        })
+        } as any)
         .select()
         .single();
 
@@ -110,12 +112,15 @@ export async function POST(request: NextRequest) {
         );
       }
 
+      type NewProfile = { id: string; [key: string]: any };
+      const typedNewProfile = newProfile as NewProfile;
+
       const totalDuration = Date.now() - startTime;
-      console.log("[API] Profile created successfully in", totalDuration, "ms", { profileId: newProfile.id });
+      console.log("[API] Profile created successfully in", totalDuration, "ms", { profileId: typedNewProfile.id });
 
       return NextResponse.json({
         success: true,
-        profile: newProfile,
+        profile: typedNewProfile,
       });
     } catch (error: any) {
       const insertDuration = Date.now() - insertStart;
