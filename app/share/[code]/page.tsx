@@ -25,36 +25,52 @@ export default function SharePage() {
 
   // Fetch sharer's name from API
   const fetchSharerName = async (data: any): Promise<string | null> => {
+    console.log("[SharePage] fetchSharerName called with data:", { user_id: data.user_id, student_profile_id: data.student_profile_id });
+    
     if (!data.user_id && !data.student_profile_id) {
+      console.log("[SharePage] No user_id or student_profile_id, returning null");
       return null;
     }
 
     try {
       // Try to get profile name from student_profile_id first
       if (data.student_profile_id) {
+        console.log("[SharePage] Fetching profile name for profileId:", data.student_profile_id);
         const response = await fetch(`/api/get-profile-name?profileId=${data.student_profile_id}`);
+        console.log("[SharePage] Profile name response:", response.status, response.ok);
         if (response.ok) {
           const result = await response.json();
+          console.log("[SharePage] Profile name result:", result);
           if (result.name) {
             return result.name;
           }
+        } else {
+          const errorText = await response.text();
+          console.error("[SharePage] Profile name API error:", response.status, errorText);
         }
       }
 
       // Fallback: try to get user name from user_id
       if (data.user_id) {
+        console.log("[SharePage] Fetching user name for userId:", data.user_id);
         const response = await fetch(`/api/get-user-name?userId=${data.user_id}`);
+        console.log("[SharePage] User name response:", response.status, response.ok);
         if (response.ok) {
           const result = await response.json();
+          console.log("[SharePage] User name result:", result);
           if (result.name) {
             return result.name;
           }
+        } else {
+          const errorText = await response.text();
+          console.error("[SharePage] User name API error:", response.status, errorText);
         }
       }
     } catch (e) {
       console.error("[SharePage] Error fetching sharer name:", e);
     }
 
+    console.log("[SharePage] Returning null for sharer name");
     return null;
   };
 
