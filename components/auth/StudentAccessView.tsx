@@ -19,7 +19,7 @@ interface LinkedParent {
  * Component for students to see who has access to their profile
  */
 export default function StudentAccessView() {
-  const { activeProfile } = useAuth();
+  const { activeProfile, user } = useAuth();
   const [linkedParents, setLinkedParents] = useState<LinkedParent[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const { showToast } = useToast();
@@ -34,15 +34,14 @@ export default function StudentAccessView() {
   }, [activeProfile]);
 
   const loadLinkedParents = async () => {
-    if (!activeProfile) return;
+    if (!activeProfile || !user) {
+      setLinkedParents([]);
+      setIsLoading(false);
+      return;
+    }
 
     try {
       setIsLoading(true);
-      
-      // Add timeout to prevent infinite loading
-      const timeoutPromise = new Promise<never>((_, reject) => {
-        setTimeout(() => reject(new Error("Loading timed out")), 10000);
-      });
 
       // Use API route to bypass client-side RLS issues
       const controller = new AbortController();
@@ -51,11 +50,6 @@ export default function StudentAccessView() {
       let relationships: any[] = [];
       
       try {
-        const { user } = await import("@/lib/supabase").then(m => m.getCurrentUser());
-        if (!user) {
-          throw new Error("User not authenticated");
-        }
-
         const response = await fetch("/api/get-student-relationships", {
           method: "POST",
           headers: {
