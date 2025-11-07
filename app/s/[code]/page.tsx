@@ -2,8 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { useRouter, useParams } from "next/navigation";
-import { useAuth } from "@/contexts/AuthContext";
-import { getShareByCode, trackShareClick, trackShareConversion } from "@/services/shareService";
+import { getShareByCode, trackShareClick } from "@/services/shareService";
 
 /**
  * Deep link page - "Try Now" micro-task (5-question challenge)
@@ -18,7 +17,7 @@ import { getShareByCode, trackShareClick, trackShareConversion } from "@/service
 export default function DeepLinkPage() {
   const params = useParams();
   const router = useRouter();
-  const { user } = useAuth();
+  const [user, setUser] = useState<any>(null);
   const [shareData, setShareData] = useState<any>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -29,6 +28,27 @@ export default function DeepLinkPage() {
   const [score, setScore] = useState(0);
   const [completed, setCompleted] = useState(false);
   const shareCode = params.code as string;
+
+  useEffect(() => {
+    // Check if user is logged in (optional - works without auth)
+    const checkAuth = async () => {
+      try {
+        // Try to get user from localStorage or session
+        if (typeof window !== "undefined") {
+          const authData = localStorage.getItem("supabase.auth.token");
+          if (authData) {
+            // User might be logged in, but we don't need AuthProvider for this page
+            // Just set user to null for now - micro-task works without auth
+            setUser(null);
+          }
+        }
+      } catch (e) {
+        // Ignore auth errors - page works without auth
+      }
+    };
+
+    checkAuth();
+  }, []);
 
   useEffect(() => {
     if (!shareCode) {

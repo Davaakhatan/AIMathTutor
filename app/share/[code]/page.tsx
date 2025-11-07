@@ -48,24 +48,14 @@ export default function SharePage() {
 
         setShareData(data);
 
-        // Fetch sharer's name/profile info
-        try {
-          const name = await fetchSharerName(data);
-          setSharerName(name);
-        } catch (nameError) {
-          console.error("[SharePage] Error fetching sharer name:", nameError);
-          setSharerName(null);
-        }
+        // Fetch sharer's name and challenge in parallel
+        const [name, challengeText] = await Promise.allSettled([
+          fetchSharerName(data).catch(() => null),
+          generateRelatedChallenge(data).catch(() => getDefaultChallenge(data)),
+        ]);
 
-        // Generate a related challenge based on the share type
-        try {
-          const challengeText = await generateRelatedChallenge(data);
-          setChallenge(challengeText);
-        } catch (challengeError) {
-          console.error("[SharePage] Error generating challenge:", challengeError);
-          // Use a default challenge if generation fails
-          setChallenge(getDefaultChallenge(data));
-        }
+        setSharerName(name.status === "fulfilled" ? name.value : null);
+        setChallenge(challengeText.status === "fulfilled" ? challengeText.value : getDefaultChallenge(data));
 
         setLoading(false);
       } catch (err) {
@@ -107,7 +97,11 @@ export default function SharePage() {
 
         const config = problemConfigs[achievementType] || { type: "algebra", difficulty: "middle" };
         
+        // Try API generation with timeout
         try {
+          const controller = new AbortController();
+          const timeoutId = setTimeout(() => controller.abort(), 3000); // 3 second timeout
+          
           const response = await fetch("/api/generate-problem", {
             method: "POST",
             headers: { "Content-Type": "application/json" },
@@ -115,7 +109,10 @@ export default function SharePage() {
               type: config.type,
               difficulty: config.difficulty,
             }),
+            signal: controller.signal,
           });
+
+          clearTimeout(timeoutId);
 
           if (response.ok) {
             const result = await response.json();
@@ -124,11 +121,12 @@ export default function SharePage() {
             }
           }
         } catch (e) {
+          // Timeout or error - fall back to template
           console.error("[SharePage] Error fetching generated problem:", e);
         }
       }
 
-      // Default challenge
+      // Default challenge (template)
       return getDefaultChallenge(data);
     };
 
