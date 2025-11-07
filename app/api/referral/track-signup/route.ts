@@ -21,7 +21,7 @@ export async function POST(request: NextRequest) {
     const supabase = getSupabaseServer();
 
     // Call RPC function to track referral signup
-    const { data: referralId, error: rpcError } = await supabase.rpc(
+    const { data: referralId, error: rpcError } = await (supabase.rpc as any)(
       "track_referral_signup",
       {
         p_referral_code: referralCode.toUpperCase().trim(),
@@ -48,7 +48,10 @@ export async function POST(request: NextRequest) {
       .eq("id", referralId)
       .single();
 
-    if (fetchError || !referral) {
+    type Referral = { referrer_id: string; [key: string]: any } | null;
+    const typedReferral = referral as Referral;
+
+    if (fetchError || !typedReferral) {
       logger.error("Error fetching referral after creation", {
         error: fetchError?.message,
         referralId,
@@ -62,7 +65,7 @@ export async function POST(request: NextRequest) {
     logger.info("Referral signup tracked successfully", {
       referralId,
       referralCode,
-      referrerId: referral.referrer_id,
+      referrerId: typedReferral.referrer_id,
       refereeId,
     });
 
@@ -78,7 +81,7 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({
       success: true,
       referralId,
-      referral: referral,
+      referral: typedReferral,
     });
   } catch (error) {
     logger.error("Error in track-signup route", { error });

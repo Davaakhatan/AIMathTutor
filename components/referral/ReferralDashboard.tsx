@@ -20,11 +20,14 @@ export default function ReferralDashboard() {
   const [referrals, setReferrals] = useState<Referral[]>([]);
   const [loading, setLoading] = useState(true);
   const [copied, setCopied] = useState(false);
+  const [canShare, setCanShare] = useState(false);
 
   useEffect(() => {
     if (user) {
       loadReferralData();
     }
+    // Check if Web Share API is available
+    setCanShare(typeof navigator !== "undefined" && "share" in navigator);
   }, [user]);
 
   const loadReferralData = async () => {
@@ -65,7 +68,7 @@ export default function ReferralDashboard() {
   const shareReferralLink = async () => {
     if (!stats?.referralUrl) return;
 
-    if (navigator.share) {
+    if (canShare && navigator.share) {
       try {
         await navigator.share({
           title: "Join me on AI Math Tutor!",
@@ -188,7 +191,7 @@ export default function ReferralDashboard() {
             >
               {copied ? "Copied!" : "Copy"}
             </button>
-            {navigator.share && (
+            {canShare && (
               <button
                 onClick={shareReferralLink}
                 className="px-4 py-2 bg-gray-900 dark:bg-gray-700 text-white rounded hover:bg-gray-800 dark:hover:bg-gray-600 transition-colors text-sm"

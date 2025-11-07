@@ -664,10 +664,10 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         }
       }
       
-      return { error: null };
+      return { error: null, referralCode: trackedReferralCode };
     } catch (error) {
       logger.error("Sign up exception", { error });
-      return { error: error as AuthError };
+      return { error: error as AuthError, referralCode: null };
     }
   };
 

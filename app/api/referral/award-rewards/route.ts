@@ -29,6 +29,7 @@ export async function POST(request: NextRequest) {
     type Referral = {
       referrer_id: string;
       referee_id: string;
+      referral_code: string;
       status: string;
       reward_type?: string;
       reward_amount?: number;
@@ -59,6 +60,9 @@ export async function POST(request: NextRequest) {
     const REFEREE_REWARD_XP = 100; // XP for the new user
     const REFERRER_REWARD_XP = 200; // XP for the referrer
 
+    // Type definitions
+    type XPData = { total_xp: number } | null;
+
     // Award XP to referee (new user)
     try {
       const { data: refereeXP, error: refereeXPError } = await supabase
@@ -67,11 +71,13 @@ export async function POST(request: NextRequest) {
         .eq("user_id", typedReferral.referee_id)
         .single();
 
-      if (!refereeXPError && refereeXP) {
+      const typedRefereeXP = refereeXP as XPData;
+
+      if (!refereeXPError && typedRefereeXP) {
         await (supabase
           .from("xp_data") as any)
           .update({
-            total_xp: (refereeXP.total_xp || 0) + REFEREE_REWARD_XP,
+            total_xp: (typedRefereeXP.total_xp || 0) + REFEREE_REWARD_XP,
             updated_at: new Date().toISOString(),
           })
           .eq("user_id", typedReferral.referee_id);
@@ -100,11 +106,13 @@ export async function POST(request: NextRequest) {
         .eq("user_id", typedReferral.referrer_id)
         .single();
 
-      if (!referrerXPError && referrerXP) {
+      const typedReferrerXP = referrerXP as XPData;
+
+      if (!referrerXPError && typedReferrerXP) {
         await (supabase
           .from("xp_data") as any)
           .update({
-            total_xp: (referrerXP.total_xp || 0) + REFERRER_REWARD_XP,
+            total_xp: (typedReferrerXP.total_xp || 0) + REFERRER_REWARD_XP,
             updated_at: new Date().toISOString(),
           })
           .eq("user_id", typedReferral.referrer_id);
@@ -145,11 +153,14 @@ export async function POST(request: NextRequest) {
       .eq("code", typedReferral.referral_code)
       .single();
 
-    if (codeData) {
+    type ReferralCodeData = { total_rewards_earned: number } | null;
+    const typedCodeData = codeData as ReferralCodeData;
+
+    if (typedCodeData) {
       await (supabase
         .from("referral_codes") as any)
         .update({
-          total_rewards_earned: (codeData.total_rewards_earned || 0) + REFERRER_REWARD_XP,
+          total_rewards_earned: (typedCodeData.total_rewards_earned || 0) + REFERRER_REWARD_XP,
           updated_at: new Date().toISOString(),
         })
         .eq("code", typedReferral.referral_code);
