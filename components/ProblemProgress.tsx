@@ -45,20 +45,28 @@ export default function ProblemProgress({ messages, problem, difficultyMode = "m
   
   // Log for debugging (only in development)
   if (process.env.NODE_ENV === "development") {
-    if (isSolved) {
-      console.log("✅ Problem marked as solved:", {
-        score: completionResult.score,
-        confidence: completionResult.confidence,
-        reasons: completionResult.reasons,
-        messageCount: messages.length,
-      });
-    } else if (messages.length > 0) {
-      // Log why it's not solved (only occasionally to avoid spam)
-      if (messages.length % 3 === 0) {
-        console.log("⏳ Problem not solved yet:", {
+    // Always log when we have messages and a problem
+    if (messages.length > 0 && problem) {
+      const lastTutorMsg = tutorMessages[tutorMessages.length - 1]?.content || "";
+      const lastUserMsg = userMessages[userMessages.length - 1]?.content || "";
+      
+      if (isSolved) {
+        console.log("✅ Problem marked as solved:", {
           score: completionResult.score,
           confidence: completionResult.confidence,
-          reasons: completionResult.reasons.slice(0, 2), // First 2 reasons
+          reasons: completionResult.reasons,
+          messageCount: messages.length,
+          lastTutorMsg: lastTutorMsg.substring(0, 50),
+          lastUserMsg: lastUserMsg.substring(0, 30),
+        });
+      } else {
+        // Log every time to help debug
+        console.log("⏳ Problem not solved:", {
+          score: completionResult.score,
+          confidence: completionResult.confidence,
+          reasons: completionResult.reasons,
+          lastTutorMsg: lastTutorMsg.substring(0, 50),
+          lastUserMsg: lastUserMsg.substring(0, 30),
         });
       }
     }
