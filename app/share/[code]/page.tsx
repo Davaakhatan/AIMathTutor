@@ -125,15 +125,27 @@ export default function SharePage() {
     // Get a default challenge based on share type
     const getDefaultChallenge = (data: any): string => {
       if (data.share_type === "achievement") {
-        return "Solve a math problem and unlock your own achievement!";
+        // Use template challenges based on achievement type
+        const templates: Record<string, string> = {
+          first_problem: "Solve: If x + 5 = 12, what is the value of x?",
+          independent: "Solve: A rectangle has a length of 8 cm and a width of 5 cm. What is its area?",
+          hint_master: "Solve: Sarah has 3 times as many apples as Tom. If Tom has 4 apples, how many apples does Sarah have?",
+          speed_demon: "Solve: What is 15% of 80?",
+          perfectionist: "Solve: Find the value of x if 2x + 3 = 4x - 5",
+          streak_7: "Solve: A triangle has sides of length 3, 4, and 5. Is it a right triangle?",
+          streak_30: "Solve: If f(x) = x² + 3x - 2, what is f(4)?",
+          level_5: "Solve: A store sells shirts for $15 each. If you buy 4 shirts, how much do you pay?",
+          level_10: "Solve: Solve the system: 2x + y = 7 and x - y = 2",
+        };
+        return templates[data.metadata?.achievement_type] || "Solve: If 3x = 15, what is x?";
       } else if (data.share_type === "streak") {
-        return "Start your own study streak by solving a problem today!";
+        return "Solve: What is 25% of 120?";
       } else if (data.share_type === "progress") {
-        return "Continue your learning journey with a new challenge!";
+        return "Solve: A square has a side length of 6 cm. What is its perimeter?";
       } else if (data.share_type === "problem") {
-        return data.metadata?.problem_text || "Try solving this problem!";
+        return data.metadata?.problem_text || "Solve: If 2x + 5 = 13, what is x?";
       }
-      return "Try solving a math problem and see how far you can go!";
+      return "Solve: If 3x = 15, what is x?";
     };
 
     loadShare();
