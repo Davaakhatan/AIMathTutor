@@ -63,8 +63,17 @@ export async function POST(request: NextRequest) {
       : null;
 
     // Insert share record
-    const { data, error } = await supabase
-      .from("shares")
+    type ShareInsert = {
+      user_id: string;
+      student_profile_id: string | null;
+      share_type: string;
+      share_code: string;
+      metadata: Record<string, any>;
+      expires_at: string | null;
+    };
+
+    const { data, error } = await (supabase
+      .from("shares") as any)
       .insert({
         user_id: userId,
         student_profile_id: studentProfileId || null,
@@ -72,7 +81,7 @@ export async function POST(request: NextRequest) {
         share_code: shareCode,
         metadata: metadata || {},
         expires_at: expiresAt,
-      })
+      } as ShareInsert)
       .select()
       .single();
 
