@@ -14,6 +14,8 @@ import { logger } from "@/lib/logger";
 import type { Event, ProblemCompletedData, GoalAchievedData, StreakAtRiskData } from "@/types/events";
 import type { ParsedProblem } from "@/types";
 import { createShare, type ShareMetadata } from "@/services/shareService";
+import { summarizeSession } from "@/services/conversationSummaryService";
+import { contextManager } from "@/services/contextManager";
 
 /**
  * Ecosystem Orchestrator Class
@@ -117,7 +119,7 @@ class EcosystemOrchestrator {
 
   /**
    * Update companion memory after problem completion
-   * (Will be fully implemented in Week 2)
+   * Summarizes the session and stores it for future reference
    */
   private async updateCompanionMemory(
     userId: string,
@@ -125,19 +127,58 @@ class EcosystemOrchestrator {
     problemData: ProblemCompletedData
   ): Promise<void> {
     try {
-      // TODO: Week 2 - Implement conversation summary
-      // For now, just log that we would summarize
-      logger.debug("Companion memory update (placeholder)", {
+      // Get session messages for summarization
+      const session = await contextManager.getSession(problemData.sessionId, userId);
+      if (!session || !session.messages || session.messages.length === 0) {
+        logger.debug("No session or messages found for summarization", {
+          userId,
+          sessionId: problemData.sessionId,
+        });
+        return;
+      }
+
+      // Generate summary
+      const summary = await summarizeSession(
         userId,
         profileId,
-        sessionId: problemData.sessionId,
-      });
+        problemData.sessionId,
+        {
+          messages: session.messages,
+          problemText: problemData.problem.text,
+          problemType: problemData.problem.type,
+          difficultyLevel: problemData.problem.difficulty,
+          hintsUsed: problemData.hintsUsed || 0,
+          timeSpent: problemData.timeSpent || 0,
+          attempts: problemData.attempts || 0,
+        }
+      );
 
-      // This will be implemented in Week 2:
-      // - Summarize session
-      // - Store in conversation_summaries table
-      // - Check goals
-      // - Update recommendations
+      if (summary) {
+        logger.info("Conversation summary created", {
+          userId,
+          profileId,
+          summaryId: summary.id,
+          conceptsCount: summary.concepts_covered.length,
+        });
+
+        // Emit session_ended event for UI updates
+        await eventBus.emit({
+          type: "session_ended",
+          userId,
+          profileId: profileId || undefined,
+          data: {
+            sessionId: problemData.sessionId,
+            summaryId: summary.id,
+            concepts: summary.concepts_covered,
+          },
+          timestamp: new Date(),
+        });
+      } else {
+        logger.warn("Failed to create conversation summary", {
+          userId,
+          sessionId: problemData.sessionId,
+        });
+      }
     } catch (error) {
       logger.error("Error updating companion memory", { error, userId, profileId });
     }
@@ -331,7 +372,8 @@ class EcosystemOrchestrator {
 
   /**
    * Handle session ended event
-   * Triggers: Session summary, Memory update
+   * This is triggered after a summary is created
+   * Can be used for additional post-processing
    */
   private async onSessionEnded(event: Event): Promise<void> {
     const { userId, profileId, data } = event;
@@ -339,11 +381,20 @@ class EcosystemOrchestrator {
     logger.info("Orchestrator: Handling session_ended", {
       userId,
       profileId,
+      sessionId: (data as any).sessionId,
     });
 
     try {
-      // TODO: Week 2 - Implement session summarization
-      logger.debug("Session summary (placeholder)", { userId, sessionId: (data as any).sessionId });
+      // Summary is already created by updateCompanionMemory
+      // This handler can be used for additional processing:
+      // - Check goals progress
+      // - Generate recommendations
+      // - Update learning path
+      logger.debug("Session ended, summary created", {
+        userId,
+        sessionId: (data as any).sessionId,
+        summaryId: (data as any).summaryId,
+      });
     } catch (error) {
       logger.error("Error in onSessionEnded", { error, userId, profileId });
     }
