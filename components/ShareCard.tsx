@@ -143,15 +143,15 @@ function getShareText(
 ): string {
   switch (shareType) {
     case "achievement":
-      return `I just unlocked "${metadata.achievement_title || "an achievement"}" in AI Math Tutor! 🎉`;
+      return `I just unlocked "${metadata.achievement_title || "an achievement"}" in AI Math Tutor!`;
     case "streak":
-      return `I'm on a ${metadata.streak_days || 0} day study streak! 🔥 Try AI Math Tutor!`;
+      return `I'm on a ${metadata.streak_days || 0} day study streak! Try AI Math Tutor!`;
     case "progress":
-      return `I reached Level ${metadata.level || 1} in AI Math Tutor! 📈`;
+      return `I reached Level ${metadata.level || 1} in AI Math Tutor!`;
     case "problem":
       return `I just solved a ${metadata.problem_type || "math"} problem! Try it yourself!`;
     case "challenge":
-      return `I challenge you to beat my score! 🏆 Try AI Math Tutor!`;
+      return `I challenge you to beat my score! Try AI Math Tutor!`;
     default:
       return "Check out AI Math Tutor - an amazing way to learn math!";
   }
