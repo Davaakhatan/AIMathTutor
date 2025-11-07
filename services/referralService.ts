@@ -177,7 +177,9 @@ export async function getReferralStats(userId: string): Promise<ReferralStats> {
     const totalReferrals = referrals?.length || 0;
     const completedReferrals = referrals?.filter((r: Referral) => r.status === "completed" || r.status === "rewarded").length || 0;
 
-    const referralUrl = `${typeof window !== 'undefined' ? window.location.origin : ''}/signup?ref=${codeData.code}`;
+    // Safe origin detection for SSR
+    const origin = typeof window !== "undefined" && window.location ? window.location.origin : "";
+    const referralUrl = origin ? `${origin}/signup?ref=${codeData.code}` : `/signup?ref=${codeData.code}`;
 
     return {
       totalReferrals,

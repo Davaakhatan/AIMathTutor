@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { useAuth } from "@/contexts/AuthContext";
 import { getReferralStats, getUserReferrals, type Referral } from "@/services/referralService";
 import { logger } from "@/lib/logger";
@@ -23,14 +23,18 @@ export default function ReferralDashboard() {
   const [canShare, setCanShare] = useState(false);
 
   useEffect(() => {
+    // Check if Web Share API is available
+    setCanShare(typeof navigator !== "undefined" && "share" in navigator);
+  }, []);
+
+  useEffect(() => {
     if (user) {
       loadReferralData();
     }
-    // Check if Web Share API is available
-    setCanShare(typeof navigator !== "undefined" && "share" in navigator);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [user]);
 
-  const loadReferralData = async () => {
+  const loadReferralData = useCallback(async () => {
     if (!user) return;
 
     try {
@@ -51,7 +55,7 @@ export default function ReferralDashboard() {
     } finally {
       setLoading(false);
     }
-  };
+  }, [user]);
 
   const copyReferralLink = async () => {
     if (!stats?.referralUrl) return;
