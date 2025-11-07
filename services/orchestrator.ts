@@ -13,7 +13,7 @@ import { eventBus } from "@/lib/eventBus";
 import { logger } from "@/lib/logger";
 import type { Event, ProblemCompletedData, GoalAchievedData, StreakAtRiskData } from "@/types/events";
 import type { ParsedProblem } from "@/types";
-import { createShareLink, type ShareMetadata } from "@/services/shareService";
+import { createShare, type ShareMetadata } from "@/services/shareService";
 
 /**
  * Ecosystem Orchestrator Class
@@ -84,10 +84,12 @@ class EcosystemOrchestrator {
         challenge_id: problemData.sessionId, // Temporary, will be proper challenge ID later
       };
 
-      const shareLink = await createShareLink(userId, profileId, {
-        type: "problem",
-        metadata: shareMetadata,
-      });
+      const shareLink = await createShare(
+        userId,
+        "problem",
+        shareMetadata,
+        profileId
+      );
 
       if (shareLink) {
         // Emit challenge_created event for UI updates
@@ -243,10 +245,12 @@ class EcosystemOrchestrator {
         progress: goalData.progress,
       };
 
-      await createShareLink(userId, profileId, {
-        type: "progress",
-        metadata: shareMetadata,
-      });
+      await createShare(
+        userId,
+        "progress",
+        shareMetadata,
+        profileId
+      );
 
       logger.info("Goal share card created", { userId, goalId: goalData.goalId });
     } catch (error) {
@@ -312,10 +316,12 @@ class EcosystemOrchestrator {
         achievement_title: (data as any).title,
       };
 
-      await createShareLink(userId, profileId || null, {
-        type: "achievement",
-        metadata: shareMetadata,
-      });
+      await createShare(
+        userId,
+        "achievement",
+        shareMetadata,
+        profileId || null
+      );
 
       logger.info("Achievement share card created", { userId });
     } catch (error) {
