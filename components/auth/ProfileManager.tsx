@@ -203,7 +203,7 @@ export default function ProfileManager() {
 
   // For students: Show their own profile management
   return (
-    <div className="space-y-4">
+    <div className="space-y-4 pb-4">
       {/* Show connection link for students */}
       {activeProfile && (
         <>
