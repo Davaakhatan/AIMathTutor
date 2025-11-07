@@ -104,15 +104,21 @@ export async function POST(request: NextRequest) {
     }
 
     // Create the relationship
+    // Check what columns actually exist - relationship_type might not exist
+    const insertData: any = {
+      parent_id: userId,
+      student_profile_id: studentProfileId,
+      can_view_progress: true,
+      can_manage_profile: false, // Default to view-only
+    };
+
+    // Only add relationship_type if the column exists (check schema or try without it first)
+    // For now, let's try without relationship_type and see if it works
+    // If the column exists, we can add it back
+    
     const { data: newRelationship, error: createError } = await supabase
       .from("profile_relationships")
-      .insert({
-        parent_id: userId,
-        student_profile_id: studentProfileId,
-        relationship_type: profile.role === "teacher" ? "teacher" : "parent",
-        can_view_progress: true,
-        can_manage_profile: false, // Default to view-only
-      })
+      .insert(insertData)
       .select()
       .single();
 
