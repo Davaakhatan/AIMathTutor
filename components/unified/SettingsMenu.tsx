@@ -128,7 +128,7 @@ export default function SettingsMenu({ onXPDataChange }: SettingsMenuProps) {
         zIndex: 60,
         maxWidth: 'calc(100vw - 2rem - env(safe-area-inset-left, 0px) - env(safe-area-inset-right, 0px))'
       }}
-      className="bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-700 rounded-lg shadow-xl w-96 max-w-[calc(100vw-2rem)] max-h-[85vh] flex flex-col transition-all duration-200"
+      className="bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-700 rounded-lg shadow-xl w-96 max-w-[calc(100vw-2rem)] max-h-[85vh] flex flex-col transition-all duration-200 overflow-hidden"
     >
       {/* Header with Tabs */}
       <div className="flex items-center justify-between p-4 border-b border-gray-200 dark:border-gray-700">
@@ -204,7 +204,7 @@ export default function SettingsMenu({ onXPDataChange }: SettingsMenuProps) {
       </div>
 
       {/* Tab Content */}
-      <div className="flex-1 overflow-y-auto min-h-0 overscroll-contain" style={{ maxHeight: 'calc(85vh - 80px)' }}>
+      <div className="flex-1 overflow-y-auto min-h-0 overscroll-contain scrollbar-thin scrollbar-thumb-gray-300 dark:scrollbar-thumb-gray-600 scrollbar-track-transparent" style={{ maxHeight: 'calc(85vh - 80px)' }}>
         {activeTab === "settings" && <SettingsContent />}
         {activeTab === "notifications" && <NotificationsContent />}
         {activeTab === "xp" && <XPContent onXPDataChange={onXPDataChange} />}
