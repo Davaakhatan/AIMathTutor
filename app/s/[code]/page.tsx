@@ -106,9 +106,13 @@ export default function DeepLinkPage() {
       setShowResult(true);
       setCompleted(true);
       
-      // Track conversion (completion of micro-task)
-      // Note: Full conversion (signup) will be tracked separately
-      trackShareConversion(shareCode, "").catch((err) => {
+      // Track micro-task completion (conversion)
+      // Note: Full conversion (signup) will be tracked separately when user signs up
+      fetch("/api/share/track-conversion", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ shareCode, newUserId: null }), // null for micro-task completion
+      }).catch((err) => {
         console.error("[DeepLinkPage] Error tracking conversion:", err);
       });
     }

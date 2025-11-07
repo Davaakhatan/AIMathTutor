@@ -10,12 +10,14 @@ export async function POST(request: NextRequest) {
   try {
     const { shareCode, newUserId } = await request.json();
 
-    if (!shareCode || !newUserId) {
+    if (!shareCode) {
       return NextResponse.json(
-        { error: "shareCode and newUserId are required" },
+        { error: "shareCode is required" },
         { status: 400 }
       );
     }
+
+    // newUserId is optional - can track micro-task completion without signup
 
     const supabase = getSupabaseServer();
 
@@ -47,7 +49,7 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    logger.info("Share conversion tracked", { shareCode, newUserId });
+    logger.info("Share conversion tracked", { shareCode, newUserId: newUserId || "micro-task completion" });
     return NextResponse.json({ success: true });
   } catch (error) {
     logger.error("Error in share/track-conversion route", { error });
