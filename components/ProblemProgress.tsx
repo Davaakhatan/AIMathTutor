@@ -1,7 +1,7 @@
 "use client";
 
 import { Message, ParsedProblem } from "@/types";
-import { useState } from "react";
+import { useState, useRef, useEffect } from "react";
 import { useConceptTracking } from "@/hooks/useConceptTracking";
 import { useDifficultyTracking } from "@/hooks/useDifficultyTracking";
 import { DifficultyLevel } from "@/services/difficultyTracker";
