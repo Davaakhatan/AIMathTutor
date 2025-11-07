@@ -212,7 +212,7 @@ export default function SettingsMenu({ onXPDataChange }: SettingsMenuProps) {
         {activeTab === "xp" && <XPContent onXPDataChange={onXPDataChange} />}
         {activeTab === "reminders" && <RemindersContent />}
         {activeTab === "profiles" && user && (
-          <div className="p-4" style={{ paddingBottom: '4rem' }}>
+          <div className="p-4 pb-6">
             <ProfileManager />
           </div>
         )}
