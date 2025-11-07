@@ -5,6 +5,7 @@ import { useLocalStorage } from "@/hooks/useLocalStorage";
 import { useAuth } from "@/contexts/AuthContext";
 import { usePanel } from "@/contexts/PanelContext";
 import { ParsedProblem } from "@/types";
+import HistoryContent from "./HistoryContent";
 
 interface SavedProblem extends ParsedProblem {
   savedAt: number;
@@ -23,7 +24,7 @@ export default function ToolsMenu({ onSelectProblem, isGuestMode }: ToolsMenuPro
   const { user } = useAuth();
   const { activePanel, setActivePanel, isAnyPanelOpen } = usePanel();
   const [isOpen, setIsOpen] = useState(false);
-  const [activeTab, setActiveTab] = useState<"search" | "tips" | "formulas">("search");
+  const [activeTab, setActiveTab] = useState<"search" | "history" | "tips" | "formulas">("search");
   const panelRef = useRef<HTMLDivElement>(null);
   const [query, setQuery] = useState("");
   const [savedProblems] = useLocalStorage<SavedProblem[]>("aitutor-problem-history", []);
@@ -241,7 +242,7 @@ export default function ToolsMenu({ onSelectProblem, isGuestMode }: ToolsMenuPro
         <div className="flex gap-1 bg-gray-100 dark:bg-gray-800 rounded-lg p-1 flex-1">
           <button
             onClick={() => setActiveTab("search")}
-            className={`flex-1 px-3 py-1.5 text-xs font-medium rounded-md transition-colors ${
+            className={`flex-1 px-2 py-1.5 text-xs font-medium rounded-md transition-colors ${
               activeTab === "search"
                 ? "bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100 shadow-sm"
                 : "text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-gray-100"
@@ -250,8 +251,18 @@ export default function ToolsMenu({ onSelectProblem, isGuestMode }: ToolsMenuPro
             Search
           </button>
           <button
+            onClick={() => setActiveTab("history")}
+            className={`flex-1 px-2 py-1.5 text-xs font-medium rounded-md transition-colors ${
+              activeTab === "history"
+                ? "bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100 shadow-sm"
+                : "text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-gray-100"
+            }`}
+          >
+            History
+          </button>
+          <button
             onClick={() => setActiveTab("tips")}
-            className={`flex-1 px-3 py-1.5 text-xs font-medium rounded-md transition-colors ${
+            className={`flex-1 px-2 py-1.5 text-xs font-medium rounded-md transition-colors ${
               activeTab === "tips"
                 ? "bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100 shadow-sm"
                 : "text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-gray-100"
@@ -261,7 +272,7 @@ export default function ToolsMenu({ onSelectProblem, isGuestMode }: ToolsMenuPro
           </button>
           <button
             onClick={() => setActiveTab("formulas")}
-            className={`flex-1 px-3 py-1.5 text-xs font-medium rounded-md transition-colors ${
+            className={`flex-1 px-2 py-1.5 text-xs font-medium rounded-md transition-colors ${
               activeTab === "formulas"
                 ? "bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100 shadow-sm"
                 : "text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-gray-100"
@@ -282,7 +293,7 @@ export default function ToolsMenu({ onSelectProblem, isGuestMode }: ToolsMenuPro
       </div>
 
       {/* Tab Content */}
-      <div className="flex-1 overflow-y-auto">
+      <div className="flex-1 overflow-y-auto min-h-0">
         {activeTab === "search" && (
           <div className="p-4">
             <div className="mb-4">
@@ -353,6 +364,10 @@ export default function ToolsMenu({ onSelectProblem, isGuestMode }: ToolsMenuPro
               )}
             </div>
           </div>
+        )}
+
+        {activeTab === "history" && (
+          <HistoryContent onSelectProblem={onSelectProblem || undefined} />
         )}
 
         {activeTab === "tips" && (

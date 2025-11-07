@@ -5,7 +5,6 @@ import { ParsedProblem } from "@/types";
 import { useAuth } from "@/contexts/AuthContext";
 import { usePanel } from "@/contexts/PanelContext";
 import DashboardContent from "./DashboardContent";
-import HistoryContent from "./HistoryContent";
 import PracticeContent from "./PracticeContent";
 import SuggestionsContent from "./SuggestionsContent";
 import LearningPath from "../LearningPath";
@@ -27,7 +26,7 @@ export default function LearningHub({ onSelectProblem, onDifficultyChange, apiKe
   const { user } = useAuth();
   const { activePanel, setActivePanel, isAnyPanelOpen } = usePanel();
   const [isOpen, setIsOpen] = useState(false);
-  const [activeTab, setActiveTab] = useState<"dashboard" | "history" | "practice" | "suggestions" | "path" | "goals">("dashboard");
+  const [activeTab, setActiveTab] = useState<"dashboard" | "practice" | "suggestions" | "path" | "goals">("dashboard");
   const panelRef = useRef<HTMLDivElement>(null);
   
   // Calculate vertical position - stack below UserMenu (logged in) or AuthButton (guest mode)
@@ -123,16 +122,6 @@ export default function LearningHub({ onSelectProblem, onDifficultyChange, apiKe
             Dashboard
           </button>
           <button
-            onClick={() => setActiveTab("history")}
-            className={`flex-1 px-2 py-1.5 text-xs font-medium rounded-md transition-colors ${
-              activeTab === "history"
-                ? "bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100 shadow-sm"
-                : "text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-gray-100"
-            }`}
-          >
-            History
-          </button>
-          <button
             onClick={() => setActiveTab("practice")}
             className={`flex-1 px-2 py-1.5 text-xs font-medium rounded-md transition-colors ${
               activeTab === "practice"
@@ -187,7 +176,6 @@ export default function LearningHub({ onSelectProblem, onDifficultyChange, apiKe
       {/* Tab Content */}
             <div className="flex-1 overflow-y-auto min-h-0">
               {activeTab === "dashboard" && <DashboardContent onDifficultyChange={onDifficultyChange} />}
-        {activeTab === "history" && <HistoryContent onSelectProblem={onSelectProblem} />}
         {activeTab === "practice" && <PracticeContent onStartPractice={onSelectProblem} apiKey={apiKey} />}
         {activeTab === "suggestions" && <SuggestionsContent onSelectProblem={onSelectProblem} />}
         {activeTab === "path" && <LearningPath onStartProblem={onSelectProblem} apiKey={apiKey} />}
