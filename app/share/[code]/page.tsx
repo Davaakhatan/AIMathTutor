@@ -78,33 +78,32 @@ export default function SharePage() {
 
     // Generate a related challenge based on share data
     const generateRelatedChallenge = async (data: any): Promise<string> => {
-      // For achievement shares, generate a related problem
+      // For achievement shares, try to generate a related problem
       if (data.share_type === "achievement" && data.metadata?.achievement_type) {
         const achievementType = data.metadata.achievement_type;
         
-        // Map achievement types to problem types
-        const problemPrompts: Record<string, string> = {
-          first_problem: "Solve a beginner-friendly algebra problem",
-          independent: "Try solving a problem on your own",
-          hint_master: "Solve a problem using strategic hints",
-          speed_demon: "Solve a problem quickly and efficiently",
-          perfectionist: "Solve a problem with zero mistakes",
-          streak_7: "Maintain your momentum with a new challenge",
-          streak_30: "Keep your streak going with an advanced problem",
-          level_5: "Tackle a problem at your level",
-          level_10: "Challenge yourself with a higher-level problem",
+        // Map achievement types to problem types and difficulties
+        const problemConfigs: Record<string, { type: string; difficulty: string }> = {
+          first_problem: { type: "algebra", difficulty: "elementary" },
+          independent: { type: "algebra", difficulty: "middle" },
+          hint_master: { type: "word_problem", difficulty: "middle" },
+          speed_demon: { type: "arithmetic", difficulty: "middle" },
+          perfectionist: { type: "multi_step", difficulty: "middle" },
+          streak_7: { type: "algebra", difficulty: "middle" },
+          streak_30: { type: "multi_step", difficulty: "high" },
+          level_5: { type: "word_problem", difficulty: "middle" },
+          level_10: { type: "multi_step", difficulty: "high" },
         };
 
-        const prompt = problemPrompts[achievementType] || "Solve a math problem";
+        const config = problemConfigs[achievementType] || { type: "algebra", difficulty: "middle" };
         
         try {
           const response = await fetch("/api/generate-problem", {
             method: "POST",
             headers: { "Content-Type": "application/json" },
             body: JSON.stringify({
-              type: "custom",
-              difficulty: "middle",
-              prompt: prompt,
+              type: config.type,
+              difficulty: config.difficulty,
             }),
           });
 
