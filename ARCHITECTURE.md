@@ -1,5 +1,8 @@
 # Architecture Documentation
-## AI Math Tutor - Socratic Learning Assistant
+## AI Math Tutor - Enhanced with Viral Growth & Study Companion
+
+**Version**: 2.0  
+**Last Updated**: November 2025
 
 ---
 
@@ -13,6 +16,9 @@
 7. [Prompt Engineering](#prompt-engineering)
 8. [Technology Stack](#technology-stack)
 9. [Deployment Architecture](#deployment-architecture)
+10. [Viral Growth Architecture](#viral-growth-architecture)
+11. [Study Companion Architecture](#study-companion-architecture)
+12. [Database Schema](#database-schema)
 
 ---
 
@@ -546,6 +552,213 @@ OpenAI API
 - Don't expose internal errors to users
 - Log errors server-side
 - Provide user-friendly error messages
+
+---
+
+## Viral Growth Architecture
+
+### Share System
+```
+User Action (Complete Problem/Achievement)
+  ↓
+Generate Share Card (Server-side)
+  ↓
+Create Deep Link with Unique Code
+  ↓
+Store in Database (shares table)
+  ↓
+User Shares Link
+  ↓
+New User Clicks Link
+  ↓
+Deep Link Handler Pre-fills Context
+  ↓
+Track Attribution & Conversion
+```
+
+### Referral System
+```
+User Requests Referral Link
+  ↓
+Generate Unique Code (UUID)
+  ↓
+Store in Database (referrals table)
+  ↓
+User Shares Link
+  ↓
+New User Signs Up via Link
+  ↓
+Track Referral & Award Rewards
+  ↓
+Update Referrer & Referee Accounts
+```
+
+### Challenge System
+```
+User Completes Problem
+  ↓
+"Challenge Friend" CTA
+  ↓
+Select Friend & Create Challenge
+  ↓
+Store in Database (challenges table)
+  ↓
+Send Notification to Friend
+  ↓
+Friend Accepts Challenge
+  ↓
+Friend Completes Problem
+  ↓
+Award Rewards to Both Users
+```
+
+---
+
+## Study Companion Architecture
+
+### Conversation Memory
+```
+Session Ends
+  ↓
+Generate Summary (AI)
+  ↓
+Extract Concepts Covered
+  ↓
+Store in Database (conversation_summaries)
+  ↓
+New Session Starts
+  ↓
+Load Relevant Summaries
+  ↓
+Include in Context for AI
+  ↓
+AI References Previous Learning
+```
+
+### Goal System
+```
+User Creates Goal
+  ↓
+Store in Database (learning_goals)
+  ↓
+Track Progress on Each Session
+  ↓
+Goal Completed
+  ↓
+Suggest Related Subjects
+  ↓
+Generate Personalized Recommendations
+  ↓
+User Engages with New Subject
+```
+
+### Practice Assignment
+```
+AI Analyzes Performance
+  ↓
+Identifies Weak Areas
+  ↓
+Generates Practice Deck
+  ↓
+Stores in Database (practice_assignments)
+  ↓
+User Sees Practice Card
+  ↓
+Completes Practice Problems
+  ↓
+Updates Mastery Scores
+  ↓
+AI Adjusts Future Assignments
+```
+
+---
+
+## Database Schema
+
+### New Tables
+
+#### referrals
+```sql
+CREATE TABLE referrals (
+  id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+  referrer_id UUID REFERENCES auth.users(id),
+  referee_id UUID REFERENCES auth.users(id),
+  referral_code TEXT UNIQUE,
+  status TEXT, -- 'pending', 'completed', 'rewarded'
+  reward_given BOOLEAN DEFAULT FALSE,
+  created_at TIMESTAMP DEFAULT NOW()
+);
+```
+
+#### challenges
+```sql
+CREATE TABLE challenges (
+  id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+  challenger_id UUID REFERENCES auth.users(id),
+  challengee_id UUID REFERENCES auth.users(id),
+  problem_id UUID REFERENCES problems(id),
+  challenge_type TEXT, -- 'beat_score', 'streak_rescue', 'co_practice'
+  status TEXT, -- 'pending', 'accepted', 'completed', 'expired'
+  expires_at TIMESTAMP,
+  created_at TIMESTAMP DEFAULT NOW()
+);
+```
+
+#### conversation_summaries
+```sql
+CREATE TABLE conversation_summaries (
+  id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+  user_id UUID REFERENCES auth.users(id),
+  session_id UUID REFERENCES sessions(id),
+  summary TEXT,
+  concepts_covered TEXT[],
+  difficulty_level TEXT,
+  created_at TIMESTAMP DEFAULT NOW()
+);
+```
+
+#### learning_goals
+```sql
+CREATE TABLE learning_goals (
+  id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+  user_id UUID REFERENCES auth.users(id),
+  student_profile_id UUID REFERENCES student_profiles(id),
+  goal_type TEXT, -- 'subject_mastery', 'exam_prep', 'skill_building'
+  target_subject TEXT,
+  target_date DATE,
+  status TEXT, -- 'active', 'completed', 'paused'
+  progress INTEGER DEFAULT 0,
+  created_at TIMESTAMP DEFAULT NOW()
+);
+```
+
+#### practice_assignments
+```sql
+CREATE TABLE practice_assignments (
+  id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+  user_id UUID REFERENCES auth.users(id),
+  student_profile_id UUID REFERENCES student_profiles(id),
+  problem_ids UUID[],
+  due_date TIMESTAMP,
+  completed BOOLEAN DEFAULT FALSE,
+  completed_at TIMESTAMP,
+  created_at TIMESTAMP DEFAULT NOW()
+);
+```
+
+#### shares
+```sql
+CREATE TABLE shares (
+  id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+  user_id UUID REFERENCES auth.users(id),
+  share_type TEXT, -- 'achievement', 'progress', 'problem', 'streak'
+  share_code TEXT UNIQUE,
+  metadata JSONB,
+  click_count INTEGER DEFAULT 0,
+  conversion_count INTEGER DEFAULT 0,
+  created_at TIMESTAMP DEFAULT NOW()
+);
+```
 
 ---
 

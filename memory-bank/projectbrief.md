@@ -1,15 +1,19 @@
 # Project Brief
-## AI Math Tutor - Socratic Learning Assistant
+## AI Math Tutor - Enhanced with Viral Growth & Study Companion
 
-**Date**: November 3, 2025  
-**Contact**: John Chen - john.chen@superbuilders.school  
-**Timeline**: 3-5 days core + optional stretch features
+**Date**: November 2025  
+**Version**: 2.0  
+**Status**: Active Development
 
 ---
 
 ## Objective
 
-Build an AI tutor that guides students through math problems using Socratic questioning (inspired by the OpenAI x Khan Academy demo: https://www.youtube.com/watch?v=IvXZCocyU_M). The system accepts problems via screenshot or text and helps students discover solutions through guided dialogue.
+Build an AI tutor that guides students through math problems using Socratic questioning, enhanced with:
+1. **Viral Growth Features**: Social learning, challenges, referrals, and sharing
+2. **AI Study Companion**: Persistent memory, goal-based learning, adaptive practice
+
+The system accepts problems via screenshot, text, or whiteboard and helps students discover solutions through guided dialogue while encouraging social learning and providing personalized study support.
 
 ---
 

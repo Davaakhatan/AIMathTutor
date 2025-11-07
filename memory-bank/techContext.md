@@ -11,13 +11,18 @@
 - **Styling**: Tailwind CSS
 - **Math Rendering**: KaTeX
 - **File Upload**: react-dropzone
-- **State Management**: React hooks (useState, useEffect)
+- **State Management**: React hooks (useState, useEffect, Context API)
+- **Authentication**: Supabase Auth
+- **Database Client**: Supabase JS
 
 ### Backend
 - **Runtime**: Node.js 18+
 - **Framework**: Next.js API Routes
-- **LLM Integration**: OpenAI SDK
+- **LLM Integration**: OpenAI SDK (GPT-4o)
 - **Vision API**: OpenAI GPT-4 Vision
+- **Database**: Supabase (PostgreSQL)
+- **Session Storage**: Supabase (sessions table)
+- **Authentication**: Supabase Auth
 
 ### Development Tools
 - **Package Manager**: npm
@@ -179,16 +184,23 @@ AITutor/
 ## Future Technical Enhancements
 
 ### Scalability
-- Redis for session storage
-- Database for persistent history
-- Queue system for high load
-- CDN for static assets
+- ✅ Database for persistent history (Supabase)
+- ✅ Session storage in database (Supabase)
+- Queue system for high load (future)
+- CDN for static assets (Vercel Edge)
 
 ### Features
-- Streaming responses
-- WebSocket for real-time updates
-- Offline support
-- Progressive Web App (PWA)
+- ✅ Streaming responses
+- ✅ Progressive Web App (PWA)
+- ✅ Offline support (Service Worker)
+- WebSocket for real-time updates (future)
+- Background jobs for re-engagement (future)
+
+### New Features (Phase 1)
+- Viral growth system (share, referral, challenge)
+- AI Study Companion (memory, goals, practice)
+- Enhanced analytics
+- Real-time leaderboards
 
 ---
 
