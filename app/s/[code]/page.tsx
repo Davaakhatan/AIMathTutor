@@ -17,11 +17,12 @@ import { AuthProvider } from "@/contexts/AuthContext";
  * This page shows:
  * 1. The challenge problem from the share card
  * 2. Full chat interface with AI tutor (Socratic method)
- * 3. Works for unauthenticated users (NO AuthProvider required)
+ * 3. Works for unauthenticated users (AuthProvider wraps the page but user will be null)
  * 4. Tracks completion and conversion when problem is solved
  * 5. After completion, prompts for signup
  * 
- * NOTE: This page does NOT use useAuth() - it works without authentication
+ * NOTE: AuthProvider is required because ChatUI uses useAuth(), but it works fine
+ * for unauthenticated users (user will be null).
  */
 export default function DeepLinkPage() {
   const params = useParams();
