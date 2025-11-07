@@ -1,4 +1,4 @@
-# Project 3: Nerdy Case 5 - AI Study Companion
+# Project 3: Nerdy Case 5
 ## 48-Hour AI Product Sprint
 
 **Project Type**: AI Product Sprint  
@@ -10,39 +10,76 @@
 
 ## Executive Summary
 
-Build an **AI study companion** that provides persistent memory, goal-based learning paths, adaptive practice suggestions, and re-engagement nudges. This transforms the one-time tutoring session into a **long-term learning relationship**.
+**The Challenge**: Choose ONE of these urgent Nerdy problems and build a complete solution using AI-first development in 48 hours.
 
 ---
 
-## Core Objective
+## Three Options
 
-Create an AI companion that:
-- **Remembers** previous sessions and learning history
-- **Adapts** to student goals and learning style
-- **Suggests** relevant practice and next steps
-- **Re-engages** inactive users with personalized nudges
-- **Tracks** progress toward learning goals
+### Option A: AI Study Companion ⭐ (Selected)
+Build a persistent AI companion that lives between tutoring sessions, remembers previous lessons, assigns adaptive practice, answers questions conversationally, and drives students back to human tutors when needed. Must integrate with existing session recordings and generate measurable learning improvements.
 
----
+### Option B: Tutor Quality Scoring System
+Create an automated system that evaluates tutor performance across every session, identifies coaching opportunities, predicts which tutors will churn, and recommends interventions. The system must process 3,000 daily sessions and provide actionable insights within 1 hour of session completion.
 
-## Success Criteria
-
-### Primary Goals
-- **Memory Usage**: ≥ 80% of users see relevant references to past learning
-- **Goal Completion**: ≥ 60% of goals completed
-- **Practice Engagement**: ≥ 70% completion rate for assigned practice
-- **Re-engagement**: ≥ 30% response rate to nudges
-
-### Secondary Goals
-- **Retention**: +10% D7 retention for users with study companion features
-- **Churn Reduction**: -20% "goal achieved" churn, -15% early churn
-- **Engagement**: +15% problems solved for users with active goals
+### Option C: Intelligent Operations Dashboard
+Build a real-time command center that monitors marketplace health, predicts supply/demand imbalances, automatically adjusts tutor recruiting campaigns, and alerts operators to anomalies. Must handle 50+ data streams and provide explainable AI recommendations.
 
 ---
 
-## Key Requirements
+## Option A: AI Study Companion (Selected)
 
-### 1. Persistent Conversation Memory
+### Core Objective
+
+Build a **persistent AI companion** that:
+- Lives between tutoring sessions
+- Remembers previous lessons
+- Assigns adaptive practice
+- Answers questions conversationally
+- Drives students back to human tutors when needed
+- Integrates with existing session recordings
+- Generates measurable learning improvements
+
+---
+
+## Retention Enhancement Requirements
+
+### 1. Goal Completion → Related Subjects
+**Problem**: 52% "goal achieved" churn
+
+**Solution**:
+- When student completes goal → **must suggest related subjects**
+- **SAT complete** → surface college essays, study skills, AP prep
+- **Chemistry** → suggest physics, STEM subjects
+- **Algebra** → suggest geometry, advanced math
+- Prevent churn by showing "what's next"
+
+### 2. Early Engagement Nudges
+**Problem**: Students with <3 sessions by Day 7 churn early
+
+**Solution**:
+- Detect students with <3 sessions by Day 7
+- Nudge to book next session
+- Personalized messages based on:
+  - Last activity
+  - Learning goals
+  - Weak areas
+  - Streak status
+
+### 3. Multi-Goal Progress Tracking
+**Problem**: Single-subject focus limits engagement
+
+**Solution**:
+- Show multi-goal progress tracking (not just single subject)
+- Dashboard showing all active goals
+- Progress visualization across goals
+- Goal interdependencies
+
+---
+
+## Core Features
+
+### 1. Persistent Memory
 
 **Goal**: AI remembers previous sessions and references past learning
 
@@ -76,10 +113,11 @@ Create an AI companion that:
 **Features**:
 - Goal creation (e.g., "Master Algebra", "Prepare for SAT")
 - Goal progress tracking
-- Related subject suggestions after goal completion
+- **Related subject suggestions after goal completion**
   - SAT complete → suggest college essays, AP prep
   - Chemistry → suggest physics, STEM subjects
-- Multi-goal progress dashboard
+  - Algebra → suggest geometry, advanced math
+- **Multi-goal progress dashboard**
 - Goal-based problem recommendations
 
 **Implementation**:
@@ -87,7 +125,7 @@ Create an AI companion that:
   - `user_id`, `student_profile_id`, `goal_type`, `target_subject`, `target_date`, `status`, `progress`, `created_at`
 - `components/LearningGoals.tsx` - Goal management UI
 - `services/goalService.ts` - Goal logic
-- Subject recommendation engine
+- **Subject recommendation engine** (critical for churn reduction)
 - API route: `app/api/goals/route.ts`
 
 **Goal Types**:
@@ -98,8 +136,8 @@ Create an AI companion that:
 
 **Success Metrics**:
 - Goal completion rate: >60%
-- Related subject engagement: >40% after goal completion
-- Churn reduction: -20% "goal achieved" churn
+- **Related subject engagement: >40% after goal completion** (churn reduction)
+- **Churn reduction: -20% "goal achieved" churn**
 
 ---
 
@@ -141,7 +179,7 @@ Create an AI companion that:
 **Goal**: Bring back inactive users
 
 **Features**:
-- Detect users with <3 sessions by Day 7
+- **Detect users with <3 sessions by Day 7** (critical requirement)
 - Send personalized nudge:
   - "You're doing great! Ready for your next challenge?"
   - Suggest related problem
@@ -166,11 +204,107 @@ Create an AI companion that:
 - **Goal Reminder**: "You're 80% to your goal! Keep going!"
 - **New Challenge**: "New problem type unlocked! Try it now."
 - **Friend Activity**: "Your friend just completed a challenge!"
+- **Early Engagement**: "You've only done 2 sessions! Book your next one now."
 
 **Success Metrics**:
 - Nudge response rate: >30%
 - Re-engagement: +25% return rate for nudged users
-- Churn reduction: -15% early churn
+- **Churn reduction: -15% early churn**
+
+---
+
+## Sprint Requirements
+
+### First 24 Hours
+- **Use only AI coding assistants** (no manual coding)
+- Rapid prototyping
+- AI-first development approach
+- Focus on core functionality
+
+### Hour 24-36
+- **Refine and debug** with mixed approach
+- Manual fixes for critical issues
+- Integration testing
+- Performance optimization
+
+### Hour 36-48
+- **Production hardening** and documentation
+- Error handling
+- Edge cases
+- Deployment preparation
+
+### Must Include
+- **Working demo**, not just designs
+- **Solution must integrate** with existing Rails/React platform
+- Actual functionality, not mockups
+
+---
+
+## Deliverables
+
+### 1. Working Prototype
+- Deployed to cloud (AWS or Vercel)
+- Functional end-to-end
+- Integrates with existing platform
+- Not just designs - actual working code
+
+### 2. Documentation
+- **AI tools used** and prompting strategies
+- Development approach
+- Architecture decisions
+- Integration points
+
+### 3. Demo Video
+- **5-minute demo** showing actual functionality
+- Walkthrough of key features
+- Real user flows
+- Metrics demonstration
+
+### 4. Cost Analysis
+- Production deployment costs
+- Infrastructure requirements
+- Scaling considerations
+- ROI projections
+
+### 5. 90-Day Roadmap
+- Full implementation plan
+- Feature prioritization
+- Success metrics
+- Milestones and timelines
+
+---
+
+## Success Metrics
+
+### Primary Questions
+- ✅ **Does it solve a real business problem?**
+  - Addresses 52% "goal achieved" churn
+  - Reduces early churn (<3 sessions by Day 7)
+  - Improves retention through multi-goal tracking
+
+- ✅ **Could this ship to production within 2 weeks?**
+  - Prototype must be production-ready
+  - Clear path to full implementation
+  - Technical feasibility demonstrated
+
+- ✅ **Does it leverage AI in sophisticated ways?**
+  - Conversation summarization
+  - Adaptive practice generation
+  - Personalized nudges
+  - Subject recommendation engine
+
+- ✅ **Clear path to ROI within 90 days?**
+  - Measurable retention improvements
+  - Cost-benefit analysis
+  - Implementation roadmap
+
+### Quantitative Metrics
+- **Memory Usage**: ≥ 80% of users see relevant references
+- **Goal Completion**: ≥ 60% of goals completed
+- **Related Subject Engagement**: ≥ 40% after goal completion
+- **Practice Engagement**: ≥ 70% completion rate
+- **Re-engagement**: ≥ 30% response rate to nudges
+- **Churn Reduction**: -20% "goal achieved" churn, -15% early churn
 
 ---
 
@@ -230,6 +364,19 @@ CREATE TABLE reengagement_nudges (
   response_action VARCHAR(50), -- 'opened_app', 'solved_problem', 'ignored'
   created_at TIMESTAMPTZ DEFAULT NOW()
 );
+
+-- Subject Recommendations (for churn reduction)
+CREATE TABLE subject_recommendations (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  user_id UUID REFERENCES auth.users(id),
+  student_profile_id UUID REFERENCES student_profiles(id),
+  completed_goal_id UUID REFERENCES learning_goals(id),
+  recommended_subject TEXT,
+  recommendation_reason TEXT,
+  shown_at TIMESTAMPTZ,
+  engaged BOOLEAN DEFAULT FALSE,
+  created_at TIMESTAMPTZ DEFAULT NOW()
+);
 ```
 
 ### Service Architecture
@@ -240,7 +387,7 @@ services/
   goalService.ts - Goal management
   practiceService.ts - Practice assignment
   reEngagementService.ts - Re-engagement logic
-  subjectRecommendationService.ts - Subject suggestions
+  subjectRecommendationService.ts - Subject suggestions (CRITICAL for churn reduction)
 ```
 
 ### API Routes
@@ -250,6 +397,8 @@ POST /api/summaries - Create conversation summary
 GET /api/summaries - Get user summaries
 POST /api/goals - Create/update goal
 GET /api/goals - Get user goals
+POST /api/goals/:id/complete - Mark goal complete (triggers subject recommendations)
+GET /api/subject-recommendations - Get recommended subjects
 POST /api/practice/assign - Assign practice
 GET /api/practice - Get practice assignments
 POST /api/practice/complete - Mark practice complete
@@ -259,105 +408,71 @@ GET /api/nudges - Get nudge history
 
 ---
 
-## Implementation Plan
+## Implementation Plan (48 Hours)
 
-### Week 1: Conversation Memory (Days 1-2)
+### Hour 0-12: Foundation
 - Database schema setup
-- Summary generation after sessions
-- Summary loading on new sessions
-- Context integration in prompts
-- Testing with real conversations
-
-### Week 2: Goal System (Days 3-4)
+- Basic conversation summary service
 - Goal creation UI
-- Goal tracking
-- Progress calculation
-- Subject recommendations
-- Goal completion flow
+- Practice assignment logic
 
-### Week 3: Practice System (Days 5-6)
-- Practice assignment algorithm
-- Spaced repetition logic
-- Mastery tracking
-- Practice completion UI
-- Performance analysis
+### Hour 12-24: Core Features
+- Conversation memory integration
+- Goal tracking and progress
+- Practice generation
+- Early engagement detection
 
-### Week 4: Re-engagement (Days 7-8)
-- Inactivity detection
-- Nudge generation
-- Notification system
-- Response tracking
-- A/B testing different nudge types
+### Hour 24-36: Critical Features
+- **Subject recommendation engine** (churn reduction)
+- **Multi-goal dashboard**
+- **Re-engagement nudge system**
+- Integration testing
 
----
-
-## User Experience Flow
-
-### First-Time User
-1. Complete first problem
-2. System suggests: "Set a learning goal?"
-3. User creates goal: "Master Algebra"
-4. System: "Great! I'll track your progress."
-
-### Returning User
-1. User opens app
-2. System: "Welcome back! Last time we worked on quadratic equations. Ready to continue?"
-3. Shows progress toward goals
-4. Suggests practice based on weak areas
-
-### Inactive User (Day 7)
-1. System detects: <3 sessions
-2. Generates personalized nudge
-3. "You're 80% to your Algebra goal! One more session to unlock the next level."
-4. User returns → System celebrates progress
+### Hour 36-48: Polish & Deploy
+- UI/UX improvements
+- Error handling
+- Documentation
+- Demo preparation
+- Deployment
 
 ---
 
-## Success Metrics
+## Critical Success Factors
 
-### Study Companion Metrics
-- **Memory Usage**: ≥ 80% of users see relevant references
-- **Goal Completion**: ≥ 60% of goals completed
-- **Practice Engagement**: ≥ 70% completion rate
-- **Re-engagement**: ≥ 30% response rate to nudges
+### 1. Subject Recommendations (Churn Reduction)
+- **Must trigger** when goal completes
+- **Must suggest** related subjects immediately
+- **Must track** engagement with recommendations
+- **Must measure** churn reduction impact
 
-### Overall Impact
-- **Activation**: +20% lift to FVM (First Value Moment)
-- **Retention**: +10% D7 retention
-- **Engagement**: +15% problems solved
-- **Churn Reduction**: -20% "goal achieved" churn, -15% early churn
+### 2. Early Engagement Nudges
+- **Must detect** <3 sessions by Day 7
+- **Must personalize** nudge content
+- **Must track** response rates
+- **Must measure** churn reduction
 
----
-
-## Integration with Other Projects
-
-### With AI Math Tutor
-- Uses conversation data for summaries
-- Builds on existing problem-solving flow
-- Enhances core tutoring experience
-
-### With K Factor Project
-- Goals can be shared (viral growth)
-- Practice assignments can be challenges
-- Re-engagement nudges can include referral opportunities
+### 3. Multi-Goal Tracking
+- **Must show** all active goals
+- **Must visualize** progress across goals
+- **Must prevent** single-subject churn
 
 ---
 
-## Risk & Mitigation
+## Integration with Existing Platform
 
-### Technical Risks
-- **Summary Quality**: May not capture all context
-  - Mitigation: Test with various problem types, iterate on prompt
-- **Goal Abandonment**: Users may not complete goals
-  - Mitigation: Make goals achievable, celebrate milestones
-- **Nudge Fatigue**: Too many nudges = ignored
-  - Mitigation: Throttle frequency, personalize content
+### Must Integrate With
+- Existing Rails/React platform
+- Session recordings
+- User authentication
+- Student profiles
+- Tutoring sessions
 
-### Product Risks
-- **Complexity**: Too many features = confusion
-  - Mitigation: Progressive disclosure, clear UI
-- **Privacy**: Storing conversation data
-  - Mitigation: Clear privacy policy, user consent
+### Integration Points
+- Session completion → Generate summary
+- Summary → Trigger agentic actions
+- Goal completion → Subject recommendations
+- Practice completion → Update mastery
+- Inactivity detection → Send nudge
 
 ---
 
@@ -373,28 +488,26 @@ GET /api/nudges - Get nudge history
 - ✅ Core AI tutoring (DONE)
 - ✅ User authentication (DONE)
 - ✅ Student profiles (DONE)
-- ⏳ Session storage (needs enhancement)
+- ⏳ Session storage (needs enhancement for summaries)
 
 ---
 
 ## Next Steps
 
-### Immediate (This Week)
-1. Review requirements
-2. Design database schema
-3. Create conversation summary service
-4. Test summary generation
+### Immediate (48-Hour Sprint)
+1. Choose AI tools for development
+2. Set up database schema
+3. Build conversation summary service
+4. Create goal system with subject recommendations
+5. Implement re-engagement detection
+6. Test end-to-end flows
 
-### Short Term (Next 2 Weeks)
-1. Build goal system
-2. Implement practice assignments
-3. Create re-engagement detection
-
-### Medium Term (Weeks 3-4)
-1. Build UI components
-2. Integrate with existing app
-3. Test end-to-end flows
-4. Measure success metrics
+### Post-Sprint (90-Day Roadmap)
+1. Refine based on feedback
+2. Scale to production
+3. Measure retention improvements
+4. Optimize subject recommendations
+5. Expand nudge personalization
 
 ---
 
@@ -402,7 +515,38 @@ GET /api/nudges - Get nudge history
 
 **Key Insight**: The study companion transforms the app from a **tool** into a **relationship**. Users feel the AI "knows" them and cares about their progress.
 
-**Critical Success Factor**: The features must feel **helpful, not intrusive**. Users should want to use them, not feel forced.
+**Critical Success Factor**: The **subject recommendation engine** is the most important feature for churn reduction. When a student completes a goal, immediately showing "what's next" prevents the 52% "goal achieved" churn.
 
-**Warning**: Don't build all features at once. Start with conversation memory (foundation), then goals, then practice, then nudges.
+**Warning**: The 48-hour timeline is aggressive. Focus on:
+1. Conversation summaries (foundation)
+2. Goal system with subject recommendations (churn reduction)
+3. Early engagement detection (churn reduction)
+4. Practice assignments (engagement)
 
+Skip or simplify:
+- Advanced spaced repetition (can add later)
+- Complex nudge personalization (start simple)
+- Multi-goal visualization (can be basic)
+
+---
+
+## Comparison with Other Options
+
+### Why Option A Was Selected
+- ✅ Directly addresses retention problems
+- ✅ Builds on existing AI tutoring foundation
+- ✅ Clear path to ROI (churn reduction)
+- ✅ Integrates naturally with current platform
+- ✅ Measurable success metrics
+
+### Option B: Tutor Quality Scoring (Not Selected)
+- Focuses on tutor performance, not student retention
+- Requires access to 3,000 daily sessions
+- More complex data processing requirements
+- Less directly related to current platform
+
+### Option C: Operations Dashboard (Not Selected)
+- Focuses on operations, not student experience
+- Requires 50+ data streams
+- More infrastructure-heavy
+- Less AI-focused
