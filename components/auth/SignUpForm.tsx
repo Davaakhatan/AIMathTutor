@@ -1,6 +1,7 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
+import { useSearchParams } from "next/navigation";
 import { useAuth } from "@/contexts/AuthContext";
 import { useToast } from "@/hooks/useToast";
 
@@ -10,6 +11,7 @@ interface SignUpFormProps {
 }
 
 export default function SignUpForm({ onSuccess, onSwitchToLogin }: SignUpFormProps) {
+  const searchParams = useSearchParams();
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
@@ -18,6 +20,9 @@ export default function SignUpForm({ onSuccess, onSwitchToLogin }: SignUpFormPro
   const [loading, setLoading] = useState(false);
   const { signUp } = useAuth();
   const { showToast } = useToast();
+  
+  // Get referral code from URL
+  const referralCode = searchParams?.get("ref") || null;
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -35,10 +40,11 @@ export default function SignUpForm({ onSuccess, onSwitchToLogin }: SignUpFormPro
     setLoading(true);
 
     try {
-      const { error } = await signUp(email, password, {
+      const { error, referralCode: trackedCode } = await signUp(email, password, {
         username: username || email.split("@")[0],
         display_name: username || email.split("@")[0],
         role: role, // Pass role to signup
+        referralCode: referralCode, // Pass referral code from URL
       });
 
       if (error) {
@@ -49,7 +55,12 @@ export default function SignUpForm({ onSuccess, onSwitchToLogin }: SignUpFormPro
         return;
       }
 
-      showToast("Account created! Please check your email to verify your account.", "success");
+      // Show success message with referral bonus if applicable
+      if (trackedCode) {
+        showToast("Account created! You earned 100 XP from the referral!", "success");
+      } else {
+        showToast("Account created! Please check your email to verify your account.", "success");
+      }
 
       onSuccess?.();
     } catch (error) {

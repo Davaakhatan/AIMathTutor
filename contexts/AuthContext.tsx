@@ -24,7 +24,7 @@ interface AuthContextType {
   profilesLoading: boolean;
   userDataLoading: boolean;
   userRole: "student" | "parent" | "teacher" | "admin" | null;
-  signUp: (email: string, password: string, metadata?: { username?: string; display_name?: string; role?: "student" | "parent" | "teacher" }) => Promise<{ error: AuthError | null }>;
+  signUp: (email: string, password: string, metadata?: { username?: string; display_name?: string; role?: "student" | "parent" | "teacher"; referralCode?: string | null }) => Promise<{ error: AuthError | null; referralCode?: string | null }>;
   signIn: (email: string, password: string) => Promise<{ error: AuthError | null }>;
   signOut: () => Promise<void>;
   resetPassword: (email: string) => Promise<{ error: AuthError | null }>;
@@ -616,6 +616,27 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       }
 
       logger.info("User signed up successfully", { userId: data.user?.id });
+      
+      // Track referral if referral code was provided
+      let trackedReferralCode: string | null = null;
+      if (data.user && metadata?.referralCode) {
+        try {
+          const { trackReferralSignup } = await import("@/services/referralService");
+          await trackReferralSignup(metadata.referralCode, data.user.id);
+          trackedReferralCode = metadata.referralCode;
+          logger.info("Referral tracked on signup", { 
+            userId: data.user.id, 
+            referralCode: metadata.referralCode 
+          });
+        } catch (error) {
+          logger.error("Error tracking referral on signup", { 
+            error, 
+            userId: data.user.id, 
+            referralCode: metadata.referralCode 
+          });
+          // Don't fail signup if referral tracking fails
+        }
+      }
       
       // Migrate localStorage data to Supabase (keep localStorage as cache)
       // This preserves guest progress when user signs up

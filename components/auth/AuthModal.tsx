@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, Suspense } from "react";
 import LoginForm from "./LoginForm";
 import SignUpForm from "./SignUpForm";
 
@@ -43,10 +43,12 @@ export default function AuthModal({ isOpen, onClose, initialMode = "login" }: Au
             onSwitchToSignUp={() => setMode("signup")}
           />
         ) : (
-          <SignUpForm
-            onSuccess={onClose}
-            onSwitchToLogin={() => setMode("login")}
-          />
+          <Suspense fallback={<div className="text-center py-4">Loading...</div>}>
+            <SignUpForm
+              onSuccess={onClose}
+              onSwitchToLogin={() => setMode("login")}
+            />
+          </Suspense>
         )}
       </div>
     </div>
