@@ -782,12 +782,21 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   };
 
   // Load user data from Supabase and cache in localStorage
-  const loadUserDataFromSupabase = useCallback(async () => {
+  const loadUserDataFromSupabase = useCallback(async (forceReload = false) => {
     if (!user) return;
     
-    // Prevent duplicate loads
-    if (userDataLoadedRef.current === user.id || userDataLoading) {
-      logger.debug("User data already loaded or loading, skipping", { userId: user.id });
+    // Create a unique key that includes both user ID and active profile ID
+    // This ensures we reload when switching between profiles
+    const dataKey = `${user.id}-${activeProfile?.id || 'none'}`;
+    
+    // Prevent duplicate loads unless forced
+    if (!forceReload && (userDataLoadedRef.current === dataKey || userDataLoading)) {
+      logger.debug("User data already loaded or loading, skipping", { 
+        userId: user.id,
+        activeProfileId: activeProfile?.id,
+        currentKey: userDataLoadedRef.current,
+        requestedKey: dataKey
+      });
       return;
     }
 
@@ -841,9 +850,11 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         }
       }
       
-      userDataLoadedRef.current = user.id;
+      userDataLoadedRef.current = dataKey;
       logger.info("User data loaded from Supabase and cached", { 
         userId: user.id,
+        activeProfileId: activeProfileId,
+        dataKey,
         hasXP: !!data.xpData,
         hasStreak: !!data.streakData,
         problemsCount: data.problems.length,
@@ -878,8 +889,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
           logger.info("Active profile updated in database", { profileId });
           // Reload data for the new profile
           if (user) {
-            userDataLoadedRef.current = null; // Reset to allow reload
-            await loadUserDataFromSupabase();
+            await loadUserDataFromSupabase(true); // Force reload for new profile
           }
         })
         .catch((error) => {

@@ -150,14 +150,14 @@ function HomeContentInternal() {
 
   // Effect to reload data when activeProfile changes (for parent/teacher profile switching)
   useEffect(() => {
-    if (user && activeProfile && (userRole === "parent" || userRole === "teacher")) {
+    if (user && (userRole === "parent" || userRole === "teacher")) {
       logger.info("Active profile changed, reloading data", { 
         userId: user.id, 
-        activeProfileId: activeProfile.id,
+        activeProfileId: activeProfile?.id || null,
         userRole 
       });
-      // Reload user data from Supabase for the new active profile
-      loadUserDataFromSupabase().catch((error) => {
+      // Force reload user data from Supabase for the new active profile
+      loadUserDataFromSupabase(true).catch((error) => {
         logger.error("Error reloading data after profile switch", { error });
       });
     }
