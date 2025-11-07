@@ -280,7 +280,7 @@ export default function ReferralDashboard() {
                   >
                     {referral.status}
                   </span>
-                  {referral.referrer_reward_amount > 0 && (
+                  {(referral.referrer_reward_amount ?? 0) > 0 && (
                     <span className="text-xs font-medium text-gray-900 dark:text-white">
                       +{referral.referrer_reward_amount}
                     </span>
