@@ -129,24 +129,35 @@ export async function getShareByCode(shareCode: string): Promise<ShareData | nul
       return null;
     }
     
+    // Read response body once - can only be read once
+    let responseText: string;
+    try {
+      responseText = await response.text();
+    } catch (readError) {
+      logger.error("Error reading response body", { 
+        error: readError instanceof Error ? readError.message : String(readError),
+        shareCode,
+        status: response.status 
+      });
+      return null;
+    }
+    
     if (!response.ok) {
       if (response.status === 404) {
         logger.debug("Share not found", { shareCode, status: response.status });
         return null; // Not found
       }
-      let errorText = "Unknown error";
-      try {
-        errorText = await response.text();
-      } catch (e) {
-        // Ignore error reading error text
-      }
-      logger.error("Error fetching share by code", { shareCode, status: response.status, errorText });
+      logger.error("Error fetching share by code", { 
+        shareCode, 
+        status: response.status, 
+        errorText: responseText || "Unknown error" 
+      });
       return null;
     }
     
+    // Parse JSON from the response text we already read
     let result;
     try {
-      const responseText = await response.text();
       if (!responseText || responseText.trim() === '') {
         logger.error("Empty response from share API", { shareCode, status: response.status });
         return null;
@@ -157,7 +168,8 @@ export async function getShareByCode(shareCode: string): Promise<ShareData | nul
       logger.error("Error parsing JSON response", { 
         error: jsonErrorMessage,
         shareCode, 
-        responseStatus: response.status 
+        responseStatus: response.status,
+        responseText: responseText.substring(0, 200) // First 200 chars for debugging
       });
       return null;
     }
