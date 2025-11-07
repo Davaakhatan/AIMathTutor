@@ -169,16 +169,22 @@ export default function SharePage() {
         });
 
         // Get share data
-        const data = await getShareByCode(shareCode);
+        const shareResult = await getShareByCode(shareCode);
+        console.log("[SharePage] getShareByCode result:", shareResult);
 
-        if (!data) {
+        if (!shareResult) {
           setError("Share not found or expired");
           setLoading(false);
           return;
         }
 
-        setShareData(data);
+        // getShareByCode returns the share object directly, not wrapped
+        const data = shareResult;
         console.log("[SharePage] Share data loaded:", data);
+        console.log("[SharePage] Share data keys:", Object.keys(data));
+        console.log("[SharePage] user_id:", data.user_id, "student_profile_id:", data.student_profile_id);
+        
+        setShareData(data);
 
         // Fetch sharer's name and challenge in parallel
         // IMPORTANT: Wait for both before setting loading to false
