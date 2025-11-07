@@ -126,12 +126,14 @@ export default function SettingsMenu({ onXPDataChange }: SettingsMenuProps) {
         top: topOffset, 
         right: rightOffset, 
         zIndex: 60,
-        maxWidth: 'calc(100vw - 2rem - env(safe-area-inset-left, 0px) - env(safe-area-inset-right, 0px))'
+        maxWidth: 'calc(100vw - 2rem - env(safe-area-inset-left, 0px) - env(safe-area-inset-right, 0px))',
+        height: 'calc(85vh - max(1rem, env(safe-area-inset-top, 1rem)) - 4rem - 10.5rem)',
+        maxHeight: '85vh'
       }}
-      className="bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-700 rounded-lg shadow-xl w-96 max-w-[calc(100vw-2rem)] max-h-[85vh] flex flex-col transition-all duration-200"
+      className="bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-700 rounded-lg shadow-xl w-96 max-w-[calc(100vw-2rem)] flex flex-col transition-all duration-200"
     >
       {/* Header with Tabs */}
-      <div className="flex items-center justify-between p-4 border-b border-gray-200 dark:border-gray-700">
+      <div className="flex items-center justify-between p-4 border-b border-gray-200 dark:border-gray-700 flex-shrink-0">
         <div className="flex gap-1 bg-gray-100 dark:bg-gray-800 rounded-lg p-1 flex-1">
           <button
             onClick={() => setActiveTab("settings")}
@@ -204,13 +206,13 @@ export default function SettingsMenu({ onXPDataChange }: SettingsMenuProps) {
       </div>
 
       {/* Tab Content */}
-      <div className="flex-1 overflow-y-auto min-h-0">
+      <div className="flex-1 overflow-y-auto min-h-0" style={{ WebkitOverflowScrolling: 'touch' }}>
         {activeTab === "settings" && <SettingsContent />}
         {activeTab === "notifications" && <NotificationsContent />}
         {activeTab === "xp" && <XPContent onXPDataChange={onXPDataChange} />}
         {activeTab === "reminders" && <RemindersContent />}
         {activeTab === "profiles" && user && (
-          <div className="p-4 pb-12">
+          <div className="p-4" style={{ paddingBottom: '4rem' }}>
             <ProfileManager />
           </div>
         )}
