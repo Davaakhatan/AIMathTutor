@@ -39,20 +39,18 @@ export default function DeepLinkPage() {
   const [difficultyMode, setDifficultyMode] = useState<"elementary" | "middle" | "high" | "advanced">("middle");
   const shareCode = params.code as string;
   
-  // Get challenge from URL query params (passed from share page)
-  const [challengeFromUrl, setChallengeFromUrl] = useState<string | null>(null);
-  
-  useEffect(() => {
-    // Check for challenge in URL query params
-    if (typeof window !== "undefined") {
-      const urlParams = new URLSearchParams(window.location.search);
-      const challengeParam = urlParams.get("challenge");
-      if (challengeParam) {
-        setChallengeFromUrl(decodeURIComponent(challengeParam));
-        logger.info("Challenge found in URL params", { challenge: challengeParam });
-      }
+  // Helper function to get challenge from URL params (synchronous)
+  const getChallengeFromUrl = (): string | null => {
+    if (typeof window === "undefined") return null;
+    const urlParams = new URLSearchParams(window.location.search);
+    const challengeParam = urlParams.get("challenge");
+    if (challengeParam) {
+      const decoded = decodeURIComponent(challengeParam);
+      logger.info("Challenge found in URL params", { challenge: decoded });
+      return decoded;
     }
-  }, []);
+    return null;
+  };
 
   // Get challenge problem from share data
   const getChallengeProblem = async (data: any): Promise<string> => {
@@ -159,6 +157,8 @@ export default function DeepLinkPage() {
 
         // Get challenge problem text
         // Priority: 1. URL query param (from share page), 2. Share metadata, 3. Generate new
+        // Read URL params directly here to avoid race condition
+        const challengeFromUrl = getChallengeFromUrl();
         let challengeText: string;
         
         if (challengeFromUrl) {
@@ -204,7 +204,7 @@ export default function DeepLinkPage() {
     };
 
     handleDeepLink();
-  }, [shareCode, challengeFromUrl]);
+  }, [shareCode]);
 
   // Initialize chat session with challenge problem
   useEffect(() => {
