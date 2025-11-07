@@ -25,13 +25,13 @@ export default function StudentAccessView() {
   const { showToast } = useToast();
 
   useEffect(() => {
-    if (activeProfile) {
+    if (activeProfile && user) {
       loadLinkedParents();
     } else {
       setLinkedParents([]);
       setIsLoading(false);
     }
-  }, [activeProfile]);
+  }, [activeProfile, user]);
 
   const loadLinkedParents = async () => {
     if (!activeProfile || !user) {
