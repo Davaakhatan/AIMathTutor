@@ -6,7 +6,7 @@ import { useToast } from "@/hooks/useToast";
 import ProfileSwitcher from "./ProfileSwitcher";
 
 export default function UserMenu() {
-  const { user, signOut, profiles } = useAuth();
+  const { user, signOut, profiles, userRole } = useAuth();
   const [isOpen, setIsOpen] = useState(false);
   const menuRef = useRef<HTMLDivElement>(null);
   const { showToast } = useToast();
@@ -69,7 +69,14 @@ export default function UserMenu() {
       {isOpen && (
         <div className="absolute right-0 mt-2 w-56 bg-white dark:bg-gray-900 rounded-lg shadow-xl border border-gray-200 dark:border-gray-700 py-2 z-50">
           <div className="px-4 py-2.5 border-b border-gray-200 dark:border-gray-700">
-            <p className="text-sm font-medium text-gray-900 dark:text-gray-100">{displayName}</p>
+            <div className="flex items-center justify-between gap-2">
+              <p className="text-sm font-medium text-gray-900 dark:text-gray-100">{displayName}</p>
+              {userRole && (
+                <span className="px-2 py-0.5 text-xs font-medium rounded bg-gray-100 dark:bg-gray-800 text-gray-700 dark:text-gray-300 capitalize">
+                  {userRole}
+                </span>
+              )}
+            </div>
             <p className="text-xs text-gray-500 dark:text-gray-400 truncate mt-0.5">{email}</p>
           </div>
 

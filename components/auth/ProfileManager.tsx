@@ -16,6 +16,7 @@ import LinkStudentForm from "./LinkStudentForm";
 import LinkedStudentsList from "./LinkedStudentsList";
 import ConnectViaLinkForm from "./ConnectViaLinkForm";
 import StudentConnectionLink from "./StudentConnectionLink";
+import StudentAccessView from "./StudentAccessView";
 
 export default function ProfileManager() {
   const { profiles, profilesLoading, refreshProfiles, setActiveProfile, activeProfile, loadUserDataFromSupabase, userRole, user } = useAuth();
@@ -202,9 +203,26 @@ export default function ProfileManager() {
 
   // For students: Show their own profile management
   return (
-    <div className="space-y-3">
+    <div className="space-y-4">
       {/* Show connection link for students */}
-      {activeProfile && <StudentConnectionLink />}
+      {activeProfile && (
+        <>
+          <StudentConnectionLink />
+          
+          <div className="relative">
+            <div className="absolute inset-0 flex items-center">
+              <div className="w-full border-t border-gray-200 dark:border-gray-700"></div>
+            </div>
+            <div className="relative flex justify-center text-xs">
+              <span className="px-2 bg-white dark:bg-gray-900 text-gray-500 dark:text-gray-400">
+                Profile Access
+              </span>
+            </div>
+          </div>
+
+          <StudentAccessView />
+        </>
+      )}
 
       {profiles.length === 0 && !isCreating ? (
         <div className="text-center py-8">
