@@ -165,6 +165,7 @@ export default function SharePage() {
         console.log("[SharePage] Share data loaded:", data);
 
         // Fetch sharer's name and challenge in parallel
+        // IMPORTANT: Wait for both before setting loading to false
         const [name, challengeText] = await Promise.allSettled([
           fetchSharerName(data).catch(() => null),
           generateRelatedChallenge(data).catch(() => getDefaultChallenge(data)),
@@ -176,9 +177,11 @@ export default function SharePage() {
         console.log("[SharePage] Sharer name:", finalName);
         console.log("[SharePage] Challenge:", finalChallenge);
 
+        // Set both state values before hiding loading
         setSharerName(finalName);
         setChallenge(finalChallenge);
-
+        
+        // Only set loading to false after ALL data is loaded
         setLoading(false);
       } catch (err) {
         // Safely extract error info to avoid TypeError
