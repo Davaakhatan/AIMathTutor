@@ -156,8 +156,16 @@ export async function POST(request: NextRequest) {
     }
 
     // Get active profile ID
-    const activeProfileId = profile.current_student_profile_id || 
-      (studentProfiles.length > 0 ? studentProfiles[0].id : null);
+    // For students: default to their first profile if none selected
+    // For parents/teachers: default to null (Personal view) - they must explicitly select a student
+    let activeProfileId: string | null = null;
+    if (profile.role === "student") {
+      activeProfileId = profile.current_student_profile_id || 
+        (studentProfiles.length > 0 ? studentProfiles[0].id : null);
+    } else {
+      // Parents/teachers: use current_student_profile_id if set, otherwise null (Personal view)
+      activeProfileId = profile.current_student_profile_id || null;
+    }
 
     console.log("[API] Returning profiles:", {
       count: studentProfiles.length,

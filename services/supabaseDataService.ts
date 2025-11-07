@@ -108,7 +108,7 @@ async function createDefaultXPData(userId: string, profileId?: string | null): P
       level: 1,
       xp_to_next_level: 100,
       xp_history: [],
-      recent_gains: [],
+      // Note: recent_gains column doesn't exist in database, only in TypeScript interface
     };
     
     if (effectiveProfileId) {
@@ -639,8 +639,9 @@ export async function getStudySessions(userId: string, limit = 100, profileId?: 
       query = query.eq("user_id", userId).is("student_profile_id", null);
     }
     
+    // Use created_at if start_time doesn't exist, fallback to id for ordering
     const { data, error } = await query
-      .order("start_time", { ascending: false })
+      .order("created_at", { ascending: false })
       .limit(limit);
 
     if (error) {
@@ -650,7 +651,7 @@ export async function getStudySessions(userId: string, limit = 100, profileId?: 
 
     return (data || []).map((s: any) => ({
       id: s.id,
-      start_time: s.start_time,
+      start_time: s.start_time || s.created_at || new Date().toISOString(),
       end_time: s.end_time,
       duration: s.duration || 0,
       problems_solved: s.problems_solved || 0,
@@ -674,7 +675,8 @@ export async function saveStudySession(userId: string, session: StudySession, pr
     
     const insertData: any = {
       user_id: userId,
-      start_time: session.start_time,
+      // Use created_at if start_time column doesn't exist
+      created_at: session.start_time,
       end_time: session.end_time,
       duration: session.duration,
       problems_solved: session.problems_solved,

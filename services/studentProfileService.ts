@@ -763,22 +763,21 @@ export async function setActiveStudentProfile(profileId: string | null): Promise
       throw new Error("User not authenticated");
     }
 
-    // If profileId is provided, verify it belongs to the user
-    if (profileId) {
-      const profile = await getStudentProfile(profileId);
-      if (!profile) {
-        throw new Error("Student profile not found or access denied");
-      }
-    }
+    // Use API route to bypass RLS issues
+    const response = await fetch("/api/set-active-profile", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({
+        profileId,
+        userId: user.id,
+      }),
+    });
 
-    const { error } = await supabase
-      .from("profiles")
-      .update({ current_student_profile_id: profileId })
-      .eq("id", user.id);
-
-    if (error) {
-      logger.error("Error setting active student profile", { error: error.message, profileId });
-      throw error;
+    if (!response.ok) {
+      const errorData = await response.json().catch(() => ({ error: "Unknown error" }));
+      throw new Error(errorData.error || `HTTP ${response.status}`);
     }
 
     logger.info("Active student profile updated", { profileId, userId: user.id });
