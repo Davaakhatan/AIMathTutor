@@ -681,40 +681,39 @@ async function handleStreamingResponse(
               reasons: completionResult.reasons.slice(0, 2),
             });
 
-              if (isCompleted) {
-                console.log("🎉 [STREAMING] PROBLEM COMPLETED! Emitting event...", {
-                  userId,
-                  profileId: profileId || null,
-                  sessionId,
-                  problemType: session.problem.type,
-                });
-                
-                // Emit problem_completed event
-                eventBus.emit({
-                  type: "problem_completed",
-                  userId,
-                  profileId: profileId || undefined,
-                  data: {
-                    problem: {
-                      text: session.problem.text,
-                      type: session.problem.type,
-                      difficulty: difficultyMode,
-                    },
-                    sessionId: sessionId,
-                    timeSpent: Date.now() - session.createdAt,
-                    hintsUsed: session.messages.filter(m => m.role === "tutor" && m.content.toLowerCase().includes("hint")).length,
-                    attempts: session.messages.filter(m => m.role === "user").length,
+            if (isCompleted) {
+              console.log("🎉 [STREAMING] PROBLEM COMPLETED! Emitting event...", {
+                userId,
+                profileId: profileId || null,
+                sessionId,
+                problemType: session.problem.type,
+              });
+              
+              // Emit problem_completed event
+              eventBus.emit({
+                type: "problem_completed",
+                userId,
+                profileId: profileId || undefined,
+                data: {
+                  problem: {
+                    text: session.problem.text,
+                    type: session.problem.type,
+                    difficulty: difficultyMode,
                   },
-                  timestamp: new Date(),
-                }).then(() => {
-                  console.log("✅ [STREAMING] problem_completed event emitted successfully");
-                }).catch((error) => {
-                  console.error("❌ [STREAMING] Failed to emit problem_completed event:", error);
-                  logger.error("Error emitting problem_completed event from streaming", { error });
-                });
-              } else {
-                console.log("⏳ [STREAMING] Problem not completed yet (no completion phrases found)");
-              }
+                  sessionId: sessionId,
+                  timeSpent: Date.now() - session.createdAt,
+                  hintsUsed: session.messages.filter(m => m.role === "tutor" && m.content.toLowerCase().includes("hint")).length,
+                  attempts: session.messages.filter(m => m.role === "user").length,
+                },
+                timestamp: new Date(),
+              }).then(() => {
+                console.log("✅ [STREAMING] problem_completed event emitted successfully");
+              }).catch((error) => {
+                console.error("❌ [STREAMING] Failed to emit problem_completed event:", error);
+                logger.error("Error emitting problem_completed event from streaming", { error });
+              });
+            } else {
+              console.log("⏳ [STREAMING] Problem not completed yet (no completion phrases found)");
             }
           }
           
