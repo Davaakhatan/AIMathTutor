@@ -50,28 +50,20 @@ export default function ProfileSwitcher() {
     <div className="relative" ref={dropdownRef}>
       <button
         onClick={() => setIsOpen(!isOpen)}
-        className="flex items-center gap-2 px-3 py-2 text-sm font-medium text-gray-700 dark:text-gray-300 bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-600 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors"
+        className="w-full flex items-center justify-between px-3 py-2 text-sm font-medium text-gray-900 dark:text-gray-100 bg-gray-100 dark:bg-gray-800 rounded-lg hover:bg-gray-200 dark:hover:bg-gray-700 transition-colors"
         aria-label="Switch student profile"
         aria-expanded={isOpen}
       >
+        <div className="flex items-center gap-2 min-w-0">
+          <div className="w-5 h-5 rounded-full bg-gray-900 dark:bg-gray-700 flex items-center justify-center text-white text-xs font-medium flex-shrink-0">
+            {activeProfile ? activeProfile.name.charAt(0).toUpperCase() : "P"}
+          </div>
+          <span className="truncate">
+            {activeProfile ? activeProfile.name : "Personal"}
+          </span>
+        </div>
         <svg
-          className="w-4 h-4"
-          fill="none"
-          stroke="currentColor"
-          viewBox="0 0 24 24"
-        >
-          <path
-            strokeLinecap="round"
-            strokeLinejoin="round"
-            strokeWidth={2}
-            d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z"
-          />
-        </svg>
-        <span className="max-w-[120px] truncate">
-          {activeProfile ? activeProfile.name : "Personal"}
-        </span>
-        <svg
-          className={`w-4 h-4 transition-transform ${isOpen ? "rotate-180" : ""}`}
+          className={`w-3.5 h-3.5 text-gray-500 dark:text-gray-400 transition-transform flex-shrink-0 ${isOpen ? "rotate-180" : ""}`}
           fill="none"
           stroke="currentColor"
           viewBox="0 0 24 24"
@@ -86,29 +78,28 @@ export default function ProfileSwitcher() {
       </button>
 
       {isOpen && (
-        <div className="absolute top-full left-0 mt-2 w-56 bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-600 rounded-lg shadow-lg z-50 max-h-64 overflow-y-auto">
-          <div className="p-2">
+        <div className="absolute top-full left-0 mt-1.5 w-full bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-700 rounded-lg shadow-xl z-50 max-h-64 overflow-y-auto">
+          <div className="p-1.5">
             {/* Personal profile option */}
             <button
               onClick={() => handleProfileSelect(null)}
               className={`w-full text-left px-3 py-2 rounded-md text-sm transition-colors ${
                 !activeProfile
-                  ? "bg-indigo-50 dark:bg-indigo-900/20 text-indigo-700 dark:text-indigo-300"
-                  : "text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700"
+                  ? "bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100 shadow-sm"
+                  : "text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-800"
               }`}
             >
-              <div className="flex items-center gap-2">
-                <div className="w-2 h-2 rounded-full bg-gray-400"></div>
+              <div className="flex items-center gap-2.5">
+                <div className="w-5 h-5 rounded-full bg-gray-900 dark:bg-gray-700 flex items-center justify-center text-white text-xs font-medium">
+                  P
+                </div>
                 <span className="font-medium">Personal</span>
-                {!activeProfile && (
-                  <span className="ml-auto text-xs">Active</span>
-                )}
               </div>
             </button>
 
             {/* Divider */}
             {profiles.length > 0 && (
-              <div className="my-2 border-t border-gray-200 dark:border-gray-700"></div>
+              <div className="my-1.5 border-t border-gray-200 dark:border-gray-700"></div>
             )}
 
             {/* Student profiles */}
@@ -118,19 +109,19 @@ export default function ProfileSwitcher() {
                 onClick={() => handleProfileSelect(profile.id)}
                 className={`w-full text-left px-3 py-2 rounded-md text-sm transition-colors ${
                   activeProfile?.id === profile.id
-                    ? "bg-indigo-50 dark:bg-indigo-900/20 text-indigo-700 dark:text-indigo-300"
-                    : "text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700"
+                    ? "bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100 shadow-sm"
+                    : "text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-800"
                 }`}
               >
-                <div className="flex items-center gap-2">
+                <div className="flex items-center gap-2.5">
                   {profile.avatar_url ? (
                     <img
                       src={profile.avatar_url}
                       alt={profile.name}
-                      className="w-6 h-6 rounded-full"
+                      className="w-5 h-5 rounded-full object-cover"
                     />
                   ) : (
-                    <div className="w-6 h-6 rounded-full bg-indigo-100 dark:bg-indigo-900/30 flex items-center justify-center text-xs font-medium text-indigo-700 dark:text-indigo-300">
+                    <div className="w-5 h-5 rounded-full bg-gray-900 dark:bg-gray-700 flex items-center justify-center text-white text-xs font-medium">
                       {profile.name.charAt(0).toUpperCase()}
                     </div>
                   )}
@@ -142,9 +133,6 @@ export default function ProfileSwitcher() {
                       </div>
                     )}
                   </div>
-                  {activeProfile?.id === profile.id && (
-                    <span className="ml-auto text-xs">Active</span>
-                  )}
                 </div>
               </button>
             ))}

@@ -47,17 +47,17 @@ export default function UserMenu() {
     <div className="relative" ref={menuRef}>
       <button
         onClick={() => setIsOpen(!isOpen)}
-        className="flex items-center gap-2 px-3 py-2 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors"
+        className="flex items-center gap-2 px-2 py-1.5 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors"
         aria-label="User menu"
       >
-        <div className="w-8 h-8 rounded-full bg-indigo-600 flex items-center justify-center text-white font-medium text-sm">
+        <div className="w-7 h-7 rounded-full bg-gray-900 dark:bg-gray-700 flex items-center justify-center text-white font-medium text-xs">
           {displayName.charAt(0).toUpperCase()}
         </div>
-        <span className="hidden sm:block text-sm font-medium text-gray-700 dark:text-gray-300">
+        <span className="hidden sm:block text-sm font-medium text-gray-900 dark:text-gray-100">
           {displayName}
         </span>
         <svg
-          className={`w-4 h-4 text-gray-500 dark:text-gray-400 transition-transform ${isOpen ? "rotate-180" : ""}`}
+          className={`w-3.5 h-3.5 text-gray-500 dark:text-gray-400 transition-transform ${isOpen ? "rotate-180" : ""}`}
           fill="none"
           stroke="currentColor"
           viewBox="0 0 24 24"
@@ -67,26 +67,23 @@ export default function UserMenu() {
       </button>
 
       {isOpen && (
-        <div className="absolute right-0 mt-2 w-56 bg-white dark:bg-gray-900 rounded-lg shadow-lg border border-gray-200 dark:border-gray-700 py-2 z-50 animate-in fade-in slide-in-from-top-2 duration-200">
-          <div className="px-4 py-3 border-b border-gray-200 dark:border-gray-700">
-            <p className="text-sm font-medium text-gray-900 dark:text-white">{displayName}</p>
-            <p className="text-xs text-gray-500 dark:text-gray-400 truncate">{email}</p>
+        <div className="absolute right-0 mt-2 w-56 bg-white dark:bg-gray-900 rounded-lg shadow-xl border border-gray-200 dark:border-gray-700 py-2 z-50">
+          <div className="px-4 py-2.5 border-b border-gray-200 dark:border-gray-700">
+            <p className="text-sm font-medium text-gray-900 dark:text-gray-100">{displayName}</p>
+            <p className="text-xs text-gray-500 dark:text-gray-400 truncate mt-0.5">{email}</p>
           </div>
 
           {/* Profile Switcher - only show if user has profiles */}
           {profiles.length > 0 && (
-            <div className="px-4 py-3 border-b border-gray-200 dark:border-gray-700">
-              <p className="text-xs font-medium text-gray-500 dark:text-gray-400 mb-2 uppercase tracking-wide">
-                Student Profiles
-              </p>
+            <div className="px-4 py-2.5 border-b border-gray-200 dark:border-gray-700">
               <ProfileSwitcher />
             </div>
           )}
 
-          <div className="py-2">
+          <div className="py-1">
             <button
               onClick={handleSignOut}
-              className="w-full text-left px-4 py-2 text-sm text-red-600 dark:text-red-400 hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors"
+              className="w-full text-left px-4 py-2 text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors"
             >
               Sign Out
             </button>

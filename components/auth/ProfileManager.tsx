@@ -165,15 +165,15 @@ export default function ProfileManager() {
   }
 
   return (
-    <div className="space-y-4">
+    <div className="space-y-3">
       {profiles.length === 0 && !isCreating ? (
         <div className="text-center py-8">
-          <p className="text-gray-600 dark:text-gray-400 mb-4">
+          <p className="text-sm text-gray-500 dark:text-gray-400 mb-4">
             No student profiles yet. Create one to get started!
           </p>
           <button
             onClick={handleCreate}
-            className="px-4 py-2 bg-gray-900 dark:bg-gray-700 text-white rounded-lg hover:bg-gray-800 dark:hover:bg-gray-600"
+            className="px-4 py-2 text-sm font-medium bg-gray-900 dark:bg-gray-700 text-white rounded-lg hover:bg-gray-800 dark:hover:bg-gray-600 transition-colors"
           >
             Create First Profile
           </button>
@@ -181,14 +181,14 @@ export default function ProfileManager() {
       ) : (
         <>
           {!isCreating && !editingProfile && (
-            <div className="flex justify-between items-center mb-4">
-              <h3 className="text-lg font-semibold text-gray-900 dark:text-gray-100">
+            <div className="flex justify-between items-center mb-2">
+              <h3 className="text-sm font-medium text-gray-900 dark:text-gray-100">
                 {userRole === "student" ? "My Profile" : "Student Profiles"}
               </h3>
               {userRole !== "student" && (
                 <button
                   onClick={handleCreate}
-                  className="px-3 py-1.5 text-sm bg-gray-900 dark:bg-gray-700 text-white rounded-lg hover:bg-gray-800 dark:hover:bg-gray-600"
+                  className="px-3 py-1.5 text-xs font-medium bg-gray-900 dark:bg-gray-700 text-white rounded-lg hover:bg-gray-800 dark:hover:bg-gray-600 transition-colors"
                 >
                   Add Profile
                 </button>
@@ -197,13 +197,13 @@ export default function ProfileManager() {
           )}
 
           {(isCreating || editingProfile) && (
-            <form onSubmit={handleSubmit} className="space-y-4 p-4 border border-gray-200 dark:border-gray-700 rounded-lg">
-              <h3 className="font-semibold text-gray-900 dark:text-gray-100">
+            <form onSubmit={handleSubmit} className="space-y-3 p-4 bg-gray-50 dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg">
+              <h3 className="text-sm font-medium text-gray-900 dark:text-gray-100 mb-3">
                 {editingProfile ? "Edit Profile" : "Create Profile"}
               </h3>
               
               <div>
-                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                <label className="block text-xs font-medium text-gray-700 dark:text-gray-300 mb-1.5">
                   Name
                 </label>
                 <input
@@ -211,19 +211,19 @@ export default function ProfileManager() {
                   value={formData.name}
                   onChange={(e) => setFormData({ ...formData, name: e.target.value })}
                   required
-                  className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100"
+                  className="w-full px-3 py-2 text-sm border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100 focus:outline-none focus:ring-1 focus:ring-gray-900 dark:focus:ring-gray-500"
                   placeholder="Profile name"
                 />
               </div>
 
               <div>
-                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                <label className="block text-xs font-medium text-gray-700 dark:text-gray-300 mb-1.5">
                   Grade Level
                 </label>
                 <select
                   value={formData.grade_level}
                   onChange={(e) => setFormData({ ...formData, grade_level: e.target.value as any })}
-                  className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100"
+                  className="w-full px-3 py-2 text-sm border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100 focus:outline-none focus:ring-1 focus:ring-gray-900 dark:focus:ring-gray-500"
                 >
                   <option value="elementary">Elementary</option>
                   <option value="middle">Middle</option>
@@ -233,13 +233,13 @@ export default function ProfileManager() {
               </div>
 
               <div>
-                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                <label className="block text-xs font-medium text-gray-700 dark:text-gray-300 mb-1.5">
                   Difficulty Preference
                 </label>
                 <select
                   value={formData.difficulty_preference}
                   onChange={(e) => setFormData({ ...formData, difficulty_preference: e.target.value as any })}
-                  className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100"
+                  className="w-full px-3 py-2 text-sm border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100 focus:outline-none focus:ring-1 focus:ring-gray-900 dark:focus:ring-gray-500"
                 >
                   <option value="elementary">Elementary</option>
                   <option value="middle">Middle</option>
@@ -248,18 +248,18 @@ export default function ProfileManager() {
                 </select>
               </div>
 
-              <div className="flex gap-2">
+              <div className="flex gap-2 pt-2">
                 <button
                   type="submit"
                   disabled={isSubmitting}
-                  className="flex-1 px-4 py-2 bg-gray-900 dark:bg-gray-700 text-white rounded-lg hover:bg-gray-800 dark:hover:bg-gray-600 disabled:opacity-50"
+                  className="flex-1 px-4 py-2 text-sm font-medium bg-gray-900 dark:bg-gray-700 text-white rounded-lg hover:bg-gray-800 dark:hover:bg-gray-600 disabled:opacity-50 transition-colors"
                 >
                   {isSubmitting ? "Saving..." : editingProfile ? "Update" : "Create"}
                 </button>
                 <button
                   type="button"
                   onClick={resetForm}
-                  className="px-4 py-2 border border-gray-300 dark:border-gray-600 text-gray-700 dark:text-gray-300 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700"
+                  className="px-4 py-2 text-sm font-medium border border-gray-300 dark:border-gray-600 text-gray-700 dark:text-gray-300 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors"
                 >
                   Cancel
                 </button>
@@ -272,31 +272,41 @@ export default function ProfileManager() {
               {profiles.map((profile) => (
                 <div
                   key={profile.id}
-                  className="p-4 border border-gray-200 dark:border-gray-700 rounded-lg flex justify-between items-center"
+                  className={`p-3 border rounded-lg transition-colors ${
+                    activeProfile?.id === profile.id
+                      ? "bg-gray-50 dark:bg-gray-800 border-gray-300 dark:border-gray-600"
+                      : "bg-white dark:bg-gray-800 border-gray-200 dark:border-gray-700"
+                  }`}
                 >
-                  <div>
-                    <p className="font-medium text-gray-900 dark:text-gray-100">{profile.name}</p>
-                    <p className="text-sm text-gray-500 dark:text-gray-400">
-                      {profile.grade_level} • {profile.difficulty_preference}
-                    </p>
-                    {activeProfile?.id === profile.id && (
-                      <span className="text-xs text-blue-600 dark:text-blue-400">Active</span>
-                    )}
-                  </div>
-                  <div className="flex gap-2">
-                    <button
-                      onClick={() => handleEdit(profile)}
-                      className="px-3 py-1 text-sm border border-gray-300 dark:border-gray-600 text-gray-700 dark:text-gray-300 rounded hover:bg-gray-100 dark:hover:bg-gray-700"
-                    >
-                      Edit
-                    </button>
-                    <button
-                      onClick={() => handleDelete(profile.id)}
-                      disabled={isSubmitting}
-                      className="px-3 py-1 text-sm bg-red-600 text-white rounded hover:bg-red-700 disabled:opacity-50"
-                    >
-                      Delete
-                    </button>
+                  <div className="flex items-start justify-between gap-3">
+                    <div className="flex-1 min-w-0">
+                      <div className="flex items-center gap-2 mb-1">
+                        <div className="w-6 h-6 rounded-full bg-gray-900 dark:bg-gray-700 flex items-center justify-center text-white text-xs font-medium flex-shrink-0">
+                          {profile.name.charAt(0).toUpperCase()}
+                        </div>
+                        <p className="text-sm font-medium text-gray-900 dark:text-gray-100 truncate">
+                          {profile.name}
+                        </p>
+                      </div>
+                      <p className="text-xs ml-8 text-gray-500 dark:text-gray-400">
+                        {profile.grade_level} • {profile.difficulty_preference}
+                      </p>
+                    </div>
+                    <div className="flex gap-1.5 flex-shrink-0">
+                      <button
+                        onClick={() => handleEdit(profile)}
+                        className="px-2.5 py-1 text-xs font-medium rounded bg-gray-100 dark:bg-gray-700 hover:bg-gray-200 dark:hover:bg-gray-600 text-gray-700 dark:text-gray-300 border border-gray-300 dark:border-gray-600 transition-colors"
+                      >
+                        Edit
+                      </button>
+                      <button
+                        onClick={() => handleDelete(profile.id)}
+                        disabled={isSubmitting}
+                        className="px-2.5 py-1 text-xs font-medium rounded bg-gray-100 dark:bg-gray-700 hover:bg-gray-200 dark:hover:bg-gray-600 text-gray-700 dark:text-gray-300 border border-gray-300 dark:border-gray-600 transition-colors disabled:opacity-50"
+                      >
+                        Delete
+                      </button>
+                    </div>
                   </div>
                 </div>
               ))}
