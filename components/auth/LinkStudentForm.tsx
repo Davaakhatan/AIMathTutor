@@ -43,34 +43,52 @@ export default function LinkStudentForm({ onSuccess }: { onSuccess?: () => void 
       
       if (!user) {
         showToast("Please sign in to search for students", "error");
+        setIsSearching(false);
         return;
       }
 
-      const response = await fetch("/api/search-students", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({ 
-          searchQuery: searchQuery.trim(),
-          userId: user.id,
-        }),
-      });
+      // Add timeout to prevent hanging
+      const controller = new AbortController();
+      const timeoutId = setTimeout(() => controller.abort(), 15000); // 15 second timeout
 
-      const data = await response.json();
+      try {
+        const response = await fetch("/api/search-students", {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({ 
+            searchQuery: searchQuery.trim(),
+            userId: user.id,
+          }),
+          signal: controller.signal,
+        });
 
-      if (!response.ok) {
-        throw new Error(data.error || "Failed to search for students");
-      }
+        clearTimeout(timeoutId);
 
-      setResults(data.results || []);
-      
-      if (data.results.length === 0) {
-        showToast("No students found. Try a different search.", "info");
+        if (!response.ok) {
+          const errorData = await response.json().catch(() => ({ error: "Unknown error" }));
+          throw new Error(errorData.error || `HTTP ${response.status}: ${response.statusText}`);
+        }
+
+        const data = await response.json();
+
+        setResults(data.results || []);
+        
+        if (data.results.length === 0) {
+          showToast("No students found. Try a different search.", "info");
+        }
+      } catch (fetchError: any) {
+        clearTimeout(timeoutId);
+        if (fetchError.name === "AbortError") {
+          throw new Error("Search timed out. Please try again.");
+        }
+        throw fetchError;
       }
     } catch (error) {
       logger.error("Error searching for students", { error });
-      showToast("Failed to search for students. Please try again.", "error");
+      const errorMessage = error instanceof Error ? error.message : "Failed to search for students. Please try again.";
+      showToast(errorMessage, "error");
     } finally {
       setIsSearching(false);
     }
