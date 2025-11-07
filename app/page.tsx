@@ -339,37 +339,36 @@ function HomeContentInternal() {
         const handleProblemSolved = () => {
           setProblemsSolvedToday((prev) => prev + 1);
           window.dispatchEvent(new CustomEvent("problemSolved"));
+          // Also dispatch event for ProblemProgress component
+          window.dispatchEvent(new CustomEvent("problem_completed"));
         };
 
-        // Check if problem is solved by looking at messages
-        const tutorMessages = allMessages.filter((m) => m.role === "tutor");
-        const isSolved = tutorMessages.some((msg) => {
-          const content = msg.content.toLowerCase();
-          const completionPhrases = [
-            "you've solved it",
-            "you solved it",
-            "solution is correct",
-            "answer is correct",
-            "congratulations",
-            "well done",
-            "well done on",
-            "excellent",
-            "perfect",
-            "correct!",
-            "that's right",
-            "that is correct",
-            "you got it",
-            "you got it right",
-            "great job",
-            "great work",
-            "you've found",
-            "you found",
-          ];
-          return completionPhrases.some((phrase) => content.includes(phrase));
-        });
-
-        if (isSolved && currentProblem) {
-          handleProblemSolved();
+        // Use the smart completion detector instead of hardcoded phrases
+        // This matches what ProblemProgress uses
+        if (allMessages.length > 0 && currentProblem) {
+          // Import the detector dynamically to avoid SSR issues
+          import("@/services/completionDetector").then(({ detectProblemCompletion }) => {
+            const result = detectProblemCompletion(allMessages, currentProblem);
+            if (result.isCompleted) {
+              handleProblemSolved();
+            }
+          }).catch(() => {
+            // Fallback to simple check if import fails
+            const tutorMessages = allMessages.filter((m) => m.role === "tutor");
+            const isSolved = tutorMessages.some((msg) => {
+              const content = msg.content.toLowerCase();
+              return (
+                content.includes("great job") ||
+                content.includes("well done") ||
+                content.includes("that's correct") ||
+                content.includes("that's right") ||
+                (content.includes("correct") && content.includes("answer"))
+              );
+            });
+            if (isSolved) {
+              handleProblemSolved();
+            }
+          });
         }
       }, [allMessages, currentProblem]);
 
