@@ -193,49 +193,54 @@ export async function getShareByCode(shareCode: string): Promise<ShareData | nul
     return result.share as ShareData;
   } catch (error) {
     // Safely extract error information - this is the catch-all
+    // Be extremely defensive to avoid any TypeError when accessing error properties
     let errorMessage = "Unknown error";
     let errorType = "Unknown";
-    let errorStack: string | undefined;
     
+    // Try to get error message - be very careful
     try {
-      if (error instanceof Error) {
-        errorMessage = error.message || "Error without message";
-        errorType = error.constructor?.name || "Error";
-        errorStack = error.stack;
+      if (error && typeof error === 'object') {
+        // Try to get message property
+        if ('message' in error && typeof (error as any).message === 'string') {
+          errorMessage = (error as any).message;
+        }
+        // Try to get error type - avoid accessing constructor directly
+        if ('name' in error && typeof (error as any).name === 'string') {
+          errorType = (error as any).name;
+        } else if (error instanceof Error) {
+          // Only use constructor if it's a real Error instance
+          try {
+            const constructorName = error.constructor?.name;
+            if (constructorName) {
+              errorType = constructorName;
+            }
+          } catch (e) {
+            // Ignore constructor access errors
+          }
+        }
       } else if (error !== null && error !== undefined) {
         errorMessage = String(error);
         errorType = typeof error;
       }
     } catch (serializationError) {
-      // If we can't even stringify the error, just use defaults
-      errorMessage = "Error object could not be serialized";
-      errorType = "SerializationError";
+      // If we can't even access error properties, just use defaults
+      errorMessage = "Error object could not be accessed";
+      errorType = "AccessError";
     }
     
-    // Log with all available information - use console.error directly to avoid logger serialization issues
+    // Log with console.error only - avoid logger completely
     try {
-      console.error("[getShareByCode] Full error details:", {
+      console.error("[getShareByCode] CATCH BLOCK - Error details:", {
         errorMessage,
         errorType,
         shareCode,
-        errorStack: errorStack ? errorStack.substring(0, 200) : undefined,
+        errorTypeof: typeof error,
+        errorIsError: error instanceof Error,
         errorString: String(error),
       });
     } catch (consoleError) {
       // Even console.error failed - just log basic info
       console.error("[getShareByCode] Error occurred for shareCode:", shareCode);
-    }
-    
-    // Use logger with safe string values only
-    try {
-      logger.error("Error in getShareByCode", { 
-        error: String(errorMessage),
-        errorType: String(errorType),
-        shareCode: String(shareCode)
-      });
-    } catch (loggerError) {
-      // Logger failed too - just use console
-      console.error("Error in getShareByCode for shareCode:", shareCode, "Error:", errorMessage);
     }
     
     return null;

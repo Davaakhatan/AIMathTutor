@@ -30,7 +30,7 @@ export default function SharePage() {
       try {
         // Track click (don't wait for it - non-blocking)
         trackShareClick(shareCode).catch((err) => {
-          logger.error("Error tracking share click", { error: err, shareCode });
+          console.error("[SharePage] Error tracking share click:", err, shareCode);
         });
 
         // Get share data
@@ -45,11 +45,18 @@ export default function SharePage() {
         setShareData(data);
         setLoading(false);
       } catch (err) {
-        logger.error("Error loading share", { 
-          error: err instanceof Error ? err.message : String(err),
-          errorType: err instanceof Error ? err.constructor.name : typeof err,
-          shareCode 
-        });
+        // Safely extract error info to avoid TypeError
+        let errorMsg = "Failed to load share";
+        try {
+          if (err instanceof Error) {
+            errorMsg = err.message || "Failed to load share";
+          } else if (err) {
+            errorMsg = String(err);
+          }
+        } catch (e) {
+          // Ignore serialization errors
+        }
+        console.error("[SharePage] Error loading share:", errorMsg, shareCode);
         setError("Failed to load share");
         setLoading(false);
       }

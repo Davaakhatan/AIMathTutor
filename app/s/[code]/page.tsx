@@ -35,7 +35,7 @@ export default function DeepLinkPage() {
       try {
         // Track click (don't wait - non-blocking)
         trackShareClick(shareCode).catch((err) => {
-          logger.error("Error tracking share click", { error: err, shareCode });
+          console.error("[DeepLinkPage] Error tracking share click:", err, shareCode);
         });
 
         // Get share data
@@ -72,7 +72,18 @@ export default function DeepLinkPage() {
           router.push(`/?share=${shareCode}&try=true`);
         }
       } catch (err) {
-        logger.error("Error handling deep link", { error: err, shareCode });
+        // Safely extract error info to avoid TypeError
+        let errorMsg = "Failed to process share link";
+        try {
+          if (err instanceof Error) {
+            errorMsg = err.message || "Failed to process share link";
+          } else if (err) {
+            errorMsg = String(err);
+          }
+        } catch (e) {
+          // Ignore serialization errors
+        }
+        console.error("[DeepLinkPage] Error handling deep link:", errorMsg, shareCode);
         setError("Failed to process share link");
         setLoading(false);
       }
