@@ -198,9 +198,12 @@ function checkAIConfirmation(
     }
 
     // Medium confirmations (20 points)
+    // "That's right!" or "That's correct!" are strong enough on their own
     if (
-      (content.includes("correct") || content.includes("right")) &&
-      (content.includes("answer") || content.includes("solution") || content.includes("found"))
+      (content.includes("that's right") || content.includes("that is right")) ||
+      (content.includes("that's correct") || content.includes("that is correct")) ||
+      ((content.includes("correct") || content.includes("right")) &&
+       (content.includes("answer") || content.includes("solution") || content.includes("found")))
     ) {
       points += 20;
       reasons.push("AI confirmed answer/solution is correct");

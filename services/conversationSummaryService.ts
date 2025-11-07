@@ -3,7 +3,7 @@
  * Handles AI-generated summaries of tutoring sessions for persistent memory
  */
 
-import { getSupabaseClient } from "@/lib/supabase";
+import { getSupabaseAdmin } from "@/lib/supabase-admin";
 import { getOpenAI } from "@/lib/openai";
 import { logger } from "@/lib/logger";
 import type { Message } from "@/types";
@@ -135,7 +135,11 @@ Provide a summary in the following JSON format:
       : [];
 
     // Store summary in database
-    const supabase = await getSupabaseClient();
+    const supabase = getSupabaseAdmin();
+    if (!supabase) {
+      logger.error("Supabase admin client not available for saving summary");
+      return null;
+    }
     const { data, error } = await supabase
       .from("conversation_summaries")
       .insert({
