@@ -33,17 +33,33 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // Decode link code to get student_profile_id
-    // Link code is just the student_profile_id (we can add encryption later if needed)
+    // Extract student_profile_id from link code
+    // Link code can be:
+    // 1. Full URL: /connect/{student_profile_id} or http://.../connect/{student_profile_id}
+    // 2. Just the profile ID
     let studentProfileId: string;
     
     try {
-      // Try to decode as base64 first (for future encrypted codes)
-      // For now, assume it's the direct profile ID
-      studentProfileId = linkCode;
+      // If it's a URL, extract the ID from the path
+      if (linkCode.includes("/connect/")) {
+        const match = linkCode.match(/\/connect\/([a-f0-9-]+)/i);
+        if (match && match[1]) {
+          studentProfileId = match[1];
+        } else {
+          throw new Error("Invalid link format");
+        }
+      } else {
+        // Assume it's just the profile ID
+        studentProfileId = linkCode.trim();
+      }
+
+      // Validate it looks like a UUID
+      if (!/^[a-f0-9-]{36}$/i.test(studentProfileId)) {
+        throw new Error("Invalid link code format");
+      }
     } catch (error) {
       return NextResponse.json(
-        { error: "Invalid link code format" },
+        { error: "Invalid link code format. Please check the code and try again." },
         { status: 400 }
       );
     }
