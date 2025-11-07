@@ -27,6 +27,9 @@ export default function StudentAccessView() {
   useEffect(() => {
     if (activeProfile) {
       loadLinkedParents();
+    } else {
+      setLinkedParents([]);
+      setIsLoading(false);
     }
   }, [activeProfile]);
 
@@ -52,13 +55,19 @@ export default function StudentAccessView() {
             let username = null;
 
             try {
+              const controller = new AbortController();
+              const timeoutId = setTimeout(() => controller.abort(), 5000); // 5 second timeout
+              
               const response = await fetch("/api/get-user-info", {
                 method: "POST",
                 headers: {
                   "Content-Type": "application/json",
                 },
                 body: JSON.stringify({ userId: rel.parent_id }),
+                signal: controller.signal,
               });
+
+              clearTimeout(timeoutId);
 
               if (response.ok) {
                 const data = await response.json();
@@ -66,9 +75,16 @@ export default function StudentAccessView() {
                   email = data.user.email || "";
                   username = data.user.username || null;
                 }
+              } else {
+                logger.warn("Failed to get parent user info", { 
+                  userId: rel.parent_id, 
+                  status: response.status 
+                });
               }
-            } catch (error) {
-              logger.warn("Could not get parent user email", { userId: rel.parent_id, error });
+            } catch (error: any) {
+              if (error.name !== "AbortError") {
+                logger.warn("Could not get parent user email", { userId: rel.parent_id, error });
+              }
             }
 
             return {
