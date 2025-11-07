@@ -13,12 +13,13 @@ interface SavedProblem extends ParsedProblem {
 
 interface ToolsMenuProps {
   onSelectProblem?: (problem: ParsedProblem) => void;
+  isGuestMode?: boolean;
 }
 
 /**
  * Unified Tools Menu - Combines Search, Tips, and Formula Reference
  */
-export default function ToolsMenu({ onSelectProblem }: ToolsMenuProps) {
+export default function ToolsMenu({ onSelectProblem, isGuestMode }: ToolsMenuProps) {
   const { user } = useAuth();
   const { activePanel, setActivePanel, isAnyPanelOpen } = usePanel();
   const [isOpen, setIsOpen] = useState(false);

@@ -30,7 +30,7 @@ interface AuthContextType {
   resetPassword: (email: string) => Promise<{ error: AuthError | null }>;
   refreshProfiles: () => Promise<void>;
   setActiveProfile: (profileId: string | null) => Promise<void>;
-  loadUserDataFromSupabase: () => Promise<void>;
+  loadUserDataFromSupabase: (forceReload?: boolean) => Promise<void>;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
@@ -312,7 +312,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         }
         
         // Get initial session in background (non-blocking)
-        supabase.auth.getSession().then(async ({ data: { session }, error }) => {
+        supabase.auth.getSession().then(async ({ data: { session }, error }: { data: { session: Session | null }; error: any }) => {
           if (error) {
             logger.error("Error getting initial session", { error });
             // Session is already cleared, just log the error
@@ -365,10 +365,10 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
               .select("role")
               .eq("id", session.user.id)
               .single()
-              .then(({ data: profile }) => {
+              .then(({ data: profile }: { data: { role: string } | null }) => {
                 setUserRole((profile?.role as any) || null);
               })
-              .catch((err) => {
+              .catch((err: any) => {
                 logger.error("Error loading user role", { error: err });
               });
             
@@ -428,7 +428,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
             setActiveProfileState(null);
             setProfiles([]);
           }
-        }).catch((error) => {
+        }).catch((error: any) => {
           logger.error("Error in getSession promise", { error });
           // Don't set loading to false again - already set above
         });
@@ -436,7 +436,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         // Listen for auth changes (for sign in/out events, not initial load)
         const {
           data: { subscription },
-        } = supabase.auth.onAuthStateChange(async (_event, session) => {
+        } = supabase.auth.onAuthStateChange(async (_event: string, session: Session | null) => {
           logger.debug("Auth state changed", { event: _event, hasSession: !!session });
           
           // Skip INITIAL_SESSION - we already handled it in getSession()
@@ -731,13 +731,13 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       
       // Sign out from Supabase (this clears the session from Supabase storage)
       // Don't wait for it - clear state immediately for better UX
-      supabase.auth.signOut().then(({ error }) => {
+      supabase.auth.signOut().then(({ error }: { error: any }) => {
         if (error) {
           logger.error("Sign out error from Supabase", { error });
         } else {
           logger.info("User signed out successfully from Supabase");
         }
-      }).catch((err) => {
+      }).catch((err: any) => {
         logger.error("Sign out promise error", { error: err });
       });
       

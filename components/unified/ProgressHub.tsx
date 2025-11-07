@@ -27,6 +27,8 @@ interface ProgressHubProps {
   problemsSolvedToday?: number;
   timeSpentToday?: number; // in minutes
   onStreakChange?: (streak: number) => void;
+  isGuestMode?: boolean;
+  onSignUpClick?: () => void;
 }
 
 /**
@@ -37,6 +39,8 @@ export default function ProgressHub({
   problemsSolvedToday = 0,
   timeSpentToday = 0,
   onStreakChange,
+  isGuestMode,
+  onSignUpClick,
 }: ProgressHubProps) {
   const [isOpen, setIsOpen] = useState(false);
   const [activeTab, setActiveTab] = useState<"stats" | "goals" | "timer" | "streak">("stats");

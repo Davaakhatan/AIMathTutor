@@ -14,8 +14,8 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    const session = dialogueManager.initializeConversation(problem);
-    const history = dialogueManager.getHistory(session.id);
+    const session = await dialogueManager.initializeConversation(problem);
+    const history = await dialogueManager.getHistory(session.id);
 
     return NextResponse.json({
       success: true,

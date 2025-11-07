@@ -28,7 +28,7 @@ export default function ConceptHighlightedRenderer({
     const matches: Array<{ index: number; length: number; type: 'bold' | 'italic'; content: string }> = [];
     
     // Find all bold matches first
-    let match;
+    let match: RegExpExecArray | null;
     while ((match = boldRegex.exec(text)) !== null) {
       matches.push({
         index: match.index,
@@ -43,6 +43,7 @@ export default function ConceptHighlightedRenderer({
     while ((match = italicRegex.exec(text)) !== null) {
       // Check if this match overlaps with any bold match
       const overlapsBold = matches.some(boldMatch => {
+        if (!match) return false;
         const matchStart = match.index;
         const matchEnd = match.index + match[0].length;
         const boldStart = boldMatch.index;
@@ -52,7 +53,7 @@ export default function ConceptHighlightedRenderer({
                (matchStart <= boldStart && matchEnd >= boldEnd);
       });
       
-      if (!overlapsBold) {
+      if (!overlapsBold && match) {
         matches.push({
           index: match.index,
           length: match[0].length,

@@ -76,6 +76,9 @@ export async function POST(request: NextRequest) {
       .select("id, owner_id, name, grade_level, avatar_url")
       .limit(100); // Get more profiles to search through
 
+    type StudentProfile = { id: string; owner_id: string; name: string; grade_level?: string; avatar_url?: string };
+    const typedStudentProfiles = (allStudentProfiles as StudentProfile[]) || [];
+
     if (profilesError) {
       logger.error("Error fetching student profiles", { error: profilesError });
       return NextResponse.json(
@@ -86,7 +89,7 @@ export async function POST(request: NextRequest) {
 
     // Step 3: For each student profile, get user email and match against search query
     const results = await Promise.all(
-      (allStudentProfiles || []).map(async (studentProfile) => {
+      typedStudentProfiles.map(async (studentProfile) => {
         try {
           // Get user email from auth.users (using admin client)
           const { data: { user }, error: userError } = await supabaseAdmin.auth.admin.getUserById(studentProfile.owner_id);

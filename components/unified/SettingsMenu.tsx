@@ -12,12 +12,14 @@ import ProfileManager from "@/components/auth/ProfileManager";
 
 interface SettingsMenuProps {
   onXPDataChange?: (data: { totalXP: number; level: number; problemsSolved: number }) => void;
+  isGuestMode?: boolean;
+  onSignUpClick?: () => void;
 }
 
 /**
  * Unified Settings Menu - Combines Settings, Notifications, XP System, and Reminders
  */
-export default function SettingsMenu({ onXPDataChange }: SettingsMenuProps) {
+export default function SettingsMenu({ onXPDataChange, isGuestMode, onSignUpClick }: SettingsMenuProps) {
   const { user } = useAuth();
   const { activePanel, setActivePanel, isAnyPanelOpen } = usePanel();
   const [isOpen, setIsOpen] = useState(false);

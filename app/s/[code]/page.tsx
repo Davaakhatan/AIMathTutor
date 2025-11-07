@@ -5,7 +5,7 @@ import { useRouter, useParams } from "next/navigation";
 import { getShareByCode, trackShareClick } from "@/services/shareService";
 import ChatUI from "@/components/chat/ChatUI";
 import ProblemProgress from "@/components/ProblemProgress";
-import { ParsedProblem, Message } from "@/types";
+import { ParsedProblem, Message, ProblemType } from "@/types";
 import { normalizeProblemText } from "@/lib/textUtils";
 import { logger } from "@/lib/logger";
 import { AuthProvider } from "@/contexts/AuthContext";
@@ -62,19 +62,19 @@ export default function DeepLinkPage() {
     // Generate challenge based on share type (same logic as share page)
     if (data.share_type === "achievement" && data.metadata?.achievement_type) {
       const achievementType = data.metadata.achievement_type;
-      const problemConfigs: Record<string, { type: string; difficulty: string }> = {
-        first_problem: { type: "algebra", difficulty: "elementary" },
-        independent: { type: "algebra", difficulty: "middle" },
-        hint_master: { type: "word_problem", difficulty: "middle" },
-        speed_demon: { type: "arithmetic", difficulty: "middle" },
-        perfectionist: { type: "multi_step", difficulty: "middle" },
-        streak_7: { type: "algebra", difficulty: "middle" },
-        streak_30: { type: "multi_step", difficulty: "high" },
-        level_5: { type: "word_problem", difficulty: "middle" },
-        level_10: { type: "multi_step", difficulty: "high" },
+      const problemConfigs: Record<string, { type: ProblemType; difficulty: string }> = {
+        first_problem: { type: ProblemType.ALGEBRA, difficulty: "elementary" },
+        independent: { type: ProblemType.ALGEBRA, difficulty: "middle" },
+        hint_master: { type: ProblemType.WORD_PROBLEM, difficulty: "middle" },
+        speed_demon: { type: ProblemType.ARITHMETIC, difficulty: "middle" },
+        perfectionist: { type: ProblemType.MULTI_STEP, difficulty: "middle" },
+        streak_7: { type: ProblemType.ALGEBRA, difficulty: "middle" },
+        streak_30: { type: ProblemType.MULTI_STEP, difficulty: "high" },
+        level_5: { type: ProblemType.WORD_PROBLEM, difficulty: "middle" },
+        level_10: { type: ProblemType.MULTI_STEP, difficulty: "high" },
       };
 
-      const config = problemConfigs[achievementType] || { type: "algebra", difficulty: "middle" };
+      const config = problemConfigs[achievementType] || { type: ProblemType.ALGEBRA, difficulty: "middle" };
       
       // Try API generation with timeout
       try {
@@ -100,8 +100,8 @@ export default function DeepLinkPage() {
             if (typeof result.problem === 'string') {
               return result.problem;
             }
-            if (typeof result.problem === 'object' && result.problem.text) {
-              return result.problem.text;
+            if (typeof result.problem === 'object' && result.problem && 'text' in result.problem) {
+              return (result.problem as { text: string }).text;
             }
           }
         }
@@ -183,7 +183,7 @@ export default function DeepLinkPage() {
         const normalizedText = normalizeProblemText(challengeText);
         const problem: ParsedProblem = {
           text: normalizedText,
-          type: "algebra", // Default, can be enhanced
+          type: ProblemType.ALGEBRA, // Default, can be enhanced
           confidence: 0.9, // Default confidence
         };
 

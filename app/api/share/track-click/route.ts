@@ -27,16 +27,19 @@ export async function POST(request: NextRequest) {
       .eq("share_code", shareCode.toUpperCase())
       .single();
 
-    if (!currentShare) {
+    type Share = { click_count: number } | null;
+    const typedCurrentShare = currentShare as Share;
+
+    if (!typedCurrentShare) {
       return NextResponse.json(
         { error: "Share not found" },
         { status: 404 }
       );
     }
 
-    const { error } = await supabase
-      .from("shares")
-      .update({ click_count: (currentShare.click_count || 0) + 1 })
+    const { error } = await (supabase
+      .from("shares") as any)
+      .update({ click_count: (typedCurrentShare.click_count || 0) + 1 })
       .eq("share_code", shareCode.toUpperCase());
 
     if (error) {

@@ -27,7 +27,10 @@ export async function POST(request: NextRequest) {
         .eq("id", userId)
         .single();
 
-      if (!userProfile) {
+      type UserProfile = { role: string } | null;
+      const typedUserProfile = userProfile as UserProfile;
+
+      if (!typedUserProfile) {
         return NextResponse.json(
           { error: "User profile not found" },
           { status: 404 }
@@ -35,7 +38,7 @@ export async function POST(request: NextRequest) {
       }
 
       // For students: verify they own the profile
-      if (userProfile.role === "student") {
+      if (typedUserProfile.role === "student") {
         const { data: studentProfile } = await supabase
           .from("student_profiles")
           .select("id")
@@ -43,7 +46,10 @@ export async function POST(request: NextRequest) {
           .eq("owner_id", userId)
           .single();
 
-        if (!studentProfile) {
+        type StudentProfile = { id: string } | null;
+        const typedStudentProfile = studentProfile as StudentProfile;
+
+        if (!typedStudentProfile) {
           return NextResponse.json(
             { error: "Student profile not found or access denied" },
             { status: 403 }
@@ -58,7 +64,10 @@ export async function POST(request: NextRequest) {
           .eq("student_profile_id", profileId)
           .single();
 
-        if (!relationship) {
+        type Relationship = { student_profile_id: string } | null;
+        const typedRelationship = relationship as Relationship;
+
+        if (!typedRelationship) {
           return NextResponse.json(
             { error: "Student profile not found or access denied" },
             { status: 403 }
@@ -68,8 +77,8 @@ export async function POST(request: NextRequest) {
     }
 
     // Update the active profile
-    const { error } = await supabase
-      .from("profiles")
+    const { error } = await (supabase
+      .from("profiles") as any)
       .update({ current_student_profile_id: profileId })
       .eq("id", userId);
 

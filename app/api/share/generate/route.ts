@@ -63,8 +63,8 @@ export async function POST(request: NextRequest) {
       : null;
 
     // Insert share record
-    const { data, error } = await supabase
-      .from("shares")
+    const { data, error } = await (supabase
+      .from("shares") as any)
       .insert({
         user_id: userId,
         student_profile_id: studentProfileId || null,

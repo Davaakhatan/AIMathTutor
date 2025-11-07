@@ -11,6 +11,8 @@ interface GamificationHubProps {
   currentLevel: number;
   currentProblemsSolved: number;
   currentStreak: number;
+  isGuestMode?: boolean;
+  onSignUpClick?: () => void;
 }
 
 /**
@@ -21,6 +23,8 @@ export default function GamificationHub({
   currentLevel,
   currentProblemsSolved,
   currentStreak,
+  isGuestMode,
+  onSignUpClick,
 }: GamificationHubProps) {
   const { user } = useAuth();
   const { activePanel, setActivePanel, isAnyPanelOpen } = usePanel();

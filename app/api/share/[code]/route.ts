@@ -28,6 +28,9 @@ export async function GET(
       .eq("share_code", code.toUpperCase())
       .single();
 
+    type Share = { expires_at?: string | null; [key: string]: any } | null;
+    const typedData = data as Share;
+
     if (error) {
       if (error.code === "PGRST116") {
         // Not found
@@ -43,9 +46,16 @@ export async function GET(
       );
     }
 
+    if (!typedData) {
+      return NextResponse.json(
+        { error: "Share not found" },
+        { status: 404 }
+      );
+    }
+
     // Check if expired
-    if (data.expires_at && new Date(data.expires_at) < new Date()) {
-      logger.warn("Share code expired", { code, expiresAt: data.expires_at });
+    if (typedData.expires_at && new Date(typedData.expires_at) < new Date()) {
+      logger.warn("Share code expired", { code, expiresAt: typedData.expires_at });
       return NextResponse.json(
         { error: "Share has expired" },
         { status: 410 } // Gone
@@ -54,7 +64,7 @@ export async function GET(
 
     return NextResponse.json({
       success: true,
-      share: data,
+      share: typedData,
     });
   } catch (error) {
     logger.error("Error in share/[code] route", { error });

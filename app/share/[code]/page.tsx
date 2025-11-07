@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 import { useRouter, useParams } from "next/navigation";
 import { getShareByCode, trackShareClick } from "@/services/shareService";
+import { ProblemType } from "@/types";
 
 /**
  * Share page - displays share card with a related challenge
@@ -107,19 +108,19 @@ export default function SharePage() {
         const achievementType = data.metadata.achievement_type;
         
         // Map achievement types to problem types and difficulties
-        const problemConfigs: Record<string, { type: string; difficulty: string }> = {
-          first_problem: { type: "algebra", difficulty: "elementary" },
-          independent: { type: "algebra", difficulty: "middle" },
-          hint_master: { type: "word_problem", difficulty: "middle" },
-          speed_demon: { type: "arithmetic", difficulty: "middle" },
-          perfectionist: { type: "multi_step", difficulty: "middle" },
-          streak_7: { type: "algebra", difficulty: "middle" },
-          streak_30: { type: "multi_step", difficulty: "high" },
-          level_5: { type: "word_problem", difficulty: "middle" },
-          level_10: { type: "multi_step", difficulty: "high" },
+        const problemConfigs: Record<string, { type: ProblemType; difficulty: string }> = {
+          first_problem: { type: ProblemType.ALGEBRA, difficulty: "elementary" },
+          independent: { type: ProblemType.ALGEBRA, difficulty: "middle" },
+          hint_master: { type: ProblemType.WORD_PROBLEM, difficulty: "middle" },
+          speed_demon: { type: ProblemType.ARITHMETIC, difficulty: "middle" },
+          perfectionist: { type: ProblemType.MULTI_STEP, difficulty: "middle" },
+          streak_7: { type: ProblemType.ALGEBRA, difficulty: "middle" },
+          streak_30: { type: ProblemType.MULTI_STEP, difficulty: "high" },
+          level_5: { type: ProblemType.WORD_PROBLEM, difficulty: "middle" },
+          level_10: { type: ProblemType.MULTI_STEP, difficulty: "high" },
         };
 
-        const config = problemConfigs[achievementType] || { type: "algebra", difficulty: "middle" };
+        const config = problemConfigs[achievementType] || { type: ProblemType.ALGEBRA, difficulty: "middle" };
         
         // Try API generation with timeout
         try {
@@ -130,7 +131,7 @@ export default function SharePage() {
             method: "POST",
             headers: { "Content-Type": "application/json" },
             body: JSON.stringify({
-              type: config.type,
+              type: config.type as string,
               difficulty: config.difficulty,
             }),
             signal: controller.signal,
@@ -147,11 +148,11 @@ export default function SharePage() {
                 return result.problem;
               }
               // If it's an object with text property, extract the text
-              if (typeof result.problem === 'object' && result.problem.text) {
-                return result.problem.text;
-              }
+            if (typeof result.problem === 'object' && result.problem && 'text' in result.problem) {
+              return (result.problem as { text: string }).text;
+            }
               // Fallback: try to stringify or use the whole object
-              return typeof result.problem === 'string' ? result.problem : result.problem.text || JSON.stringify(result.problem);
+              return typeof result.problem === 'string' ? result.problem : ('text' in result.problem ? (result.problem as { text: string }).text : JSON.stringify(result.problem));
             }
           }
         } catch (e) {
@@ -207,8 +208,8 @@ export default function SharePage() {
         let finalChallenge = challengeText.status === "fulfilled" ? challengeText.value : getDefaultChallenge(data);
         
         // Extract text if challenge is an object (from API response)
-        if (finalChallenge && typeof finalChallenge === 'object' && finalChallenge.text) {
-          finalChallenge = finalChallenge.text;
+        if (finalChallenge && typeof finalChallenge === 'object' && 'text' in finalChallenge) {
+          finalChallenge = (finalChallenge as { text: string }).text;
         }
 
         console.log("[SharePage] Sharer name:", finalName);

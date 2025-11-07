@@ -49,8 +49,8 @@ export async function POST(request: NextRequest) {
 
     // Update the profile
     const updateStart = Date.now();
-    const { data: updatedProfile, error: updateError } = await supabase
-      .from("student_profiles")
+    const { data: updatedProfile, error: updateError } = await (supabase
+      .from("student_profiles") as any)
       .update({
         ...updateData,
         updated_at: new Date().toISOString(),
