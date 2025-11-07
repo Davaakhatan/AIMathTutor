@@ -87,4 +87,3 @@ export default function AuthButton({ isGuestMode = false, onSignUpClick }: AuthB
     </>
   );
 }
-

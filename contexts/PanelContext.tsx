@@ -2,18 +2,18 @@
 
 import { createContext, useContext, useState, ReactNode } from "react";
 
-type PanelType = "learning" | "gamification" | "tools" | "settings" | "progress" | null;
+type PanelId = "learning" | "gamification" | "tools" | "settings" | "progress" | null;
 
 interface PanelContextType {
-  activePanel: PanelType;
-  setActivePanel: (panel: PanelType) => void;
+  activePanel: PanelId;
+  setActivePanel: (panel: PanelId) => void;
   isAnyPanelOpen: boolean;
 }
 
 const PanelContext = createContext<PanelContextType | undefined>(undefined);
 
 export function PanelProvider({ children }: { children: ReactNode }) {
-  const [activePanel, setActivePanel] = useState<PanelType>(null);
+  const [activePanel, setActivePanel] = useState<PanelId>(null);
 
   return (
     <PanelContext.Provider

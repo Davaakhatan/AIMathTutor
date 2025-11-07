@@ -115,7 +115,12 @@ Requirements:
 
     let response;
     try {
-      response = await client.chat.completions.create({
+      // Add timeout to OpenAI API call (10 seconds)
+      const timeoutPromise = new Promise((_, reject) => {
+        setTimeout(() => reject(new Error("OpenAI API call timed out after 10 seconds")), 10000);
+      });
+      
+      const openaiPromise = client.chat.completions.create({
         model: "gpt-4o",
         messages: [
           { role: "system", content: systemPrompt },
@@ -127,6 +132,8 @@ Requirements:
         temperature: 0.9, // Higher temperature for more variety
         max_tokens: 200,
       });
+      
+      response = await Promise.race([openaiPromise, timeoutPromise]) as any;
     } catch (openaiError: any) {
       // Catch OpenAI SDK errors specifically
       logger.error("OpenAI API call failed for problem generation", {

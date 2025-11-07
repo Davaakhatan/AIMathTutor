@@ -277,40 +277,61 @@ export async function getLinkedStudentProfiles(): Promise<Array<{
       throw new Error("User not authenticated");
     }
 
-    const { data, error } = await supabase
+    // Fetch relationships first (avoid nested select RLS recursion)
+    const { data: relationships, error: relError } = await supabase
       .from("profile_relationships")
-      .select(`
-        *,
-        student_profiles:student_profile_id (
-          id,
-          owner_id,
-          name,
-          avatar_url,
-          grade_level,
-          difficulty_preference
-        )
-      `)
+      .select("*")
       .eq("parent_id", user.id)
       .order("created_at", { ascending: false });
 
-    if (error) {
-      logger.error("Error fetching linked student profiles", { error: error.message });
-      throw error;
+    if (relError) {
+      logger.error("Error fetching relationships", { error: relError.message });
+      throw relError;
     }
 
-    return (data || []).map((item: any) => ({
+    if (!relationships || relationships.length === 0) {
+      return [];
+    }
+
+    // Extract profile IDs
+    const profileIds = relationships
+      .map((rel: any) => rel.student_profile_id)
+      .filter((id: string) => id !== null);
+
+    if (profileIds.length === 0) {
+      return [];
+    }
+
+    // Fetch student profiles separately (avoids nested select RLS recursion)
+    const { data: studentProfiles, error: profilesError } = await supabase
+      .from("student_profiles")
+      .select("id, owner_id, name, avatar_url, grade_level, difficulty_preference")
+      .in("id", profileIds);
+
+    if (profilesError) {
+      logger.error("Error fetching student profiles", { error: profilesError.message });
+      throw profilesError;
+    }
+
+    // Create a map for quick lookup
+    const profilesMap = new Map(
+      (studentProfiles || []).map((p: any) => [p.id, p])
+    );
+
+    // Combine relationships with profiles
+    return relationships.map((rel: any) => ({
       relationship: {
-        id: item.id,
-        parent_id: item.parent_id,
-        student_profile_id: item.student_profile_id,
-        relationship_type: item.relationship_type,
-        can_view_progress: item.can_view_progress,
-        can_manage_profile: item.can_manage_profile,
-        created_at: item.created_at,
-        updated_at: item.updated_at,
+        id: rel.id,
+        parent_id: rel.parent_id,
+        student_profile_id: rel.student_profile_id,
+        relationship_type: rel.relationship_type,
+        can_view_progress: rel.can_view_progress,
+        can_manage_profile: rel.can_manage_profile,
+        created_at: rel.created_at,
+        updated_at: rel.updated_at,
       },
-      student_profile: item.student_profiles,
-    }));
+      student_profile: profilesMap.get(rel.student_profile_id) || null,
+    })).filter((item: any) => item.student_profile !== null);
   } catch (error) {
     logger.error("Error in getLinkedStudentProfiles", {
       error: error instanceof Error ? error.message : String(error),

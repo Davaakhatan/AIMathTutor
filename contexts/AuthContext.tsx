@@ -49,63 +49,202 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const userDataLoadedRef = useRef<string | null>(null);
 
   // Load student profiles for the current user
-  const loadProfiles = useCallback(async (userId: string) => {
-    // Prevent duplicate loads for the same user
-    if (profilesLoadedForUserRef.current === userId || isLoadingProfilesRef.current) {
-      logger.debug("Profiles already loaded or loading for user, skipping", { userId });
-      return;
+  // NOTE: This is NOT a useCallback to avoid dependency issues
+  const loadProfiles = async (userId: string, forceReload: boolean = false) => {
+    logger.info("loadProfiles called", { userId, forceReload, currentRef: profilesLoadedForUserRef.current, isLoading: isLoadingProfilesRef.current });
+    
+    // If forceReload is true, ALWAYS reload regardless of current state
+    // This is critical for login scenarios where we need fresh data
+    if (forceReload) {
+      logger.debug("Force reload requested, clearing refs and loading fresh", { userId });
+      profilesLoadedForUserRef.current = null;
+      isLoadingProfilesRef.current = false;
+      // Continue to load - don't return early
+    } else {
+      // Prevent duplicate loads for the same user ONLY if we're currently loading
+      if (isLoadingProfilesRef.current && profilesLoadedForUserRef.current === userId) {
+        logger.debug("Profiles already loading for user, skipping", { userId });
+        return;
+      }
+
+      // If profiles are already loaded for this user, skip
+      // BUT: if profiles array is empty, always reload (might be stale state)
+      if (profilesLoadedForUserRef.current === userId && profiles.length > 0) {
+        logger.debug("Profiles already loaded for user, skipping", { userId, profileCount: profiles.length });
+        return;
+      }
     }
 
     try {
       isLoadingProfilesRef.current = true;
       setProfilesLoading(true);
       
-      // Set empty state immediately (non-blocking UI)
-      setProfiles([]);
-      setActiveProfileState(null);
+      // Clear previous user's profiles if user changed
+      if (profilesLoadedForUserRef.current && profilesLoadedForUserRef.current !== userId) {
+        logger.debug("User changed, clearing previous profiles", { 
+          previousUserId: profilesLoadedForUserRef.current, 
+          newUserId: userId 
+        });
+        setProfiles([]);
+        setActiveProfileState(null);
+        profilesLoadedForUserRef.current = null;
+      }
       
-      // Load profiles - don't wait, let it happen in background
+      // If forceReload is true and same user, clear profiles to show loading state
+      if (forceReload && profilesLoadedForUserRef.current === userId) {
+        logger.debug("Force reload for same user, clearing profiles temporarily", { userId });
+        // Don't clear here - let the new data replace it
+        // This prevents flickering
+      }
+      
+      // Load profiles via API route (client queries timeout)
       // This allows UI to render immediately
-      getStudentProfiles()
-        .then(async (profilesList) => {
-          let active: StudentProfile | null = null;
+      logger.info("Fetching profiles from API route", { userId });
+      const fetchStartTime = Date.now();
+      const controller = new AbortController();
+      const fetchTimeout = setTimeout(() => {
+        logger.warn("Profile fetch timeout - aborting", { userId });
+        controller.abort();
+      }, 15000); // 15 second timeout (increased from 10)
+      
+      fetch("/api/get-profiles", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ userId }),
+        signal: controller.signal,
+      })
+        .then(async (response) => {
+          clearTimeout(fetchTimeout);
+          const fetchDuration = Date.now() - fetchStartTime;
+          logger.info("Profile API response received", { 
+            status: response.status, 
+            duration: fetchDuration,
+            userId 
+          });
           
-          // Get active profile using the profiles list (avoids extra query)
-          try {
-            active = await getActiveStudentProfile(profilesList);
-          } catch (error) {
-            logger.warn("Error fetching active profile", { error });
-            active = null;
+          if (!response.ok) {
+            const errorText = await response.text();
+            logger.error("API route failed", { 
+              status: response.status, 
+              statusText: response.statusText,
+              errorText,
+              userId 
+            });
+            throw new Error(`API route failed: ${response.status} ${response.statusText}`);
           }
           
-          setProfiles(profilesList);
-          setActiveProfileState(active);
-          profilesLoadedForUserRef.current = userId;
-          logger.info("Profiles loaded", { 
-            count: profilesList.length, 
-            activeProfileId: active?.id 
+          const result = await response.json();
+          logger.info("Profile API JSON parsed", { 
+            success: result.success, 
+            profileCount: result.profiles?.length || 0,
+            userId 
           });
-          setProfilesLoading(false);
-          isLoadingProfilesRef.current = false;
+          if (result.success) {
+            const profilesList = result.profiles || [];
+            const activeProfileId = result.activeProfileId;
+            
+            logger.info("Profiles API response received", { 
+              count: profilesList.length, 
+              activeProfileId,
+              userRole: result.userRole,
+              profileIds: profilesList.map((p: StudentProfile) => p.id)
+            });
+            
+            // Find active profile from the list
+            const active = activeProfileId 
+              ? profilesList.find((p: StudentProfile) => p.id === activeProfileId) || null
+              : (profilesList.length > 0 ? profilesList[0] : null);
+            
+            // Update userRole if provided
+            if (result.userRole) {
+              setUserRole(result.userRole);
+            }
+            
+            setProfiles(profilesList);
+            setActiveProfileState(active);
+            profilesLoadedForUserRef.current = userId;
+            logger.info("Profiles loaded via API route", { 
+              count: profilesList.length, 
+              activeProfileId: active?.id,
+              profileNames: profilesList.map((p: StudentProfile) => p.name),
+              userId
+            });
+            setProfilesLoading(false);
+            isLoadingProfilesRef.current = false;
+            
+            // Log if no profiles found (for debugging)
+            if (profilesList.length === 0) {
+              logger.warn("No profiles found for user - this might indicate a database issue", { 
+                userId, 
+                userRole: result.userRole 
+              });
+            }
+          } else {
+            logger.error("API route returned success: false", { result });
+            throw new Error(result.error || "API route returned success: false");
+          }
         })
         .catch((error) => {
-          logger.error("Error loading profiles", { error, userId });
-          setProfiles([]);
-          setActiveProfileState(null);
-          setProfilesLoading(false);
-          isLoadingProfilesRef.current = false;
+          clearTimeout(fetchTimeout);
+          logger.error("Error loading profiles via API route", { 
+            error: error instanceof Error ? error.message : String(error),
+            name: error instanceof Error ? error.name : undefined,
+            userId 
+          });
+          
+          // If it's an abort error (timeout), set empty profiles and continue
+          if (error instanceof Error && error.name === 'AbortError') {
+            logger.warn("Profile loading timed out, setting empty profiles", { userId });
+            setProfiles([]);
+            setActiveProfileState(null);
+            setProfilesLoading(false);
+            isLoadingProfilesRef.current = false;
+            return;
+          }
+          
+          // Fallback to getStudentProfiles (which also uses API route now)
+          getStudentProfiles()
+            .then((profilesList) => {
+              const active = profilesList.length > 0 ? profilesList[0] : null;
+              setProfiles(profilesList);
+              setActiveProfileState(active);
+              profilesLoadedForUserRef.current = userId;
+              setProfilesLoading(false);
+              isLoadingProfilesRef.current = false;
+            })
+            .catch((fallbackError) => {
+              logger.error("Fallback profile loading also failed", { error: fallbackError });
+              setProfiles([]);
+              setActiveProfileState(null);
+              setProfilesLoading(false);
+              isLoadingProfilesRef.current = false;
+            });
         });
     } catch (error) {
       logger.error("Error in loadProfiles", { 
         error: error instanceof Error ? error.message : String(error),
         userId 
       });
-      setProfiles([]);
-      setActiveProfileState(null);
+      // Don't clear profiles on error - they might still be valid
+      // Only clear if we're sure there's an error and we should retry
+      // The retry logic will handle reloading
       setProfilesLoading(false);
       isLoadingProfilesRef.current = false;
+      
+      // If profiles were never loaded for this user, set empty array
+      // Otherwise, keep existing profiles (they might still be valid)
+      if (profilesLoadedForUserRef.current !== userId) {
+        logger.warn("No profiles loaded for user, setting empty array", { userId });
+        setProfiles([]);
+        setActiveProfileState(null);
+      } else {
+        logger.info("Error loading profiles, but keeping existing profiles", { 
+          userId, 
+          existingCount: profiles.length 
+        });
+      }
     }
-  }, []);
+  };
 
   useEffect(() => {
     // Only run on client side
@@ -199,11 +338,50 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
               });
             
             // Load profiles and user data in background
-            if (profilesLoadedForUserRef.current !== session.user.id) {
-              loadProfiles(session.user.id).catch((err) => {
+            // Always load on initial session - clear ref first to ensure fresh load
+            logger.info("Loading profiles on initial session", { 
+              userId: session.user.id, 
+              currentRef: profilesLoadedForUserRef.current 
+            });
+            // Clear ref and force reload on initial session to ensure profiles are loaded from database
+            // IMPORTANT: Clear refs BEFORE calling loadProfiles to ensure fresh load
+            logger.info("Clearing profile refs before initial load", { 
+              previousRef: profilesLoadedForUserRef.current 
+            });
+            profilesLoadedForUserRef.current = null;
+            isLoadingProfilesRef.current = false;
+            // DON'T clear profiles state here - let loadProfiles handle it
+            // This prevents the UI from showing "no profiles" while loading
+            // setProfiles([]);
+            // setActiveProfileState(null);
+            // CRITICAL: Load profiles immediately and ensure it completes
+            // Use async IIFE to ensure proper execution
+            (async () => {
+              try {
+                logger.info("Starting profile load on initial session", { userId: session.user.id });
+                await loadProfiles(session.user.id, true);
+                logger.info("Profiles loaded successfully on initial session");
+              } catch (err) {
                 logger.error("Error loading profiles on initial session", { error: err });
-              });
-            }
+                // Retry once after a short delay
+                setTimeout(async () => {
+                  logger.info("Retrying profile load after initial failure");
+                  try {
+                    await loadProfiles(session.user.id, true);
+                    logger.info("Retry succeeded");
+                  } catch (retryErr) {
+                    logger.error("Retry also failed", { error: retryErr });
+                    // Final fallback: try one more time after another delay
+                    setTimeout(async () => {
+                      logger.info("Final retry attempt");
+                      await loadProfiles(session.user.id, true).catch((finalErr) => {
+                        logger.error("Final retry failed", { error: finalErr });
+                      });
+                    }, 3000);
+                  }
+                }, 2000);
+              }
+            })();
             if (userDataLoadedRef.current !== session.user.id) {
               loadUserDataFromSupabase().catch((err) => {
                 logger.error("Error loading user data on initial session", { error: err });
@@ -259,12 +437,47 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
           if (_event === "SIGNED_IN" && session?.user) {
             logger.info("User signed in", { userId: session.user.id });
             
-            // Load profiles and user data in the BACKGROUND (non-blocking)
-            if (profilesLoadedForUserRef.current !== session.user.id) {
-              loadProfiles(session.user.id).catch((err) => {
+            // CRITICAL: Always load profiles on sign in (force reload to ensure fresh data)
+            // Clear refs first to ensure fresh load
+            logger.info("Loading profiles on SIGNED_IN event", { 
+              userId: session.user.id, 
+              currentRef: profilesLoadedForUserRef.current 
+            });
+            profilesLoadedForUserRef.current = null;
+            isLoadingProfilesRef.current = false;
+            
+            // CRITICAL: Load profiles immediately on sign in
+            // Use Promise.resolve().then() to ensure it executes even if there are errors
+            Promise.resolve().then(async () => {
+              try {
+                logger.info("Starting profile load on SIGNED_IN", { userId: session.user.id });
+                // Ensure refs are cleared before loading
+                profilesLoadedForUserRef.current = null;
+                isLoadingProfilesRef.current = false;
+                await loadProfiles(session.user.id, true);
+                logger.info("Profiles loaded successfully on SIGNED_IN");
+              } catch (err) {
                 logger.error("Error loading profiles on sign in", { error: err });
-              });
-            }
+                // Retry immediately (don't wait)
+                Promise.resolve().then(async () => {
+                  try {
+                    logger.info("Retrying profile load after SIGNED_IN failure");
+                    await loadProfiles(session.user.id, true);
+                    logger.info("Retry succeeded on SIGNED_IN");
+                  } catch (retryErr) {
+                    logger.error("Retry also failed on SIGNED_IN", { error: retryErr });
+                    // Final fallback: try one more time after delay
+                    setTimeout(async () => {
+                      logger.info("Final retry attempt on SIGNED_IN");
+                      await loadProfiles(session.user.id, true).catch((finalErr) => {
+                        logger.error("Final retry failed on SIGNED_IN", { error: finalErr });
+                      });
+                    }, 2000);
+                  }
+                });
+              }
+            });
+            
             if (userDataLoadedRef.current !== session.user.id) {
               loadUserDataFromSupabase().catch((err) => {
                 logger.error("Error loading user data on sign in", { error: err });
@@ -307,7 +520,35 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       clearTimeout(loadingTimeout);
       if (cleanup) cleanup();
     };
-  }, [loadProfiles]);
+  }, []); // Empty deps - loadProfiles is now a regular function, not a callback
+
+  // CRITICAL: Load profiles whenever user changes (backup to SIGNED_IN event)
+  // This ensures profiles load even if the SIGNED_IN event handler fails
+  useEffect(() => {
+    if (user && !loading) {
+      // Only load if profiles aren't already loaded for this user
+      if (profilesLoadedForUserRef.current !== user.id && !isLoadingProfilesRef.current) {
+        logger.info("User changed, loading profiles via useEffect", { 
+          userId: user.id,
+          currentRef: profilesLoadedForUserRef.current 
+        });
+        // Use a small delay to avoid race conditions with SIGNED_IN handler
+        const timeoutId = setTimeout(() => {
+          loadProfiles(user.id, true).catch((err) => {
+            logger.error("Error loading profiles in useEffect", { error: err });
+          });
+        }, 500);
+        
+        return () => clearTimeout(timeoutId);
+      }
+    } else if (!user) {
+      // Clear profiles when user logs out
+      profilesLoadedForUserRef.current = null;
+      isLoadingProfilesRef.current = false;
+      setProfiles([]);
+      setActiveProfileState(null);
+    }
+  }, [user, loading]); // Load when user or loading state changes
 
   const signUp = async (
     email: string,
@@ -609,11 +850,9 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   // Refresh profiles list
   const refreshProfiles = useCallback(async () => {
     if (!user) return;
-    // Reset the loaded flag to force a fresh load
-    profilesLoadedForUserRef.current = null;
-    isLoadingProfilesRef.current = false;
-    await loadProfiles(user.id);
-  }, [user, loadProfiles]);
+    // Force reload by passing true
+    await loadProfiles(user.id, true);
+  }, [user]); // Remove loadProfiles from deps since it's now a regular function
 
   // Set active profile - optimized for speed
   const handleSetActiveProfile = useCallback(async (profileId: string | null) => {
@@ -683,4 +922,5 @@ export function useAuth() {
   }
   return context;
 }
+
 

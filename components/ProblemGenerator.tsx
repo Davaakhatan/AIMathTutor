@@ -80,15 +80,31 @@ export default function ProblemGenerator({
       
       // Try AI generation first, fallback to templates
       try {
-        const response = await fetch("/api/generate-problem", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            type: selectedType,
-            difficulty: difficulty,
-            ...(apiKey && { apiKey }), // Include API key if provided
-          }),
-        });
+        const controller = new AbortController();
+        const timeoutId = setTimeout(() => controller.abort(), 15000); // 15 second timeout
+        
+        let response;
+        try {
+          response = await fetch("/api/generate-problem", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+              type: selectedType,
+              difficulty: difficulty,
+              ...(apiKey && { apiKey }), // Include API key if provided
+            }),
+            signal: controller.signal,
+          });
+          clearTimeout(timeoutId);
+        } catch (fetchError: any) {
+          clearTimeout(timeoutId);
+          if (fetchError.name === 'AbortError') {
+            console.error("Request timeout - API took too long to respond");
+          } else {
+            console.error("Network error:", fetchError);
+          }
+          throw fetchError;
+        }
 
         if (response.ok) {
           const result = await response.json();
