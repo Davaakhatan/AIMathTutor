@@ -12,6 +12,8 @@ import {
 } from "@/services/studentProfileService";
 import { useToast } from "@/hooks/useToast";
 import { logger } from "@/lib/logger";
+import LinkStudentForm from "./LinkStudentForm";
+import LinkedStudentsList from "./LinkedStudentsList";
 
 export default function ProfileManager() {
   const { profiles, profilesLoading, refreshProfiles, setActiveProfile, activeProfile, loadUserDataFromSupabase, userRole, user } = useAuth();
@@ -164,6 +166,24 @@ export default function ProfileManager() {
     );
   }
 
+  // For parents/teachers: Show linking UI instead of profile creation
+  if (userRole === "parent" || userRole === "teacher") {
+    return (
+      <div className="space-y-4">
+        <div className="flex justify-between items-center mb-2">
+          <h3 className="text-sm font-medium text-gray-900 dark:text-gray-100">
+            Linked Students
+          </h3>
+        </div>
+
+        <LinkStudentForm onSuccess={refreshProfiles} />
+
+        <LinkedStudentsList onStudentSelect={refreshProfiles} />
+      </div>
+    );
+  }
+
+  // For students: Show their own profile management
   return (
     <div className="space-y-3">
       {profiles.length === 0 && !isCreating ? (
@@ -183,16 +203,8 @@ export default function ProfileManager() {
           {!isCreating && !editingProfile && (
             <div className="flex justify-between items-center mb-2">
               <h3 className="text-sm font-medium text-gray-900 dark:text-gray-100">
-                {userRole === "student" ? "My Profile" : "Student Profiles"}
+                My Profile
               </h3>
-              {userRole !== "student" && (
-                <button
-                  onClick={handleCreate}
-                  className="px-3 py-1.5 text-xs font-medium bg-gray-900 dark:bg-gray-700 text-white rounded-lg hover:bg-gray-800 dark:hover:bg-gray-600 transition-colors"
-                >
-                  Add Profile
-                </button>
-              )}
             </div>
           )}
 

@@ -6,7 +6,7 @@ import { logger } from "@/lib/logger";
 import { useToast } from "@/hooks/useToast";
 
 export default function ProfileSwitcher() {
-  const { activeProfile, profiles, profilesLoading, setActiveProfile } = useAuth();
+  const { activeProfile, profiles, profilesLoading, setActiveProfile, userRole } = useAuth();
   const [isOpen, setIsOpen] = useState(false);
   const dropdownRef = useRef<HTMLDivElement>(null);
   const { showToast } = useToast();
@@ -41,7 +41,12 @@ export default function ProfileSwitcher() {
     }
   };
 
-  // Don't show if no profiles or loading
+  // For students: Hide switcher (they only have one profile)
+  if (userRole === "student") {
+    return null;
+  }
+
+  // For parents/teachers: Don't show if no profiles or loading
   if (profilesLoading || profiles.length === 0) {
     return null;
   }
