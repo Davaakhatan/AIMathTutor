@@ -34,6 +34,7 @@ class EcosystemOrchestrator {
     eventBus.on("achievement_unlocked", this.onAchievementUnlocked.bind(this));
     eventBus.on("session_ended", this.onSessionEnded.bind(this));
 
+    console.log("🚀 Ecosystem Orchestrator initialized and ready!");
     logger.info("Ecosystem Orchestrator initialized");
   }
 
@@ -44,6 +45,13 @@ class EcosystemOrchestrator {
   private async onProblemCompleted(event: Event): Promise<void> {
     const { userId, profileId, data } = event;
     const problemData = data as ProblemCompletedData;
+
+    console.log("🎯 ORCHESTRATOR: Received problem_completed event", {
+      userId,
+      profileId,
+      problemType: problemData.problem?.type,
+      sessionId: problemData.sessionId,
+    });
 
     logger.info("Orchestrator: Handling problem_completed", {
       userId,
@@ -156,6 +164,14 @@ class EcosystemOrchestrator {
       );
 
       if (summary) {
+        console.log("✅ CONVERSATION SUMMARY CREATED!", {
+          summaryId: summary.id,
+          userId,
+          profileId,
+          conceptsCount: summary.concepts_covered.length,
+          summaryPreview: summary.summary.substring(0, 100),
+        });
+        
         logger.info("Conversation summary created", {
           userId,
           profileId,

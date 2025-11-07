@@ -159,6 +159,13 @@ Provide a summary in the following JSON format:
 
     if (error) {
       // Enhanced error logging
+      console.error("❌ FAILED TO SAVE CONVERSATION SUMMARY:", {
+        error: error.message,
+        code: error.code,
+        details: error.details,
+        hint: error.code === "42P01" ? "⚠️ TABLE MISSING: Run migration: supabase/migrations/create_conversation_summaries_table.sql" : undefined
+      });
+      
       logger.error("Error saving conversation summary", { 
         error: error.message,
         errorCode: error.code,
@@ -168,15 +175,15 @@ Provide a summary in the following JSON format:
         hint: error.code === "42P01" ? "Table 'conversation_summaries' does not exist. Run SQL migration: create_conversation_summaries_table.sql" : undefined
       });
       
-      // Log to console for immediate visibility
-      console.error("❌ Failed to save conversation summary:", {
-        error: error.message,
-        code: error.code,
-        hint: error.code === "42P01" ? "⚠️ TABLE MISSING: Run migration: supabase/migrations/create_conversation_summaries_table.sql" : undefined
-      });
-      
       return null;
     }
+
+    console.log("💾 CONVERSATION SUMMARY SAVED TO DATABASE!", {
+      summaryId: data.id,
+      userId,
+      sessionId,
+      conceptsCount: concepts.length,
+    });
 
     logger.info("Conversation summary created", {
       summaryId: data.id,

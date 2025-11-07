@@ -379,22 +379,55 @@ export async function POST(request: NextRequest) {
       
       // Check if problem is completed (simple heuristic: check if response contains completion indicators)
       const responseText = tutorResponse.content.toLowerCase();
+      
+      // ALWAYS log the response for debugging
+      console.log("🔍 Checking problem completion:", {
+        responseLength: responseText.length,
+        responsePreview: responseText.substring(0, 150),
+        hasUserId: !!userId,
+        hasProblem: !!session.problem,
+        sessionId: body.sessionId,
+      });
+      
       const isCompleted = 
         responseText.includes("correct!") ||
         responseText.includes("well done") ||
         responseText.includes("great job") ||
         responseText.includes("you got it") ||
         responseText.includes("that's right") ||
+        responseText.includes("excellent") ||
+        responseText.includes("perfect!") ||
         (responseText.includes("correct") && responseText.includes("answer"));
+
+      console.log("✅ Completion check result:", {
+        isCompleted,
+        checkedPhrases: [
+          "correct!",
+          "well done",
+          "great job",
+          "you got it",
+          "that's right",
+          "excellent",
+          "perfect!",
+          "correct + answer"
+        ],
+      });
 
       // Emit problem_completed event if detected
       if (isCompleted && userId && session.problem) {
+        console.log("🎉 PROBLEM COMPLETED! Emitting event...", {
+          userId,
+          profileId: body.profileId,
+          sessionId: body.sessionId,
+          problemType: session.problem.type,
+        });
+        
         logger.info("Problem completion detected", {
           userId,
           profileId: body.profileId,
           sessionId: body.sessionId,
           problemType: session.problem.type,
-          responseText: responseText.substring(0, 100), // First 100 chars for debugging
+          responseText: responseText.substring(0, 100),
         });
         
         eventBus.emit({
@@ -413,21 +446,26 @@ export async function POST(request: NextRequest) {
             attempts: session.messages.filter(m => m.role === "user").length,
           },
           timestamp: new Date(),
+        }).then(() => {
+          console.log("✅ problem_completed event emitted successfully");
         }).catch((error) => {
           logger.error("Error emitting problem_completed event", { error });
           console.error("❌ Failed to emit problem_completed event:", error);
         });
       } else if (isCompleted) {
         // Log why event wasn't emitted
+        console.warn("⚠️ Problem completed but event NOT emitted:", {
+          userId: userId || "MISSING",
+          problem: session.problem ? "exists" : "MISSING",
+          responsePreview: responseText.substring(0, 100),
+        });
         logger.warn("Problem completed but event not emitted", {
           hasUserId: !!userId,
           hasProblem: !!session.problem,
           responseText: responseText.substring(0, 100),
         });
-        console.warn("⚠️ Problem completed but missing:", {
-          userId: userId || "MISSING",
-          problem: session.problem ? "exists" : "MISSING",
-        });
+      } else {
+        console.log("⏳ Problem not completed yet (no completion phrases found)");
       }
 
       const response = NextResponse.json({
