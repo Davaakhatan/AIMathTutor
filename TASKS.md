@@ -5,6 +5,53 @@
 
 ---
 
+## ⚠️ PRE-PHASE 1: Complete Model B UI (MUST DO FIRST)
+
+### Critical: Parent/Teacher Linking UI
+- [ ] Create `components/auth/LinkStudentForm.tsx`
+  - [ ] Search by student email/username input
+  - [ ] Search API endpoint
+  - [ ] Display search results
+  - [ ] Create relationship button
+  - [ ] Error handling
+- [ ] Create `components/auth/LinkedStudentsList.tsx`
+  - [ ] Display linked students
+  - [ ] Show permissions
+  - [ ] Unlink button
+  - [ ] Empty state
+
+### Critical: Update Existing Components
+- [ ] Update `components/auth/ProfileSwitcher.tsx`
+  - [ ] Hide for students (they only have one profile)
+  - [ ] Show linked students for parents/teachers
+  - [ ] Load from `profile_relationships`
+- [ ] Update `components/auth/ProfileManager.tsx`
+  - [ ] Different UI for students vs parents
+  - [ ] Students: Show "My Profile" + "Who Can View"
+  - [ ] Parents: Show "Linked Students" + "Link Student" button
+- [ ] Update `contexts/AuthContext.tsx`
+  - [ ] `loadProfiles()` - Load linked students for parents
+  - [ ] `setActiveProfile()` - Handle parent student switching
+- [ ] Update `components/auth/UserMenu.tsx`
+  - [ ] Show role badge
+  - [ ] Different options for students vs parents
+- [ ] Update `app/page.tsx`
+  - [ ] Show selected student data for parents
+  - [ ] Show "No student selected" message
+
+### Testing
+- [ ] Test student signup flow
+- [ ] Test parent signup flow
+- [ ] Test parent linking to student
+- [ ] Test parent switching between students
+- [ ] Test data isolation
+- [ ] Test permissions
+
+**Estimated Time**: 1-2 weeks  
+**Status**: ⚠️ **BLOCKING PHASE 1**
+
+---
+
 ## Phase 1: Viral Growth Features
 
 ### 1. Share Cards & Deep Links
