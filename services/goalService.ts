@@ -186,8 +186,8 @@ export async function deleteGoal(userId: string, goalId: string): Promise<boolea
   try {
     const supabase = getSupabaseAdmin();
     if (!supabase) {
-      logger.error("Supabase admin client not available for creating goal");
-      return null;
+      logger.error("Supabase admin client not available for deleting goal");
+      return false;
     }
 
     const { error } = await supabase
