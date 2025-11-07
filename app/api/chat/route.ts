@@ -5,6 +5,8 @@ import { ChatRequest, ChatResponse, Message } from "@/types";
 import { chatRateLimiter, getClientId, createRateLimitHeaders } from "@/lib/rateLimit";
 import { logger } from "@/lib/logger";
 import { getSupabaseAdmin } from "@/lib/supabase-admin";
+import { eventBus } from "@/lib/eventBus";
+import { orchestrator } from "@/services/orchestrator";
 
 export async function POST(request: NextRequest) {
   try {
@@ -215,6 +217,26 @@ export async function POST(request: NextRequest) {
           allSessionIds: allSessions.map(s => s.id),
         });
 
+        // Emit session_started event
+        if (userId && body.problem) {
+          eventBus.emit({
+            type: "session_started",
+            userId,
+            profileId: body.profileId,
+            data: {
+              sessionId: session.id,
+              problem: {
+                text: body.problem.text,
+                type: body.problem.type,
+                difficulty: difficultyMode,
+              },
+            },
+            timestamp: new Date(),
+          }).catch((error) => {
+            logger.error("Error emitting session_started event", { error });
+          });
+        }
+
         return NextResponse.json({
           success: true,
           response: {
@@ -355,6 +377,39 @@ export async function POST(request: NextRequest) {
         userId // Pass userId for session persistence
       );
       
+      // Check if problem is completed (simple heuristic: check if response contains completion indicators)
+      const responseText = tutorResponse.content.toLowerCase();
+      const isCompleted = 
+        responseText.includes("correct!") ||
+        responseText.includes("well done") ||
+        responseText.includes("great job") ||
+        responseText.includes("you got it") ||
+        responseText.includes("that's right") ||
+        (responseText.includes("correct") && responseText.includes("answer"));
+
+      // Emit problem_completed event if detected
+      if (isCompleted && userId && session.problem) {
+        eventBus.emit({
+          type: "problem_completed",
+          userId,
+          profileId: body.profileId,
+          data: {
+            problem: {
+              text: session.problem.text,
+              type: session.problem.type,
+              difficulty: difficultyMode,
+            },
+            sessionId: body.sessionId,
+            timeSpent: Date.now() - session.createdAt,
+            hintsUsed: session.messages.filter(m => m.role === "tutor" && m.content.toLowerCase().includes("hint")).length,
+            attempts: session.messages.filter(m => m.role === "user").length,
+          },
+          timestamp: new Date(),
+        }).catch((error) => {
+          logger.error("Error emitting problem_completed event", { error });
+        });
+      }
+
       const response = NextResponse.json({
         success: true,
         response: {
