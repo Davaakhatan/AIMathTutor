@@ -32,33 +32,55 @@ export default function LinkedStudentsList({ onStudentSelect }: { onStudentSelec
       setIsLoading(true);
       const relationships = await getParentRelationships();
       
+      if (relationships.length === 0) {
+        setLinkedStudents([]);
+        setIsLoading(false);
+        return;
+      }
+      
       // Get student profile data for each relationship
       const supabase = await import("@/lib/supabase").then(m => m.getSupabaseClient());
       
       const students = await Promise.all(
         relationships.map(async (rel) => {
-          const { data: studentProfile } = await supabase
-            .from("student_profiles")
-            .select("id, name, grade_level, avatar_url")
-            .eq("id", rel.student_profile_id)
-            .single();
+          try {
+            const { data: studentProfile, error } = await supabase
+              .from("student_profiles")
+              .select("id, name, grade_level, avatar_url")
+              .eq("id", rel.student_profile_id)
+              .single();
 
-          return {
-            relationship: rel,
-            student_profile: studentProfile || {
-              id: rel.student_profile_id,
-              name: "Unknown",
-              grade_level: null,
-              avatar_url: null,
-            },
-          };
+            if (error) {
+              logger.warn("Error fetching student profile", { 
+                error, 
+                studentProfileId: rel.student_profile_id 
+              });
+              return null;
+            }
+
+            return {
+              relationship: rel,
+              student_profile: studentProfile || {
+                id: rel.student_profile_id,
+                name: "Unknown",
+                grade_level: null,
+                avatar_url: null,
+              },
+            };
+          } catch (error) {
+            logger.error("Error processing relationship", { error, relationshipId: rel.id });
+            return null;
+          }
         })
       );
 
-      setLinkedStudents(students);
+      // Filter out null results
+      const validStudents = students.filter(s => s !== null) as LinkedStudent[];
+      setLinkedStudents(validStudents);
     } catch (error) {
       logger.error("Error loading linked students", { error });
       showToast("Failed to load linked students", "error");
+      setLinkedStudents([]);
     } finally {
       setIsLoading(false);
     }

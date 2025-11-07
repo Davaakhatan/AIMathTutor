@@ -174,10 +174,19 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
             
             // Log if no profiles found (for debugging)
             if (profilesList.length === 0) {
-              logger.warn("No profiles found for user - this might indicate a database issue", { 
-                userId, 
-                userRole: result.userRole 
-              });
+              // For parents/teachers, this is normal if they haven't linked students yet
+              if (result.userRole === "parent" || result.userRole === "teacher") {
+                logger.info("No linked students found for parent/teacher - this is normal if they haven't linked any students yet", { 
+                  userId, 
+                  userRole: result.userRole 
+                });
+              } else {
+                // For students, this might indicate an issue
+                logger.warn("No profiles found for student - this might indicate a database issue", { 
+                  userId, 
+                  userRole: result.userRole 
+                });
+              }
             }
           } else {
             logger.error("API route returned success: false", { result });

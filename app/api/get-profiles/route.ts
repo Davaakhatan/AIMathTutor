@@ -178,6 +178,15 @@ export async function POST(request: NextRequest) {
       });
     }
 
+    // For parents/teachers: No profiles is normal if they haven't linked any students yet
+    if ((profile.role === "parent" || profile.role === "teacher") && studentProfiles.length === 0) {
+      console.log("[API] No linked students found for parent/teacher", { 
+        userId, 
+        userRole: profile.role,
+        note: "This is normal - parents/teachers link to student accounts via profile_relationships"
+      });
+    }
+
     return NextResponse.json({
       success: true,
       profiles: studentProfiles,
