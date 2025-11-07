@@ -5,6 +5,7 @@ import { useState } from "react";
 import { useConceptTracking } from "@/hooks/useConceptTracking";
 import { useDifficultyTracking } from "@/hooks/useDifficultyTracking";
 import { DifficultyLevel } from "@/services/difficultyTracker";
+import { detectProblemCompletion } from "@/services/completionDetector";
 
 interface ProblemProgressProps {
   messages: Message[];
@@ -37,12 +38,22 @@ export default function ProblemProgress({ messages, problem, difficultyMode = "m
     );
   }).length;
 
-  // Check if problem is solved by looking at the last few tutor messages
-  // Must be very strict - only mark as solved if tutor explicitly confirms FINAL completion
-  // NOT encouragement during the process or questions
-  // Check last 2-3 messages to catch cases where AI confirms then follows up
+  // Use smart completion detection instead of hardcoded phrases
+  const completionResult = detectProblemCompletion(messages, problem);
+  const isSolved = completionResult.isCompleted;
+  
+  // Log for debugging (only in development)
+  if (process.env.NODE_ENV === "development" && isSolved) {
+    console.log("✅ Problem marked as solved:", {
+      score: completionResult.score,
+      confidence: completionResult.confidence,
+      reasons: completionResult.reasons,
+    });
+  }
+
+  // Legacy code kept for reference but not used
   const recentTutorMessages = tutorMessages.slice(-3); // Check last 3 messages
-  const isSolved = recentTutorMessages.length > 0 ? (() => {
+  const _legacyIsSolved = recentTutorMessages.length > 0 ? (() => {
     // Check each recent message, starting from the most recent
     for (const tutorMessage of [...recentTutorMessages].reverse()) {
       const content = tutorMessage.content.toLowerCase();

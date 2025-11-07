@@ -402,6 +402,9 @@ export async function POST(request: NextRequest) {
         sessionId: body.sessionId,
       });
       
+      // Use smart completion detection instead of hardcoded phrases
+      // Import at top: import { detectProblemCompletion } from "@/services/completionDetector";
+      // For now, use simple check but we'll improve this
       const isCompleted = 
         responseText.includes("correct!") ||
         responseText.includes("well done") ||
@@ -416,6 +419,8 @@ export async function POST(request: NextRequest) {
         responseText.includes("you found") ||
         (responseText.includes("solved") && (responseText.includes("correct") || responseText.includes("right"))) ||
         (responseText.includes("correct") && responseText.includes("answer"));
+      
+      // TODO: Replace with smart detection: detectProblemCompletion(session.messages, session.problem)
 
       console.log("✅ Completion check result:", {
         isCompleted,
