@@ -16,6 +16,7 @@ import type { ParsedProblem } from "@/types";
 import { createShare, type ShareMetadata } from "@/services/shareService";
 import { summarizeSession } from "@/services/conversationSummaryService";
 import { contextManager } from "@/services/contextManager";
+import { checkGoalProgress } from "@/services/goalService";
 
 /**
  * Ecosystem Orchestrator Class
@@ -161,6 +162,30 @@ class EcosystemOrchestrator {
           conceptsCount: summary.concepts_covered.length,
         });
 
+        // Check and update goal progress
+        const goalUpdates = await checkGoalProgress(
+          userId,
+          profileId,
+          problemData.problem.type,
+          problemData.problem.text
+        );
+
+        // Emit goal_achieved events for completed goals
+        for (const completedGoal of goalUpdates.completedGoals) {
+          await eventBus.emit({
+            type: "goal_achieved",
+            userId,
+            profileId: profileId || undefined,
+            data: {
+              goalId: completedGoal.id,
+              goalType: completedGoal.goal_type,
+              targetSubject: completedGoal.target_subject,
+              progress: completedGoal.progress,
+            },
+            timestamp: new Date(),
+          });
+        }
+
         // Emit session_ended event for UI updates
         await eventBus.emit({
           type: "session_ended",
@@ -170,6 +195,8 @@ class EcosystemOrchestrator {
             sessionId: problemData.sessionId,
             summaryId: summary.id,
             concepts: summary.concepts_covered,
+            goalsUpdated: goalUpdates.updatedGoals.length,
+            goalsCompleted: goalUpdates.completedGoals.length,
           },
           timestamp: new Date(),
         });
