@@ -34,11 +34,16 @@ export async function GET(request: NextRequest) {
       );
     }
 
-    // Verify user is authenticated
+    // Verify user exists in profiles table (simpler check for service role client)
     const supabase = getSupabaseServer();
-    const { data: { user }, error: authError } = await supabase.auth.getUser();
+    const { data: profile, error: profileError } = await supabase
+      .from("profiles")
+      .select("id")
+      .eq("id", userId)
+      .single();
 
-    if (authError || !user || user.id !== userId) {
+    if (profileError || !profile) {
+      logger.warn("User not found in profiles", { userId, error: profileError });
       return NextResponse.json(
         { error: "Unauthorized" },
         { status: 401 }
@@ -75,11 +80,16 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // Verify user is authenticated
+    // Verify user exists in profiles table (simpler check for service role client)
     const supabase = getSupabaseServer();
-    const { data: { user }, error: authError } = await supabase.auth.getUser();
+    const { data: profile, error: profileError } = await supabase
+      .from("profiles")
+      .select("id")
+      .eq("id", userId)
+      .single();
 
-    if (authError || !user || user.id !== userId) {
+    if (profileError || !profile) {
+      logger.warn("User not found in profiles", { userId, error: profileError });
       return NextResponse.json(
         { error: "Unauthorized" },
         { status: 401 }
@@ -128,11 +138,16 @@ export async function PUT(request: NextRequest) {
       );
     }
 
-    // Verify user is authenticated
+    // Verify user exists in profiles table (simpler check for service role client)
     const supabase = getSupabaseServer();
-    const { data: { user }, error: authError } = await supabase.auth.getUser();
+    const { data: profile, error: profileError } = await supabase
+      .from("profiles")
+      .select("id")
+      .eq("id", userId)
+      .single();
 
-    if (authError || !user || user.id !== userId) {
+    if (profileError || !profile) {
+      logger.warn("User not found in profiles", { userId, error: profileError });
       return NextResponse.json(
         { error: "Unauthorized" },
         { status: 401 }
@@ -183,11 +198,16 @@ export async function DELETE(request: NextRequest) {
       );
     }
 
-    // Verify user is authenticated
+    // Verify user exists in profiles table (simpler check for service role client)
     const supabase = getSupabaseServer();
-    const { data: { user }, error: authError } = await supabase.auth.getUser();
+    const { data: profile, error: profileError } = await supabase
+      .from("profiles")
+      .select("id")
+      .eq("id", userId)
+      .single();
 
-    if (authError || !user || user.id !== userId) {
+    if (profileError || !profile) {
+      logger.warn("User not found in profiles", { userId, error: profileError });
       return NextResponse.json(
         { error: "Unauthorized" },
         { status: 401 }

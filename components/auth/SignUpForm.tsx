@@ -76,17 +76,24 @@ export default function SignUpForm({ onSuccess, onSwitchToLogin }: SignUpFormPro
         <label htmlFor="role" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
           I am a
         </label>
-        <select
-          id="role"
-          value={role}
-          onChange={(e) => setRole(e.target.value as "student" | "parent" | "teacher")}
-          className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 dark:bg-gray-800 dark:text-white"
-          disabled={loading}
-        >
-          <option value="student">Student</option>
-          <option value="parent">Parent</option>
-          <option value="teacher">Teacher</option>
-        </select>
+        <div className="relative">
+          <select
+            id="role"
+            value={role}
+            onChange={(e) => setRole(e.target.value as "student" | "parent" | "teacher")}
+            className="w-full px-3 py-2 pr-8 border border-gray-300 dark:border-gray-600 rounded-lg focus:outline-none focus:ring-1 focus:ring-gray-400 dark:focus:ring-gray-500 focus:border-gray-400 dark:focus:border-gray-500 bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100 transition-colors appearance-none cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
+            disabled={loading}
+          >
+            <option value="student">Student</option>
+            <option value="parent">Parent</option>
+            <option value="teacher">Teacher</option>
+          </select>
+          <div className="absolute inset-y-0 right-0 flex items-center pr-2 pointer-events-none">
+            <svg className="w-4 h-4 text-gray-400 dark:text-gray-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+            </svg>
+          </div>
+        </div>
         <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">
           {role === "student" && "You'll get your own profile to track your progress"}
           {role === "parent" && "You can link to your child's account to view their progress"}
