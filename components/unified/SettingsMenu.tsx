@@ -204,13 +204,13 @@ export default function SettingsMenu({ onXPDataChange }: SettingsMenuProps) {
       </div>
 
       {/* Tab Content */}
-      <div className="flex-1 overflow-y-auto min-h-0">
+      <div className="flex-1 overflow-y-auto min-h-0 overscroll-contain" style={{ maxHeight: 'calc(85vh - 80px)' }}>
         {activeTab === "settings" && <SettingsContent />}
         {activeTab === "notifications" && <NotificationsContent />}
         {activeTab === "xp" && <XPContent onXPDataChange={onXPDataChange} />}
         {activeTab === "reminders" && <RemindersContent />}
         {activeTab === "profiles" && user && (
-          <div className="p-4 pb-6">
+          <div className="p-4 pb-8">
             <ProfileManager />
           </div>
         )}
