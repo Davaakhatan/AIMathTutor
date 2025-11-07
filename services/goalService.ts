@@ -95,8 +95,8 @@ export async function getGoals(
   try {
     const supabase = getSupabaseAdmin();
     if (!supabase) {
-      logger.error("Supabase admin client not available for creating goal");
-      return null;
+      logger.error("Supabase admin client not available for fetching goals");
+      return [];
     }
 
     let query = supabase
