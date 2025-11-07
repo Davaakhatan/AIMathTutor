@@ -659,38 +659,27 @@ async function handleStreamingResponse(
           }) + "\n";
           controller.enqueue(new TextEncoder().encode(done));
           
-          // After stream completes, check for problem completion
+          // After stream completes, check for problem completion using smart detector
           // Get the session to access the full tutor response
           const session = await contextManager.getSession(sessionId, userId);
-          if (session && session.messages && session.messages.length > 0) {
-            // Get the last tutor message (the one we just streamed)
-            const tutorMessages = session.messages.filter(m => m.role === "tutor");
-            const lastTutorMessage = tutorMessages[tutorMessages.length - 1];
+          if (session && session.messages && session.messages.length > 0 && userId && session.problem) {
+            // Use the smart completion detector instead of simple phrase matching
+            // This prevents false positives when AI says "great job" but then asks another question
+            const { detectProblemCompletion } = await import("@/services/completionDetector");
+            const completionResult = detectProblemCompletion(session.messages, session.problem);
+            const isCompleted = completionResult.isCompleted;
             
-            if (lastTutorMessage && userId && session.problem) {
-              const responseText = lastTutorMessage.content.toLowerCase();
-              
-              console.log("🔍 [STREAMING] Checking problem completion after stream:", {
-                responseLength: responseText.length,
-                responsePreview: responseText.substring(0, 150),
-                hasUserId: !!userId,
-                hasProblem: !!session.problem,
-              });
-              
-              const isCompleted = 
-                responseText.includes("correct!") ||
-                responseText.includes("well done") ||
-                responseText.includes("great job") ||
-                responseText.includes("you got it") ||
-                responseText.includes("that's right") ||
-                responseText.includes("excellent") ||
-                responseText.includes("perfect!") ||
-                responseText.includes("well done on") ||
-                responseText.includes("great work") ||
-                responseText.includes("you've found") ||
-                responseText.includes("you found") ||
-                responseText.includes("solved") && (responseText.includes("correct") || responseText.includes("right")) ||
-                (responseText.includes("correct") && responseText.includes("answer"));
+            const lastMessage = session.messages[session.messages.length - 1];
+            console.log("🔍 [STREAMING] Checking problem completion after stream:", {
+              responseLength: lastMessage?.content?.length || 0,
+              responsePreview: lastMessage?.content?.substring(0, 150) || "",
+              hasUserId: !!userId,
+              hasProblem: !!session.problem,
+              isCompleted,
+              score: completionResult.score,
+              confidence: completionResult.confidence,
+              reasons: completionResult.reasons.slice(0, 2),
+            });
 
               if (isCompleted) {
                 console.log("🎉 [STREAMING] PROBLEM COMPLETED! Emitting event...", {
