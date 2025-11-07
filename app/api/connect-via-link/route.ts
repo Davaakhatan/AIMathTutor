@@ -79,18 +79,23 @@ export async function POST(request: NextRequest) {
     }
 
     // Check if relationship already exists
-    const { data: existingRel, error: relCheckError } = await supabase
+    const { data: existingRels, error: relCheckError } = await supabase
       .from("profile_relationships")
       .select("id")
       .eq("parent_id", userId)
       .eq("student_profile_id", studentProfileId)
-      .single();
+      .limit(1);
 
-    if (existingRel) {
+    if (relCheckError && relCheckError.code !== "PGRST116") {
+      logger.error("Error checking existing relationship", { error: relCheckError });
+      // Continue anyway - might be a permission issue, but we'll try to create
+    }
+
+    if (existingRels && existingRels.length > 0) {
       return NextResponse.json({
         success: true,
         message: "Already connected to this student",
-        relationshipId: existingRel.id,
+        relationshipId: existingRels[0].id,
         studentProfile: {
           id: studentProfile.id,
           name: studentProfile.name,
