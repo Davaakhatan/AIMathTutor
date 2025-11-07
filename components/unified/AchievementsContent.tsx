@@ -5,6 +5,7 @@ import { useLocalStorage } from "@/hooks/useLocalStorage";
 import { useAuth } from "@/contexts/AuthContext";
 import { ALL_ACHIEVEMENTS, checkAchievements, type Achievement } from "@/services/achievementService";
 import ShareCard from "@/components/ShareCard";
+import AchievementIcon from "@/components/achievements/AchievementIcon";
 
 const allAchievements = ALL_ACHIEVEMENTS;
 
@@ -76,12 +77,14 @@ export default function AchievementsContent() {
     <div className="flex-1 overflow-y-auto p-4">
       {/* New Achievement Toast */}
       {newAchievement && (
-        <div className="mb-4 bg-yellow-50 dark:bg-yellow-900/20 border-2 border-yellow-400 dark:border-yellow-500 rounded-lg shadow-lg p-4 animate-in fade-in slide-in-from-bottom-2 transition-colors">
+        <div className="mb-4 bg-gray-50 dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg shadow-lg p-4 animate-in fade-in slide-in-from-bottom-2 transition-colors">
           <div className="flex items-center gap-3">
-            <span className="text-4xl">{newAchievement.icon}</span>
+            <div className="w-10 h-10 text-indigo-600 dark:text-indigo-400 flex-shrink-0">
+              <AchievementIcon achievementId={newAchievement.id} className="w-full h-full" />
+            </div>
             <div>
-              <p className="font-bold text-gray-900 dark:text-gray-100 transition-colors">Achievement Unlocked!</p>
-              <p className="text-sm text-gray-600 dark:text-gray-300 transition-colors">{newAchievement.name}</p>
+              <p className="font-medium text-gray-900 dark:text-gray-100 transition-colors">Achievement Unlocked</p>
+              <p className="text-sm text-gray-700 dark:text-gray-300 transition-colors">{newAchievement.name}</p>
               <p className="text-xs text-gray-500 dark:text-gray-400 transition-colors">{newAchievement.description}</p>
             </div>
           </div>
@@ -112,11 +115,15 @@ export default function AchievementsContent() {
               unlocked.map((achievement) => (
                 <div
                   key={achievement.id}
-                  className="p-3 bg-yellow-50 dark:bg-yellow-900/20 border-2 border-yellow-400 dark:border-yellow-500 rounded-lg text-center transition-colors relative"
+                  className="p-4 bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-700 rounded-lg text-center transition-colors hover:border-indigo-300 dark:hover:border-indigo-600"
                 >
-                  <div className="text-2xl mb-1">{achievement.icon}</div>
-                  <div className="text-xs font-medium text-gray-900 dark:text-gray-100 transition-colors">{achievement.name}</div>
-                  <div className="text-xs text-gray-600 dark:text-gray-400 mt-0.5 transition-colors">{achievement.description}</div>
+                  <div className="flex justify-center mb-2">
+                    <div className="w-10 h-10 text-indigo-600 dark:text-indigo-400">
+                      <AchievementIcon achievementId={achievement.id} className="w-full h-full" />
+                    </div>
+                  </div>
+                  <div className="text-xs font-medium text-gray-900 dark:text-gray-100 transition-colors mb-1">{achievement.name}</div>
+                  <div className="text-xs text-gray-500 dark:text-gray-400 transition-colors mb-3">{achievement.description}</div>
                   {user && (
                     <div className="mt-2">
                       <ShareCard
@@ -125,7 +132,7 @@ export default function AchievementsContent() {
                           achievement_title: achievement.name,
                           achievement_type: achievement.id,
                         }}
-                        className="text-xs px-2 py-1"
+                        className="text-xs px-3 py-1.5 w-full"
                       />
                     </div>
                   )}
@@ -142,10 +149,14 @@ export default function AchievementsContent() {
               {locked.map((achievement) => (
                 <div
                   key={achievement.id}
-                  className="p-3 bg-gray-100 dark:bg-gray-800 border border-gray-300 dark:border-gray-700 rounded-lg text-center opacity-60 transition-colors"
+                  className="p-4 bg-gray-50 dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg text-center opacity-50 transition-colors"
                 >
-                  <div className="text-2xl mb-1 grayscale">{achievement.icon}</div>
-                  <div className="text-xs font-medium text-gray-600 dark:text-gray-400 transition-colors">???</div>
+                  <div className="flex justify-center mb-2">
+                    <div className="w-10 h-10 text-gray-400 dark:text-gray-600">
+                      <AchievementIcon achievementId={achievement.id} className="w-full h-full" />
+                    </div>
+                  </div>
+                  <div className="text-xs font-medium text-gray-400 dark:text-gray-500 transition-colors">Locked</div>
                 </div>
               ))}
             </div>

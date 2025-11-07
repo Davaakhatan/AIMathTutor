@@ -103,7 +103,7 @@ export default function SharePage() {
           )}
           {shareData.metadata.streak_days && (
             <p className="text-xl text-gray-700 dark:text-gray-300 mb-2">
-              {shareData.metadata.streak_days} day streak! 🔥
+              {shareData.metadata.streak_days} day streak!
             </p>
           )}
           {shareData.metadata.level && (

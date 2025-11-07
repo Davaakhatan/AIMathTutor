@@ -103,33 +103,32 @@ export async function createShare(
 
 /**
  * Get share data by share code (for deep links)
+ * Uses API route to avoid RLS issues
  */
 export async function getShareByCode(shareCode: string): Promise<ShareData | null> {
   try {
-    const supabase = await getSupabaseClient();
+    // Call API route instead of direct Supabase call
+    const response = await fetch(`/api/share/${shareCode}`);
     
-    const { data, error } = await supabase
-      .from("shares")
-      .select("*")
-      .eq("share_code", shareCode.toUpperCase())
-      .single();
+    if (!response.ok) {
+      if (response.status === 404) {
+        return null; // Not found
+      }
+      logger.error("Error fetching share by code", { shareCode, status: response.status });
+      return null;
+    }
     
-    if (error) {
-      if (error.code === "PGRST116") {
-        // Not found
+    const result = await response.json();
+    if (result.success && result.share) {
+      // Check if expired
+      if (result.share.expires_at && new Date(result.share.expires_at) < new Date()) {
+        logger.warn("Share code expired", { shareCode, expiresAt: result.share.expires_at });
         return null;
       }
-      logger.error("Error fetching share by code", { error: error.message, shareCode });
-      return null;
+      return result.share as ShareData;
     }
     
-    // Check if expired
-    if (data.expires_at && new Date(data.expires_at) < new Date()) {
-      logger.warn("Share code expired", { shareCode, expiresAt: data.expires_at });
-      return null;
-    }
-    
-    return data as ShareData;
+    return null;
   } catch (error) {
     logger.error("Error in getShareByCode", { error, shareCode });
     return null;

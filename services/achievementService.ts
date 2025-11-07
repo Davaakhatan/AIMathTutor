@@ -9,20 +9,20 @@ export interface Achievement {
   id: string;
   name: string;
   description: string;
-  icon: string;
+  icon: string; // Keep for backward compatibility, but we'll use SVG icons
 }
 
 export const ALL_ACHIEVEMENTS: Achievement[] = [
-  { id: "first_problem", name: "Getting Started", description: "Solved your first problem", icon: "🎯" },
-  { id: "streak_3", name: "On Fire", description: "3-day study streak", icon: "🔥" },
-  { id: "streak_7", name: "Week Warrior", description: "7-day study streak", icon: "⭐" },
-  { id: "streak_30", name: "Dedicated", description: "30-day study streak", icon: "🏆" },
-  { id: "problems_10", name: "Problem Solver", description: "Solved 10 problems", icon: "💪" },
-  { id: "problems_50", name: "Math Master", description: "Solved 50 problems", icon: "👑" },
-  { id: "no_hints", name: "Independent", description: "Solved a problem without hints", icon: "🧠" },
-  { id: "voice_user", name: "Voice Learner", description: "Used voice interface 10 times", icon: "🎤" },
-  { id: "whiteboard_user", name: "Visual Thinker", description: "Used whiteboard 5 times", icon: "✏️" },
-  { id: "all_types", name: "Versatile", description: "Solved problems of all types", icon: "🌟" },
+  { id: "first_problem", name: "Getting Started", description: "Solved your first problem", icon: "" },
+  { id: "streak_3", name: "On Fire", description: "3-day study streak", icon: "" },
+  { id: "streak_7", name: "Week Warrior", description: "7-day study streak", icon: "" },
+  { id: "streak_30", name: "Dedicated", description: "30-day study streak", icon: "" },
+  { id: "problems_10", name: "Problem Solver", description: "Solved 10 problems", icon: "" },
+  { id: "problems_50", name: "Math Master", description: "Solved 50 problems", icon: "" },
+  { id: "no_hints", name: "Independent", description: "Solved a problem without hints", icon: "" },
+  { id: "voice_user", name: "Voice Learner", description: "Used voice interface 10 times", icon: "" },
+  { id: "whiteboard_user", name: "Visual Thinker", description: "Used whiteboard 5 times", icon: "" },
+  { id: "all_types", name: "Versatile", description: "Solved problems of all types", icon: "" },
 ];
 
 /**
