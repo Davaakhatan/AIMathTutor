@@ -236,6 +236,9 @@ export default function SharePage() {
     );
   }
 
+  // Debug: Log current state
+  console.log("[SharePage] Rendering with:", { sharerName, challenge, shareData: shareData?.share_type });
+
   return (
     <div className="min-h-screen flex items-center justify-center bg-[#fafafa] dark:bg-[#0a0a0a] p-4">
       <div className="max-w-2xl w-full bg-white dark:bg-gray-900 rounded-lg shadow-lg p-8">
