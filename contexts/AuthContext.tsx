@@ -151,9 +151,35 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
             });
             
             // Find active profile from the list
-            const active = activeProfileId 
-              ? profilesList.find((p: StudentProfile) => p.id === activeProfileId) || null
-              : (profilesList.length > 0 ? profilesList[0] : null);
+            // For students: default to first profile if none selected
+            // For parents/teachers: default to null (Personal view) if none selected
+            let active: StudentProfile | null = null;
+            if (activeProfileId) {
+              // If activeProfileId is set, find it in the list
+              active = profilesList.find((p: StudentProfile) => p.id === activeProfileId) || null;
+              
+              // If parent/teacher and the activeProfileId doesn't match any linked profile, reset to null
+              if (!active && (result.userRole === "parent" || result.userRole === "teacher")) {
+                logger.warn("Active profile ID doesn't match any linked profiles, resetting to Personal view", {
+                  activeProfileId,
+                  linkedProfileIds: profilesList.map((p: StudentProfile) => p.id),
+                  userId
+                });
+                active = null;
+                // Update database to clear invalid activeProfileId (in background, don't wait)
+                setActiveProfile(null).catch((err) => {
+                  logger.error("Error clearing invalid activeProfileId", { error: err });
+                });
+              }
+            } else {
+              // If activeProfileId is null, only default to first profile for students
+              if (result.userRole === "student" && profilesList.length > 0) {
+                active = profilesList[0];
+              } else {
+                // Parents/teachers default to null (Personal view)
+                active = null;
+              }
+            }
             
             // Update userRole if provided
             if (result.userRole) {
@@ -877,37 +903,54 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   // Set active profile - optimized for speed
   const handleSetActiveProfile = useCallback(async (profileId: string | null) => {
     try {
+      // Validate profile selection
+      // For parents/teachers: profileId must be null or exist in linked profiles
+      // For students: profileId must be null or exist in their profiles
+      let validatedProfileId = profileId;
+      if (validatedProfileId && profiles.length > 0) {
+        const profileExists = profiles.some(p => p.id === validatedProfileId);
+        if (!profileExists) {
+          logger.warn("Profile ID not found in profiles list, resetting to null", {
+            profileId: validatedProfileId,
+            availableProfileIds: profiles.map(p => p.id),
+            userRole
+          });
+          // Reset to null if profile doesn't exist
+          validatedProfileId = null;
+        }
+      }
+      
       // Optimistically update UI immediately (don't wait for database)
-      const newActiveProfile = profileId 
-        ? profiles.find(p => p.id === profileId) || null
+      const newActiveProfile = validatedProfileId 
+        ? profiles.find(p => p.id === validatedProfileId) || null
         : null;
       setActiveProfileState(newActiveProfile);
       
       // Update database in background (don't wait)
-      setActiveProfile(profileId)
+      setActiveProfile(validatedProfileId)
         .then(async () => {
-          logger.info("Active profile updated in database", { profileId });
+          logger.info("Active profile updated in database", { profileId: validatedProfileId });
           // Reload data for the new profile
           if (user) {
             await loadUserDataFromSupabase(true); // Force reload for new profile
           }
         })
         .catch((error) => {
-          logger.error("Error updating active profile in database", { error, profileId });
+          logger.error("Error updating active profile in database", { error, profileId: validatedProfileId });
           // Revert on error - reload profiles to get correct state
           refreshProfiles().catch((refreshError) => {
             logger.error("Error refreshing profiles after failed update", { refreshError });
           });
         });
       
-      logger.info("Active profile updated (optimistic)", { profileId });
+      logger.info("Active profile updated (optimistic)", { profileId: validatedProfileId });
     } catch (error) {
       logger.error("Error setting active profile", { error, profileId });
       // Revert on error
       await refreshProfiles();
       throw error;
     }
-  }, [profiles, refreshProfiles, user, loadUserDataFromSupabase]);
+  }, [profiles, refreshProfiles, user, loadUserDataFromSupabase, userRole]);
 
   return (
     <AuthContext.Provider

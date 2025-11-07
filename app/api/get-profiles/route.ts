@@ -163,8 +163,38 @@ export async function POST(request: NextRequest) {
       activeProfileId = profile.current_student_profile_id || 
         (studentProfiles.length > 0 ? studentProfiles[0].id : null);
     } else {
-      // Parents/teachers: use current_student_profile_id if set, otherwise null (Personal view)
-      activeProfileId = profile.current_student_profile_id || null;
+      // Parents/teachers: use current_student_profile_id if set AND it exists in linked profiles
+      // Otherwise, default to null (Personal view)
+      if (profile.current_student_profile_id) {
+        // Validate that the active profile ID exists in the linked profiles
+        const profileExists = studentProfiles.some(p => p.id === profile.current_student_profile_id);
+        if (profileExists) {
+          activeProfileId = profile.current_student_profile_id;
+        } else {
+          // Invalid activeProfileId - reset to null
+          console.log("[API] Invalid activeProfileId for parent/teacher, resetting to null", {
+            activeProfileId: profile.current_student_profile_id,
+            linkedProfileIds: studentProfiles.map(p => p.id),
+            userId
+          });
+          activeProfileId = null;
+          // Update database to clear invalid activeProfileId (in background, don't wait)
+          supabase
+            .from("profiles")
+            .update({ current_student_profile_id: null })
+            .eq("id", userId)
+            .then(({ error }) => {
+              if (error) {
+                console.error("[API] Error clearing invalid activeProfileId", { error: error.message });
+              } else {
+                console.log("[API] Cleared invalid activeProfileId in database");
+              }
+            });
+        }
+      } else {
+        // No activeProfileId set - default to null (Personal view)
+        activeProfileId = null;
+      }
     }
 
     console.log("[API] Returning profiles:", {
