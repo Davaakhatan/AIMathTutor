@@ -702,6 +702,9 @@ function HomeContentInternal() {
             }}
           />
 
+          {/* Referral Button (only for logged-in users) */}
+          {!isGuestMode && user && <ReferralButton />}
+
           {/* Unified Tools Menu (Search + Tips + Formulas) */}
           <ToolsMenu 
             key={`tools-menu-${activeProfile?.id || 'none'}`}
