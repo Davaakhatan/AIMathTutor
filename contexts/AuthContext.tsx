@@ -856,7 +856,9 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       }
       
       if (data.achievements.length > 0) {
-        localStorage.setItem("aitutor-achievements", JSON.stringify(data.achievements));
+        // Convert achievement objects to array of IDs for localStorage
+        const achievementIds = data.achievements.map((a: any) => a.achievement_type || a.id).filter(Boolean);
+        localStorage.setItem("aitutor-achievements", JSON.stringify(achievementIds));
       }
       
       if (data.studySessions.length > 0) {
