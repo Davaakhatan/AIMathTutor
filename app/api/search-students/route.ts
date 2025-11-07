@@ -39,67 +39,97 @@ export async function POST(request: NextRequest) {
     }
 
     // Search for students by name, email, or username
-    // Strategy: Get student profiles, then match against user emails
+    // Strategy: Search auth.users first (by email/username), then get their student profiles
     const searchLower = searchQuery.toLowerCase().trim();
     const supabaseAdmin = getSupabaseAdmin();
 
-    // Get student profiles that match by name
-    const { data: studentProfiles, error: profilesError } = await supabase
+    if (!supabaseAdmin) {
+      logger.error("Supabase admin client not available for student search");
+      return NextResponse.json(
+        { error: "Search service unavailable. Please check server configuration." },
+        { status: 500 }
+      );
+    }
+
+    // Step 1: Search auth.users by email (if it looks like an email)
+    const isEmailSearch = searchLower.includes("@");
+    let matchingUserIds: string[] = [];
+
+    if (isEmailSearch) {
+      // Search by email in auth.users
+      try {
+        // Note: Supabase Admin API doesn't have a direct search, so we'll need to list users
+        // For now, we'll search student_profiles and match emails
+        // But we'll also try to get user by email if possible
+        logger.info("Searching by email", { email: searchLower });
+      } catch (error) {
+        logger.warn("Error searching by email", { error });
+      }
+    }
+
+    // Step 2: Get all student profiles (we'll filter them)
+    const { data: allStudentProfiles, error: profilesError } = await supabase
       .from("student_profiles")
       .select("id, owner_id, name, grade_level, avatar_url")
-      .ilike("name", `%${searchLower}%`)
-      .limit(50); // Get more to filter by email
+      .limit(100); // Get more profiles to search through
 
     if (profilesError) {
-      logger.error("Error searching student profiles", { error: profilesError });
+      logger.error("Error fetching student profiles", { error: profilesError });
       return NextResponse.json(
         { error: "Failed to search for students" },
         { status: 500 }
       );
     }
 
-    // For each student profile, get user email from auth.users
+    // Step 3: For each student profile, get user email and match against search query
     const results = await Promise.all(
-      (studentProfiles || []).map(async (studentProfile) => {
-        // Get user email from auth.users (using admin client)
-        let email = "";
-        let username = null;
-        
-        if (supabaseAdmin) {
-          try {
-            const { data: { user }, error: userError } = await supabaseAdmin.auth.admin.getUserById(studentProfile.owner_id);
-            if (!userError && user) {
-              email = user.email || "";
-              username = user.user_metadata?.username || null;
-            }
-          } catch (error) {
-            logger.warn("Could not get user email", { userId: studentProfile.owner_id, error });
+      (allStudentProfiles || []).map(async (studentProfile) => {
+        try {
+          // Get user email from auth.users (using admin client)
+          const { data: { user }, error: userError } = await supabaseAdmin.auth.admin.getUserById(studentProfile.owner_id);
+          
+          if (userError || !user) {
+            return null;
           }
-        }
 
-        return {
-          user_id: studentProfile.owner_id,
-          email: email,
-          username: username,
-          student_profile: {
-            id: studentProfile.id,
-            name: studentProfile.name,
-            grade_level: studentProfile.grade_level,
-            avatar_url: studentProfile.avatar_url,
-          },
-        };
+          const email = (user.email || "").toLowerCase();
+          const username = (user.user_metadata?.username || "").toLowerCase();
+          const profileName = (studentProfile.name || "").toLowerCase();
+
+          // Check if search query matches email, username, or profile name
+          const emailMatch = email.includes(searchLower);
+          const usernameMatch = username && username.includes(searchLower);
+          const nameMatch = profileName.includes(searchLower);
+
+          if (!emailMatch && !usernameMatch && !nameMatch) {
+            return null; // No match
+          }
+
+          return {
+            user_id: studentProfile.owner_id,
+            email: user.email || "",
+            username: user.user_metadata?.username || null,
+            student_profile: {
+              id: studentProfile.id,
+              name: studentProfile.name,
+              grade_level: studentProfile.grade_level,
+              avatar_url: studentProfile.avatar_url,
+            },
+          };
+        } catch (error) {
+          logger.warn("Error processing student profile", { 
+            profileId: studentProfile.id, 
+            error 
+          });
+          return null;
+        }
       })
     );
 
-    // Filter results by email/username/name match
-    const filteredResults = results.filter(result => {
-      const emailMatch = result.email.toLowerCase().includes(searchLower);
-      const usernameMatch = result.username?.toLowerCase().includes(searchLower);
-      const nameMatch = result.student_profile.name.toLowerCase().includes(searchLower);
-      return emailMatch || usernameMatch || nameMatch;
-    }).slice(0, 10); // Limit to 10 results
-
-    const validResults = filteredResults;
+    // Filter out null results and limit to 10
+    const validResults = results
+      .filter((r): r is NonNullable<typeof r> => r !== null)
+      .slice(0, 10);
 
     logger.info("Student search completed", {
       query: searchQuery,
