@@ -9,6 +9,7 @@ import HistoryContent from "./HistoryContent";
 import PracticeContent from "./PracticeContent";
 import SuggestionsContent from "./SuggestionsContent";
 import LearningPath from "../LearningPath";
+import LearningGoals from "./LearningGoals";
 import { DifficultyLevel } from "@/services/difficultyTracker";
 
 interface LearningHubProps {
@@ -26,7 +27,7 @@ export default function LearningHub({ onSelectProblem, onDifficultyChange, apiKe
   const { user } = useAuth();
   const { activePanel, setActivePanel, isAnyPanelOpen } = usePanel();
   const [isOpen, setIsOpen] = useState(false);
-  const [activeTab, setActiveTab] = useState<"dashboard" | "history" | "practice" | "suggestions" | "path">("dashboard");
+  const [activeTab, setActiveTab] = useState<"dashboard" | "history" | "practice" | "suggestions" | "path" | "goals">("dashboard");
   const panelRef = useRef<HTMLDivElement>(null);
   
   // Calculate vertical position - stack below UserMenu (logged in) or AuthButton (guest mode)
@@ -161,6 +162,16 @@ export default function LearningHub({ onSelectProblem, onDifficultyChange, apiKe
           >
             Path
           </button>
+          <button
+            onClick={() => setActiveTab("goals")}
+            className={`flex-1 px-2 py-1.5 text-xs font-medium rounded-md transition-colors ${
+              activeTab === "goals"
+                ? "bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100 shadow-sm"
+                : "text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-gray-100"
+            }`}
+          >
+            Goals
+          </button>
         </div>
         <button
           onClick={handleClose}
@@ -180,6 +191,7 @@ export default function LearningHub({ onSelectProblem, onDifficultyChange, apiKe
         {activeTab === "practice" && <PracticeContent onStartPractice={onSelectProblem} apiKey={apiKey} />}
         {activeTab === "suggestions" && <SuggestionsContent onSelectProblem={onSelectProblem} />}
         {activeTab === "path" && <LearningPath onStartProblem={onSelectProblem} apiKey={apiKey} />}
+        {activeTab === "goals" && <LearningGoals isGuestMode={isGuestMode} onSignUpClick={onSignUpClick} />}
       </div>
     </div>
   );
