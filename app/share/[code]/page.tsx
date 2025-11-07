@@ -197,12 +197,8 @@ export default function SharePage() {
   }, [shareCode]);
 
   const handleTryNow = () => {
-    // Redirect to main app with challenge pre-filled
-    if (challenge) {
-      router.push(`/?share=${shareCode}&problem=${encodeURIComponent(challenge)}&try=true`);
-    } else {
-      router.push(`/s/${shareCode}`);
-    }
+    // Always redirect to deep link for micro-task
+    router.push(`/s/${shareCode}`);
   };
 
   if (loading) {
