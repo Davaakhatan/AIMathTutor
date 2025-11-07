@@ -68,8 +68,16 @@ export async function createShare(
   expiresInDays?: number
 ): Promise<ShareData | null> {
   try {
+    // Determine base URL for API calls
+    // In server-side code, we need absolute URL
+    const baseUrl = typeof window !== "undefined" 
+      ? window.location.origin 
+      : process.env.NEXT_PUBLIC_APP_URL || process.env.VERCEL_URL 
+        ? `https://${process.env.VERCEL_URL}` 
+        : "http://localhost:3002";
+    
     // Call API route instead of direct Supabase call
-    const response = await fetch("/api/share/generate", {
+    const response = await fetch(`${baseUrl}/api/share/generate`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({

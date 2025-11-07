@@ -39,16 +39,29 @@ export default function ProblemProgress({ messages, problem, difficultyMode = "m
   }).length;
 
   // Use smart completion detection instead of hardcoded phrases
+  // This runs on every render when messages change, so it's always up-to-date
   const completionResult = detectProblemCompletion(messages, problem);
   const isSolved = completionResult.isCompleted;
   
   // Log for debugging (only in development)
-  if (process.env.NODE_ENV === "development" && isSolved) {
-    console.log("✅ Problem marked as solved:", {
-      score: completionResult.score,
-      confidence: completionResult.confidence,
-      reasons: completionResult.reasons,
-    });
+  if (process.env.NODE_ENV === "development") {
+    if (isSolved) {
+      console.log("✅ Problem marked as solved:", {
+        score: completionResult.score,
+        confidence: completionResult.confidence,
+        reasons: completionResult.reasons,
+        messageCount: messages.length,
+      });
+    } else if (messages.length > 0) {
+      // Log why it's not solved (only occasionally to avoid spam)
+      if (messages.length % 3 === 0) {
+        console.log("⏳ Problem not solved yet:", {
+          score: completionResult.score,
+          confidence: completionResult.confidence,
+          reasons: completionResult.reasons.slice(0, 2), // First 2 reasons
+        });
+      }
+    }
   }
 
   // Legacy code kept for reference but not used

@@ -184,7 +184,10 @@ function checkAIConfirmation(
       content.includes("you've solved it") ||
       content.includes("you solved it") ||
       content.includes("problem is solved") ||
-      content.includes("you've completed")
+      content.includes("you've completed") ||
+      content.includes("congratulations on completing") ||
+      content.includes("congratulations! you solved") ||
+      (content.includes("congratulations") && content.includes("completing"))
     ) {
       points += 30;
       reasons.push("AI explicitly confirmed problem is solved");
@@ -233,13 +236,18 @@ function checkCompletionPhrases(
 
   const content = lastMessage.content.toLowerCase();
 
-  // High-value phrases
-  const highValuePhrases = [
-    "well done on solving",
-    "congratulations on solving",
-    "you've found the correct answer",
-    "that's the correct answer",
-  ];
+    // High-value phrases
+    const highValuePhrases = [
+      "well done on solving",
+      "congratulations on solving",
+      "congratulations on completing",
+      "congratulations! you solved",
+      "congratulations! you've solved",
+      "you've found the correct answer",
+      "that's the correct answer",
+      "you've got it right",
+      "you got it right",
+    ];
 
   for (const phrase of highValuePhrases) {
     if (content.includes(phrase)) {

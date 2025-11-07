@@ -4,7 +4,7 @@
  */
 
 import { getSupabaseClient } from "@/lib/supabase";
-import { getOpenAIClient } from "@/lib/openai";
+import { getOpenAI } from "@/lib/openai";
 import { logger } from "@/lib/logger";
 import type { Message } from "@/types";
 
@@ -41,7 +41,7 @@ export async function summarizeSession(
   input: SummaryInput
 ): Promise<ConversationSummary | null> {
   try {
-    const openai = getOpenAIClient();
+    const openai = getOpenAI();
     if (!openai) {
       logger.error("OpenAI client not available for summarization");
       return null;
