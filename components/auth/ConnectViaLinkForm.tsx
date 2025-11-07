@@ -44,7 +44,9 @@ export default function ConnectViaLinkForm({ onSuccess }: { onSuccess?: () => vo
       const data = await response.json();
 
       if (!response.ok) {
-        throw new Error(data.error || "Failed to connect to student");
+        // Show the detailed error message from the API
+        const errorMessage = data.error || data.details || "Failed to connect to student";
+        throw new Error(errorMessage);
       }
 
       showToast(data.message || "Successfully connected to student!", "success");
