@@ -108,24 +108,25 @@ export async function createShare(
 export async function getShareByCode(shareCode: string): Promise<ShareData | null> {
   try {
     if (!shareCode || typeof shareCode !== 'string') {
-      logger.error("Invalid shareCode provided", { shareCode, type: typeof shareCode });
+      console.error("[getShareByCode] Invalid shareCode:", shareCode, typeof shareCode);
       return null;
     }
 
     // Call API route instead of direct Supabase call
-    let response: Response;
+    let response: Response | null = null;
     try {
-      response = await fetch(`/api/share/${encodeURIComponent(shareCode)}`);
+      const url = `/api/share/${encodeURIComponent(shareCode)}`;
+      console.log("[getShareByCode] Fetching:", url);
+      response = await fetch(url);
+      console.log("[getShareByCode] Response received:", response.status, response.ok);
     } catch (fetchError) {
-      logger.error("Fetch failed in getShareByCode", { 
-        error: fetchError instanceof Error ? fetchError.message : String(fetchError),
-        shareCode 
-      });
+      const errorMsg = fetchError instanceof Error ? fetchError.message : String(fetchError);
+      console.error("[getShareByCode] Fetch failed:", errorMsg, shareCode);
       return null;
     }
     
     if (!response) {
-      logger.error("No response from fetch", { shareCode });
+      console.error("[getShareByCode] No response from fetch", shareCode);
       return null;
     }
     
@@ -218,20 +219,32 @@ export async function getShareByCode(shareCode: string): Promise<ShareData | nul
       errorType = "SerializationError";
     }
     
-    // Log with all available information
-    console.error("[getShareByCode] Full error details:", {
-      errorMessage,
-      errorType,
-      shareCode,
-      errorStack: errorStack?.substring(0, 200), // First 200 chars of stack
-      errorString: String(error),
-    });
+    // Log with all available information - use console.error directly to avoid logger serialization issues
+    try {
+      console.error("[getShareByCode] Full error details:", {
+        errorMessage,
+        errorType,
+        shareCode,
+        errorStack: errorStack ? errorStack.substring(0, 200) : undefined,
+        errorString: String(error),
+      });
+    } catch (consoleError) {
+      // Even console.error failed - just log basic info
+      console.error("[getShareByCode] Error occurred for shareCode:", shareCode);
+    }
     
-    logger.error("Error in getShareByCode", { 
-      error: errorMessage,
-      errorType: errorType,
-      shareCode 
-    });
+    // Use logger with safe string values only
+    try {
+      logger.error("Error in getShareByCode", { 
+        error: String(errorMessage),
+        errorType: String(errorType),
+        shareCode: String(shareCode)
+      });
+    } catch (loggerError) {
+      // Logger failed too - just use console
+      console.error("Error in getShareByCode for shareCode:", shareCode, "Error:", errorMessage);
+    }
+    
     return null;
   }
 }
