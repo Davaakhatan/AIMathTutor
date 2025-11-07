@@ -2,6 +2,9 @@ import { NextRequest, NextResponse } from "next/server";
 import { getSupabaseServer } from "@/lib/supabase-server";
 import { logger } from "@/lib/logger";
 
+// Force dynamic rendering (this route uses request.url)
+export const dynamic = 'force-dynamic';
+
 /**
  * API route to get user name by user ID
  * GET /api/get-user-name?userId=xxx
