@@ -88,6 +88,7 @@ export default function ProblemProgress({ messages, problem, difficultyMode = "m
       "well done! you solved",
       "well done! you've solved",
       "well done on solving",
+      "well done on", // Catches "well done on solving the equation"
       "excellent! you solved",
       "perfect! you solved",
       "you've completed the problem",
@@ -146,12 +147,16 @@ export default function ProblemProgress({ messages, problem, difficultyMode = "m
     // Check for "well done" or similar praise combined with answer confirmation
     const praiseWithCompletion = (
       (content.includes("well done") ||
+       content.includes("well done on") ||
        content.includes("great job") ||
+       content.includes("great work") ||
        content.includes("excellent") ||
        content.includes("perfect") ||
        content.includes("good work")) &&
       (content.includes("correct") ||
        content.includes("found") ||
+       content.includes("you've found") ||
+       content.includes("you found") ||
        content.includes("calculated") ||
        content.includes("solved") ||
        content.includes("answer")) &&

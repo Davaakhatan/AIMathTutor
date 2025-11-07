@@ -410,6 +410,11 @@ export async function POST(request: NextRequest) {
         responseText.includes("that's right") ||
         responseText.includes("excellent") ||
         responseText.includes("perfect!") ||
+        responseText.includes("well done on") ||
+        responseText.includes("great work") ||
+        responseText.includes("you've found") ||
+        responseText.includes("you found") ||
+        (responseText.includes("solved") && (responseText.includes("correct") || responseText.includes("right"))) ||
         (responseText.includes("correct") && responseText.includes("answer"));
 
       console.log("✅ Completion check result:", {
@@ -665,6 +670,11 @@ async function handleStreamingResponse(
                 responseText.includes("that's right") ||
                 responseText.includes("excellent") ||
                 responseText.includes("perfect!") ||
+                responseText.includes("well done on") ||
+                responseText.includes("great work") ||
+                responseText.includes("you've found") ||
+                responseText.includes("you found") ||
+                responseText.includes("solved") && (responseText.includes("correct") || responseText.includes("right")) ||
                 (responseText.includes("correct") && responseText.includes("answer"));
 
               if (isCompleted) {

@@ -352,6 +352,7 @@ function HomeContentInternal() {
             "answer is correct",
             "congratulations",
             "well done",
+            "well done on",
             "excellent",
             "perfect",
             "correct!",
@@ -360,6 +361,9 @@ function HomeContentInternal() {
             "you got it",
             "you got it right",
             "great job",
+            "great work",
+            "you've found",
+            "you found",
           ];
           return completionPhrases.some((phrase) => content.includes(phrase));
         });
