@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useState, useCallback } from "react";
 import { useRouter, useParams } from "next/navigation";
 import { getShareByCode, trackShareClick } from "@/services/shareService";
 import { ProblemType } from "@/types";
@@ -102,7 +102,7 @@ export default function SharePage() {
   };
 
   // Generate a related challenge based on share data
-  const generateRelatedChallenge = async (data: any): Promise<string> => {
+  const generateRelatedChallenge = useCallback(async (data: any): Promise<string> => {
       // For achievement shares, try to generate a related problem
       if (data.share_type === "achievement" && data.metadata?.achievement_type) {
         const achievementType = data.metadata.achievement_type;
@@ -163,7 +163,7 @@ export default function SharePage() {
 
       // Default challenge (template)
       return getDefaultChallenge(data);
-    };
+    }, []);
 
   useEffect(() => {
     if (!shareCode) {
@@ -240,7 +240,7 @@ export default function SharePage() {
     };
 
     loadShare();
-  }, [shareCode]);
+  }, [shareCode, generateRelatedChallenge]);
 
   const handleTryNow = () => {
     // Always redirect to deep link for micro-task

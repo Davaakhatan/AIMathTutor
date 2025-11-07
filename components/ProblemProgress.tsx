@@ -269,23 +269,22 @@ export default function ProblemProgress({ messages, problem, difficultyMode = "m
     return () => window.removeEventListener("problem_completed", handleProblemCompleted);
   }, []);
   
-  // Log state changes for debugging
-  if (process.env.NODE_ENV === "development") {
-    const prevSolvedRef = useRef(isSolved);
-    useEffect(() => {
-      if (prevSolvedRef.current !== isSolved) {
-        console.log("🔄 Progress status changed:", {
-          wasSolved: prevSolvedRef.current,
-          isSolved,
-          score: completionResult.score,
-          stage,
-          messageCount: messages.length,
-          forceCheck,
-        });
-        prevSolvedRef.current = isSolved;
-      }
-    }, [isSolved, completionResult.score, stage, messages.length, forceCheck]);
-  }
+  // Log state changes for debugging - hooks must be called unconditionally
+  const prevSolvedRef = useRef(isSolved);
+  useEffect(() => {
+    // Only log in development mode
+    if (process.env.NODE_ENV === "development" && prevSolvedRef.current !== isSolved) {
+      console.log("🔄 Progress status changed:", {
+        wasSolved: prevSolvedRef.current,
+        isSolved,
+        score: completionResult.score,
+        stage,
+        messageCount: messages.length,
+        forceCheck,
+      });
+    }
+    prevSolvedRef.current = isSolved;
+  }, [isSolved, completionResult.score, stage, messages.length, forceCheck]);
 
   if (messages.length === 0) return null;
 
