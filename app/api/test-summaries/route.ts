@@ -12,6 +12,13 @@ export async function GET() {
     const supabase = await getSupabaseAdmin();
     
     // Try to query the table
+    if (!supabase) {
+      return NextResponse.json(
+        { error: "Supabase admin client not available" },
+        { status: 500 }
+      );
+    }
+
     const { data, error } = await supabase
       .from("conversation_summaries")
       .select("id")
