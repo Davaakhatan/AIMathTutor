@@ -162,6 +162,7 @@ export default function SharePage() {
         }
 
         setShareData(data);
+        console.log("[SharePage] Share data loaded:", data);
 
         // Fetch sharer's name and challenge in parallel
         const [name, challengeText] = await Promise.allSettled([
@@ -169,8 +170,14 @@ export default function SharePage() {
           generateRelatedChallenge(data).catch(() => getDefaultChallenge(data)),
         ]);
 
-        setSharerName(name.status === "fulfilled" ? name.value : null);
-        setChallenge(challengeText.status === "fulfilled" ? challengeText.value : getDefaultChallenge(data));
+        const finalName = name.status === "fulfilled" ? name.value : null;
+        const finalChallenge = challengeText.status === "fulfilled" ? challengeText.value : getDefaultChallenge(data);
+
+        console.log("[SharePage] Sharer name:", finalName);
+        console.log("[SharePage] Challenge:", finalChallenge);
+
+        setSharerName(finalName);
+        setChallenge(finalChallenge);
 
         setLoading(false);
       } catch (err) {
