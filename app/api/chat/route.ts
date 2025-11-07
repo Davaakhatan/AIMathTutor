@@ -365,7 +365,7 @@ export async function POST(request: NextRequest) {
     try {
       // If streaming is requested, use streaming response
       if (stream) {
-        console.log("🌊 [CHAT ROUTE] Using STREAMING (completion check NOT available)");
+        console.log("🌊 [CHAT ROUTE] Using STREAMING (completion check will run after stream)");
         return await handleStreamingResponse(
           body.sessionId,
           body.message,
@@ -373,7 +373,8 @@ export async function POST(request: NextRequest) {
           apiKeyToUse, // Use the determined API key
           body.whiteboardImage,
           rateLimit,
-          userId // Pass userId for session persistence
+          userId, // Pass userId for session persistence
+          body.profileId // Pass profileId for completion detection
         );
       }
       
@@ -603,7 +604,8 @@ async function handleStreamingResponse(
   clientApiKey: string | undefined,
   whiteboardImage: string | undefined,
   rateLimit: { allowed: boolean; remaining: number; resetAt: number },
-  userId?: string
+  userId?: string,
+  profileId?: string | null
 ): Promise<Response> {
   try {
     // Create a ReadableStream for streaming
@@ -636,6 +638,72 @@ async function handleStreamingResponse(
             done: true 
           }) + "\n";
           controller.enqueue(new TextEncoder().encode(done));
+          
+          // After stream completes, check for problem completion
+          // Get the session to access the full tutor response
+          const session = await contextManager.getSession(sessionId, userId);
+          if (session && session.messages && session.messages.length > 0) {
+            // Get the last tutor message (the one we just streamed)
+            const tutorMessages = session.messages.filter(m => m.role === "tutor");
+            const lastTutorMessage = tutorMessages[tutorMessages.length - 1];
+            
+            if (lastTutorMessage && userId && session.problem) {
+              const responseText = lastTutorMessage.content.toLowerCase();
+              
+              console.log("🔍 [STREAMING] Checking problem completion after stream:", {
+                responseLength: responseText.length,
+                responsePreview: responseText.substring(0, 150),
+                hasUserId: !!userId,
+                hasProblem: !!session.problem,
+              });
+              
+              const isCompleted = 
+                responseText.includes("correct!") ||
+                responseText.includes("well done") ||
+                responseText.includes("great job") ||
+                responseText.includes("you got it") ||
+                responseText.includes("that's right") ||
+                responseText.includes("excellent") ||
+                responseText.includes("perfect!") ||
+                (responseText.includes("correct") && responseText.includes("answer"));
+
+              if (isCompleted) {
+                console.log("🎉 [STREAMING] PROBLEM COMPLETED! Emitting event...", {
+                  userId,
+                  profileId: profileId || null,
+                  sessionId,
+                  problemType: session.problem.type,
+                });
+                
+                // Emit problem_completed event
+                eventBus.emit({
+                  type: "problem_completed",
+                  userId,
+                  profileId: profileId || undefined,
+                  data: {
+                    problem: {
+                      text: session.problem.text,
+                      type: session.problem.type,
+                      difficulty: difficultyMode,
+                    },
+                    sessionId: sessionId,
+                    timeSpent: Date.now() - session.createdAt,
+                    hintsUsed: session.messages.filter(m => m.role === "tutor" && m.content.toLowerCase().includes("hint")).length,
+                    attempts: session.messages.filter(m => m.role === "user").length,
+                  },
+                  timestamp: new Date(),
+                }).then(() => {
+                  console.log("✅ [STREAMING] problem_completed event emitted successfully");
+                }).catch((error) => {
+                  console.error("❌ [STREAMING] Failed to emit problem_completed event:", error);
+                  logger.error("Error emitting problem_completed event from streaming", { error });
+                });
+              } else {
+                console.log("⏳ [STREAMING] Problem not completed yet (no completion phrases found)");
+              }
+            }
+          }
+          
           controller.close();
         } catch (error) {
           const errorMsg = error instanceof Error ? error.message : "Streaming error";
