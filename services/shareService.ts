@@ -107,15 +107,39 @@ export async function createShare(
  */
 export async function getShareByCode(shareCode: string): Promise<ShareData | null> {
   try {
+    if (!shareCode || typeof shareCode !== 'string') {
+      logger.error("Invalid shareCode provided", { shareCode, type: typeof shareCode });
+      return null;
+    }
+
     // Call API route instead of direct Supabase call
-    const response = await fetch(`/api/share/${shareCode}`);
+    let response: Response;
+    try {
+      response = await fetch(`/api/share/${encodeURIComponent(shareCode)}`);
+    } catch (fetchError) {
+      logger.error("Fetch failed in getShareByCode", { 
+        error: fetchError instanceof Error ? fetchError.message : String(fetchError),
+        shareCode 
+      });
+      return null;
+    }
+    
+    if (!response) {
+      logger.error("No response from fetch", { shareCode });
+      return null;
+    }
     
     if (!response.ok) {
       if (response.status === 404) {
         logger.debug("Share not found", { shareCode, status: response.status });
         return null; // Not found
       }
-      const errorText = await response.text().catch(() => "Unknown error");
+      let errorText = "Unknown error";
+      try {
+        errorText = await response.text();
+      } catch (e) {
+        // Ignore error reading error text
+      }
       logger.error("Error fetching share by code", { shareCode, status: response.status, errorText });
       return null;
     }
@@ -123,14 +147,15 @@ export async function getShareByCode(shareCode: string): Promise<ShareData | nul
     let result;
     try {
       const responseText = await response.text();
-      if (!responseText) {
+      if (!responseText || responseText.trim() === '') {
         logger.error("Empty response from share API", { shareCode, status: response.status });
         return null;
       }
       result = JSON.parse(responseText);
     } catch (jsonError) {
+      const jsonErrorMessage = jsonError instanceof Error ? jsonError.message : String(jsonError);
       logger.error("Error parsing JSON response", { 
-        error: jsonError instanceof Error ? jsonError.message : String(jsonError),
+        error: jsonErrorMessage,
         shareCode, 
         responseStatus: response.status 
       });
@@ -149,7 +174,7 @@ export async function getShareByCode(shareCode: string): Promise<ShareData | nul
     }
     
     if (!result.share || typeof result.share !== 'object') {
-      logger.warn("Share API returned invalid share data", { shareCode, result });
+      logger.warn("Share API returned invalid share data", { shareCode, hasShare: !!result.share, shareType: typeof result.share });
       return null;
     }
     
@@ -161,22 +186,34 @@ export async function getShareByCode(shareCode: string): Promise<ShareData | nul
     
     return result.share as ShareData;
   } catch (error) {
-    // Safely extract error information
+    // Safely extract error information - this is the catch-all
     let errorMessage = "Unknown error";
     let errorType = "Unknown";
+    let errorStack: string | undefined;
     
     try {
       if (error instanceof Error) {
-        errorMessage = error.message || String(error);
-        errorType = error.constructor.name || "Error";
-      } else if (error) {
+        errorMessage = error.message || "Error without message";
+        errorType = error.constructor?.name || "Error";
+        errorStack = error.stack;
+      } else if (error !== null && error !== undefined) {
         errorMessage = String(error);
         errorType = typeof error;
       }
-    } catch (e) {
+    } catch (serializationError) {
       // If we can't even stringify the error, just use defaults
       errorMessage = "Error object could not be serialized";
+      errorType = "SerializationError";
     }
+    
+    // Log with all available information
+    console.error("[getShareByCode] Full error details:", {
+      errorMessage,
+      errorType,
+      shareCode,
+      errorStack: errorStack?.substring(0, 200), // First 200 chars of stack
+      errorString: String(error),
+    });
     
     logger.error("Error in getShareByCode", { 
       error: errorMessage,
