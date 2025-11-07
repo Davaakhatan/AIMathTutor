@@ -16,37 +16,54 @@ interface ConceptHighlightedRendererProps {
 export default function ConceptHighlightedRenderer({
   content,
 }: ConceptHighlightedRendererProps) {
-  // First, process markdown formatting (bold, italic, etc.)
+  // Process markdown formatting (bold, italic, etc.)
   // This needs to happen before MathRenderer to avoid conflicts
   const processMarkdown = (text: string): React.ReactNode[] => {
     const parts: React.ReactNode[] = [];
     let lastIndex = 0;
     
-    // Regex to match markdown formatting
-    // **bold** or __bold__
-    const boldRegex = /\*\*([^*]+?)\*\*|__([^_]+?)__/g;
-    // *italic* or _italic_
-    const italicRegex = /(?<!\*)\*([^*]+?)\*(?!\*)|(?<!_)_([^_]+?)_(?!_)/g;
-    
-    // Combine all markdown patterns
-    const markdownRegex = /(\*\*([^*]+?)\*\*|__([^_]+?)__|(?<!\*)\*([^*]+?)\*(?!\*)|(?<!_)_([^_]+?)_(?!_))/g;
-    
-    let match;
+    // Simple markdown parser - handles **bold** and *italic*
+    // Process bold first (to avoid conflicts with italic)
+    const boldRegex = /\*\*([^*]+?)\*\*/g;
     const matches: Array<{ index: number; length: number; type: 'bold' | 'italic'; content: string }> = [];
     
-    // Find all markdown matches
-    while ((match = markdownRegex.exec(text)) !== null) {
-      const fullMatch = match[0];
-      const content = match[2] || match[3] || match[4] || match[5] || match[6] || '';
-      const isBold = fullMatch.startsWith('**') || fullMatch.startsWith('__');
-      
+    // Find all bold matches first
+    let match;
+    while ((match = boldRegex.exec(text)) !== null) {
       matches.push({
         index: match.index,
-        length: fullMatch.length,
-        type: isBold ? 'bold' : 'italic',
-        content: content,
+        length: match[0].length,
+        type: 'bold',
+        content: match[1],
       });
     }
+    
+    // Then find italic matches (avoiding those already matched as bold)
+    const italicRegex = /\*([^*]+?)\*/g;
+    while ((match = italicRegex.exec(text)) !== null) {
+      // Check if this match overlaps with any bold match
+      const overlapsBold = matches.some(boldMatch => {
+        const matchStart = match.index;
+        const matchEnd = match.index + match[0].length;
+        const boldStart = boldMatch.index;
+        const boldEnd = boldMatch.index + boldMatch.length;
+        return (matchStart >= boldStart && matchStart < boldEnd) ||
+               (matchEnd > boldStart && matchEnd <= boldEnd) ||
+               (matchStart <= boldStart && matchEnd >= boldEnd);
+      });
+      
+      if (!overlapsBold) {
+        matches.push({
+          index: match.index,
+          length: match[0].length,
+          type: 'italic',
+          content: match[1],
+        });
+      }
+    }
+    
+    // Sort matches by index
+    matches.sort((a, b) => a.index - b.index);
     
     // If no markdown, just render with MathRenderer
     if (matches.length === 0) {
