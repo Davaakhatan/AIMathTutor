@@ -91,7 +91,7 @@ function HomeContentInternal() {
   const [difficultyMode, setDifficultyMode] = useState<"elementary" | "middle" | "high" | "advanced">("middle");
   const [allMessages, setAllMessages] = useState<Message[]>([]);
   const { toasts, showToast, removeToast } = useToast();
-  const { user, loading: authLoading, activeProfile, userRole } = useAuth();
+  const { user, loading: authLoading, activeProfile, userRole, loadUserDataFromSupabase, userDataLoading } = useAuth();
   const [xpData, setXPData] = useState({ totalXP: 0, level: 1, problemsSolved: 0 });
   const [streak, setStreak] = useState(0);
   const [isStudyActive, setIsStudyActive] = useState(false);
@@ -653,6 +653,7 @@ function HomeContentInternal() {
 
           {/* Unified Learning Hub (Dashboard + History + Practice) */}
           <LearningHub 
+            key={`learning-hub-${activeProfile?.id || 'none'}`}
             onSelectProblem={handleProblemParsed}
             onDifficultyChange={setDifficultyMode} 
             apiKey={settings.apiKey}
@@ -665,6 +666,7 @@ function HomeContentInternal() {
 
           {/* Unified Settings Menu (Settings + Notifications + XP) */}
           <SettingsMenu 
+            key={`settings-menu-${activeProfile?.id || 'none'}`}
             onXPDataChange={(data) => {
               setXPData((prev) => {
                 if (
@@ -686,12 +688,14 @@ function HomeContentInternal() {
 
           {/* Unified Tools Menu (Search + Tips + Formulas) */}
           <ToolsMenu 
+            key={`tools-menu-${activeProfile?.id || 'none'}`}
             onSelectProblem={handleProblemParsed}
             isGuestMode={isGuestMode && !user}
           />
 
           {/* Unified Progress Hub (Stats + Goals + Timer + Streak) */}
           <ProgressHub
+            key={`progress-hub-${activeProfile?.id || 'none'}`}
             isStudyActive={isStudyActive}
             problemsSolvedToday={problemsSolvedToday}
             timeSpentToday={timeSpentToday}
@@ -730,6 +734,7 @@ function HomeContentInternal() {
 
           {/* Unified Gamification Hub (Achievements + Leaderboard) */}
           <GamificationHub
+            key={`gamification-hub-${activeProfile?.id || 'none'}`}
             currentXP={xpData.totalXP}
             currentLevel={xpData.level}
             currentProblemsSolved={xpData.problemsSolved}
