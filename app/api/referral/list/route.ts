@@ -34,9 +34,19 @@ export async function GET(request: NextRequest) {
       );
     }
 
+    type ReferralData = {
+      id: string;
+      referral_code: string;
+      status: string;
+      created_at: string;
+      referrer_reward_amount: number | null;
+    };
+
+    const typedData = (data as ReferralData[]) || [];
+
     return NextResponse.json({
       success: true,
-      referrals: (data || []).map((r) => ({
+      referrals: typedData.map((r) => ({
         id: r.id,
         referral_code: r.referral_code,
         status: r.status,

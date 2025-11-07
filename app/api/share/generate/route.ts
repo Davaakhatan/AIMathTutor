@@ -63,8 +63,8 @@ export async function POST(request: NextRequest) {
       : null;
 
     // Insert share record
-    const { data, error } = await (supabase
-      .from("shares") as any)
+    const { data, error } = await supabase
+      .from("shares")
       .insert({
         user_id: userId,
         student_profile_id: studentProfileId || null,
@@ -84,6 +84,29 @@ export async function POST(request: NextRequest) {
       );
     }
 
+    type ShareData = {
+      id: string;
+      user_id: string;
+      student_profile_id: string | null;
+      share_type: string;
+      share_code: string;
+      metadata: Record<string, any>;
+      click_count: number;
+      conversion_count: number;
+      created_at: string;
+      expires_at: string | null;
+    };
+
+    const typedData = data as ShareData | null;
+
+    if (!typedData) {
+      logger.error("Share created but data is null", { shareCode });
+      return NextResponse.json(
+        { error: "Share created but failed to retrieve data" },
+        { status: 500 }
+      );
+    }
+
     // Generate share URLs
     const baseUrl = request.headers.get("origin") || process.env.NEXT_PUBLIC_APP_URL || "";
     const shareUrl = `${baseUrl}/share/${shareCode}`;
@@ -93,7 +116,7 @@ export async function POST(request: NextRequest) {
 
     return NextResponse.json({
       success: true,
-      share: data,
+      share: typedData,
       shareUrl,
       deepLinkUrl,
     });
