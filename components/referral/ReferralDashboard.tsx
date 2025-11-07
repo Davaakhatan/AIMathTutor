@@ -35,13 +35,28 @@ export default function ReferralDashboard() {
   }, [user]);
 
   const loadReferralData = useCallback(async () => {
-    if (!user) return;
+    if (!user) {
+      setLoading(false);
+      return;
+    }
 
     try {
       setLoading(true);
 
-      // Get stats via API route
-      const statsResponse = await fetch(`/api/referral/stats?userId=${user.id}`);
+      // Get stats via API route with timeout
+      const statsPromise = fetch(`/api/referral/stats?userId=${user.id}`);
+      const timeoutPromise = new Promise<Response>((_, reject) =>
+        setTimeout(() => reject(new Error("Request timeout")), 10000)
+      );
+
+      let statsResponse: Response;
+      try {
+        statsResponse = await Promise.race([statsPromise, timeoutPromise]);
+      } catch (timeoutError) {
+        logger.error("Stats API timeout", { error: timeoutError, userId: user.id });
+        statsResponse = { ok: false, status: 408 } as Response;
+      }
+
       if (statsResponse.ok) {
         const statsData = await statsResponse.json();
         if (statsData.success && statsData.stats) {
@@ -72,9 +87,13 @@ export default function ReferralDashboard() {
         });
       }
 
-      // Get referrals list
+      // Get referrals list with timeout
       try {
-        const referralsList = await getUserReferrals(user.id);
+        const referralsPromise = getUserReferrals(user.id);
+        const referralsTimeout = new Promise<Referral[]>((_, reject) =>
+          setTimeout(() => reject(new Error("Referrals timeout")), 5000)
+        );
+        const referralsList = await Promise.race([referralsPromise, referralsTimeout]);
         setReferrals(referralsList || []);
       } catch (referralsError) {
         logger.error("Error loading referrals list", { error: referralsError });
