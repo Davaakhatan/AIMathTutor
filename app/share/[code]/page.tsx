@@ -17,6 +17,7 @@ export default function SharePage() {
   const params = useParams();
   const router = useRouter();
   const [shareData, setShareData] = useState<any>(null);
+  const [sharerName, setSharerName] = useState<string | null>(null);
   const [challenge, setChallenge] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -46,6 +47,15 @@ export default function SharePage() {
         }
 
         setShareData(data);
+
+        // Fetch sharer's name/profile info
+        try {
+          const name = await fetchSharerName(data);
+          setSharerName(name);
+        } catch (nameError) {
+          console.error("[SharePage] Error fetching sharer name:", nameError);
+          setSharerName(null);
+        }
 
         // Generate a related challenge based on the share type
         try {
@@ -148,6 +158,41 @@ export default function SharePage() {
       return "Solve: If 3x = 15, what is x?";
     };
 
+    // Fetch sharer's name from API
+    const fetchSharerName = async (data: any): Promise<string | null> => {
+      if (!data.user_id && !data.student_profile_id) {
+        return null;
+      }
+
+      try {
+        // Try to get profile name from student_profile_id first
+        if (data.student_profile_id) {
+          const response = await fetch(`/api/get-profile-name?profileId=${data.student_profile_id}`);
+          if (response.ok) {
+            const result = await response.json();
+            if (result.name) {
+              return result.name;
+            }
+          }
+        }
+
+        // Fallback: try to get user name from user_id
+        if (data.user_id) {
+          const response = await fetch(`/api/get-user-name?userId=${data.user_id}`);
+          if (response.ok) {
+            const result = await response.json();
+            if (result.name) {
+              return result.name;
+            }
+          }
+        }
+      } catch (e) {
+        console.error("[SharePage] Error fetching sharer name:", e);
+      }
+
+      return null;
+    };
+
     loadShare();
   }, [shareCode]);
 
@@ -190,14 +235,32 @@ export default function SharePage() {
   return (
     <div className="min-h-screen flex items-center justify-center bg-[#fafafa] dark:bg-[#0a0a0a] p-4">
       <div className="max-w-2xl w-full bg-white dark:bg-gray-900 rounded-lg shadow-lg p-8">
-        {/* Achievement/Share Header */}
+        {/* Share Card Header - Shows who accomplished it */}
         <div className="text-center mb-8">
+          <div className="text-sm text-gray-500 dark:text-gray-400 mb-2">
+            {sharerName ? (
+              <span>{sharerName} shared their accomplishment</span>
+            ) : (
+              <span>Someone shared their accomplishment</span>
+            )}
+          </div>
+          
           <h1 className="text-2xl font-bold text-gray-900 dark:text-gray-100 mb-4">
-            {shareData.share_type === "achievement" && "Achievement Unlocked!"}
-            {shareData.share_type === "streak" && "Study Streak!"}
-            {shareData.share_type === "progress" && "Learning Progress!"}
-            {shareData.share_type === "problem" && "Problem Solved!"}
-            {shareData.share_type === "challenge" && "Challenge Completed!"}
+            {shareData.share_type === "achievement" && (
+              sharerName ? `${sharerName} unlocked an achievement!` : "Achievement Unlocked!"
+            )}
+            {shareData.share_type === "streak" && (
+              sharerName ? `${sharerName} has a ${shareData.metadata?.streak_days || ''} day streak!` : "Study Streak!"
+            )}
+            {shareData.share_type === "progress" && (
+              sharerName ? `${sharerName} made progress!` : "Learning Progress!"
+            )}
+            {shareData.share_type === "problem" && (
+              sharerName ? `${sharerName} solved a problem!` : "Problem Solved!"
+            )}
+            {shareData.share_type === "challenge" && (
+              sharerName ? `${sharerName} completed a challenge!` : "Challenge Completed!"
+            )}
           </h1>
 
           {shareData.metadata?.achievement_title && (
@@ -205,23 +268,26 @@ export default function SharePage() {
               {shareData.metadata.achievement_title}
             </p>
           )}
-          {shareData.metadata?.streak_days && (
+          {shareData.metadata?.streak_days && !sharerName && (
             <p className="text-xl text-gray-700 dark:text-gray-300 mb-2">
               {shareData.metadata.streak_days} day streak!
             </p>
           )}
           {shareData.metadata?.level && (
-            <p className="text-xl text-gray-700 dark:text-gray-300 mb-2">
-              Level {shareData.metadata.level} reached!
+            <p className="text-lg text-gray-600 dark:text-gray-400 mb-2">
+              Level {shareData.metadata.level} reached
             </p>
           )}
         </div>
 
-        {/* Challenge Section */}
+        {/* Challenge Section - For the viewer to try */}
         <div className="bg-gray-50 dark:bg-gray-800 rounded-lg p-6 mb-6">
-          <h2 className="text-lg font-semibold text-gray-900 dark:text-gray-100 mb-3">
-            Your Challenge:
+          <h2 className="text-lg font-semibold text-gray-900 dark:text-gray-100 mb-2">
+            Try This Challenge:
           </h2>
+          <p className="text-sm text-gray-600 dark:text-gray-400 mb-3">
+            Can you solve this problem too?
+          </p>
           {challenge ? (
             <div className="bg-white dark:bg-gray-900 rounded p-4 border border-gray-200 dark:border-gray-700">
               <p className="text-gray-800 dark:text-gray-200 whitespace-pre-wrap">
