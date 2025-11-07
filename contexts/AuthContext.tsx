@@ -588,7 +588,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const signUp = async (
     email: string,
     password: string,
-    metadata?: { username?: string; display_name?: string; role?: "student" | "parent" | "teacher" }
+    metadata?: { username?: string; display_name?: string; role?: "student" | "parent" | "teacher"; referralCode?: string | null }
   ) => {
     try {
       const supabase = await getSupabaseClient();

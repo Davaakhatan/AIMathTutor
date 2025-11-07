@@ -175,7 +175,7 @@ export async function getReferralStats(userId: string): Promise<ReferralStats> {
       .eq("referrer_id", userId);
 
     const totalReferrals = referrals?.length || 0;
-    const completedReferrals = referrals?.filter(r => r.status === "completed" || r.status === "rewarded").length || 0;
+    const completedReferrals = referrals?.filter((r: Referral) => r.status === "completed" || r.status === "rewarded").length || 0;
 
     const referralUrl = `${typeof window !== 'undefined' ? window.location.origin : ''}/signup?ref=${codeData.code}`;
 
