@@ -148,7 +148,7 @@ export default function DeepLinkPage() {
         const problem: ParsedProblem = {
           text: normalizedText,
           type: "algebra", // Default, can be enhanced
-          difficulty: "middle",
+          confidence: 0.9, // Default confidence
         };
 
         setChallengeProblem(problem);
@@ -271,27 +271,23 @@ export default function DeepLinkPage() {
   };
 
   const handleContinue = () => {
-    if (user) {
-      // Authenticated - go to main app
-      router.push(`/?share=${shareCode}`);
-    } else {
-      // Not authenticated - prompt signup
-      handleSignUp();
-    }
+    router.push(`/?share=${shareCode}`);
   };
 
-  if (loading) {
+  if (loading || isInitializing) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-[#fafafa] dark:bg-[#0a0a0a]">
         <div className="text-center">
           <div className="w-12 h-12 border-4 border-indigo-600 border-t-transparent rounded-full animate-spin mx-auto mb-4"></div>
-          <p className="text-gray-600 dark:text-gray-400">Loading your challenge...</p>
+          <p className="text-gray-600 dark:text-gray-400">
+            {loading ? "Loading your challenge..." : "Starting conversation..."}
+          </p>
         </div>
       </div>
     );
   }
 
-  if (error || !shareData) {
+  if (error || !shareData || !challengeProblem) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-[#fafafa] dark:bg-[#0a0a0a]">
         <div className="text-center">
@@ -307,44 +303,39 @@ export default function DeepLinkPage() {
     );
   }
 
-  if (showResult) {
+  // Show completion screen after problem is solved
+  if (completed) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-[#fafafa] dark:bg-[#0a0a0a] p-4">
         <div className="max-w-2xl w-full bg-white dark:bg-gray-900 rounded-lg shadow-lg p-8 text-center">
           <h1 className="text-2xl font-bold text-gray-900 dark:text-gray-100 mb-4">
-            Great job! You scored {score} out of {questions.length}
+            Great job! You solved it! 🎉
           </h1>
           <p className="text-lg text-gray-700 dark:text-gray-300 mb-6">
-            {score === questions.length 
-              ? "Perfect score! 🎉" 
-              : score >= questions.length * 0.6 
-              ? "Well done! Keep practicing!" 
-              : "Good try! Practice makes perfect!"}
+            You've completed the challenge! Want to solve more problems?
           </p>
           
-          {!user && (
-            <div className="bg-indigo-50 dark:bg-indigo-900/20 rounded-lg p-6 mb-6">
-              <h2 className="text-lg font-semibold text-gray-900 dark:text-gray-100 mb-2">
-                Want to unlock more challenges?
-              </h2>
-              <p className="text-gray-600 dark:text-gray-400 mb-4">
-                Sign up for free to access unlimited problems, track your progress, and unlock achievements!
-              </p>
-              <button
-                onClick={handleSignUp}
-                className="px-6 py-3 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 transition-colors font-medium"
-              >
-                Sign Up Free
-              </button>
-            </div>
-          )}
+          <div className="bg-indigo-50 dark:bg-indigo-900/20 rounded-lg p-6 mb-6">
+            <h2 className="text-lg font-semibold text-gray-900 dark:text-gray-100 mb-2">
+              Unlock unlimited problems!
+            </h2>
+            <p className="text-gray-600 dark:text-gray-400 mb-4">
+              Sign up for free to access unlimited problems, track your progress, and unlock achievements!
+            </p>
+            <button
+              onClick={handleSignUp}
+              className="px-6 py-3 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 transition-colors font-medium"
+            >
+              Sign Up Free
+            </button>
+          </div>
 
           <div className="flex gap-4 justify-center">
             <button
               onClick={handleContinue}
               className="px-6 py-3 bg-gray-200 dark:bg-gray-700 text-gray-900 dark:text-gray-100 rounded-lg hover:bg-gray-300 dark:hover:bg-gray-600 transition-colors"
             >
-              {user ? "Continue Learning" : "Explore More"}
+              Explore More
             </button>
           </div>
         </div>
@@ -352,69 +343,66 @@ export default function DeepLinkPage() {
     );
   }
 
-  if (questions.length === 0) {
-    return (
-      <div className="min-h-screen flex items-center justify-center bg-[#fafafa] dark:bg-[#0a0a0a]">
-        <div className="text-center">
-          <p className="text-gray-900 dark:text-gray-100 text-lg mb-4">Preparing your challenge...</p>
-        </div>
-      </div>
-    );
-  }
-
-  const currentQ = questions[currentQuestion];
-
+  // Show chat interface with challenge problem
   return (
-    <div className="min-h-screen flex items-center justify-center bg-[#fafafa] dark:bg-[#0a0a0a] p-4">
-      <div className="max-w-2xl w-full bg-white dark:bg-gray-900 rounded-lg shadow-lg p-8">
-        {/* Progress indicator */}
-        <div className="mb-6">
-          <div className="flex justify-between text-sm text-gray-600 dark:text-gray-400 mb-2">
-            <span>Question {currentQuestion + 1} of {questions.length}</span>
-            <span>{Math.round(((currentQuestion + 1) / questions.length) * 100)}%</span>
-          </div>
-          <div className="w-full bg-gray-200 dark:bg-gray-700 rounded-full h-2">
-            <div
-              className="bg-indigo-600 h-2 rounded-full transition-all duration-300"
-              style={{ width: `${((currentQuestion + 1) / questions.length) * 100}%` }}
-            />
-          </div>
+    <div className="min-h-screen bg-[#fafafa] dark:bg-[#0a0a0a] p-4">
+      <div className="max-w-4xl mx-auto">
+        {/* Header */}
+        <div className="mb-4 text-center">
+          <h1 className="text-2xl font-bold text-gray-900 dark:text-gray-100 mb-2">
+            Try This Challenge
+          </h1>
+          <p className="text-gray-600 dark:text-gray-400">
+            Solve this problem with the help of your AI tutor
+          </p>
         </div>
 
-        {/* Question */}
-        <div className="mb-6">
-          <h2 className="text-xl font-semibold text-gray-900 dark:text-gray-100 mb-4">
-            {currentQ.question}
-          </h2>
-          
-          {/* Simple answer input */}
-          <div className="mt-4">
-            <input
-              type="text"
-              value={answers[currentQuestion] || ""}
-              onChange={(e) => setAnswers([...answers.slice(0, currentQuestion), e.target.value, ...answers.slice(currentQuestion + 1)])}
-              onKeyPress={(e) => {
-                if (e.key === "Enter" && answers[currentQuestion]) {
-                  handleAnswer(answers[currentQuestion]);
-                }
+        {/* Challenge Problem Display */}
+        {challengeProblem && (
+          <div className="mb-4 p-4 bg-white dark:bg-gray-900 rounded-lg border border-gray-200 dark:border-gray-700">
+            <h2 className="text-lg font-semibold text-gray-900 dark:text-gray-100 mb-2">
+              Problem:
+            </h2>
+            <p className="text-gray-800 dark:text-gray-200">
+              {challengeProblem.text}
+            </p>
+          </div>
+        )}
+
+        {/* Chat Interface */}
+        {sessionId && challengeProblem ? (
+          <div className="space-y-4">
+            <ChatUI
+              sessionId={sessionId}
+              initialMessages={initialMessages}
+              problem={challengeProblem}
+              enableStretchFeatures={false}
+              difficultyMode={difficultyMode}
+              voiceEnabled={false}
+              onMessagesChange={setAllMessages}
+              onRestart={() => {
+                // Restart the challenge
+                setSessionId(null);
+                setInitialMessages([]);
+                setAllMessages([]);
+                setIsInitializing(false);
               }}
-              placeholder="Enter your answer..."
-              className="w-full px-4 py-3 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100"
-              autoFocus
             />
-          </div>
-        </div>
 
-        {/* Submit button */}
-        <div className="flex justify-end">
-          <button
-            onClick={() => handleAnswer(answers[currentQuestion] || "")}
-            disabled={!answers[currentQuestion]}
-            className="px-6 py-3 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 transition-colors font-medium disabled:opacity-50 disabled:cursor-not-allowed"
-          >
-            {currentQuestion < questions.length - 1 ? "Next Question" : "Finish"}
-          </button>
-        </div>
+            {/* Problem Progress */}
+            {allMessages.length > 0 && (
+              <ProblemProgress
+                messages={allMessages}
+                problem={challengeProblem}
+                difficultyMode={difficultyMode}
+              />
+            )}
+          </div>
+        ) : (
+          <div className="text-center py-8">
+            <p className="text-gray-600 dark:text-gray-400">Preparing your challenge...</p>
+          </div>
+        )}
       </div>
     </div>
   );
