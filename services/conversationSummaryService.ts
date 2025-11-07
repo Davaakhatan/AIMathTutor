@@ -212,7 +212,11 @@ export async function getSummaries(
   limit: number = 10
 ): Promise<ConversationSummary[]> {
   try {
-    const supabase = await getSupabaseClient();
+    const supabase = getSupabaseAdmin();
+    if (!supabase) {
+      logger.error("Supabase admin client not available for fetching summaries");
+      return [];
+    }
 
     let query = supabase
       .from("conversation_summaries")
@@ -264,7 +268,11 @@ export async function getSummariesByConcept(
   limit: number = 5
 ): Promise<ConversationSummary[]> {
   try {
-    const supabase = await getSupabaseClient();
+    const supabase = getSupabaseAdmin();
+    if (!supabase) {
+      logger.error("Supabase admin client not available for fetching summaries");
+      return [];
+    }
 
     let query = supabase
       .from("conversation_summaries")
