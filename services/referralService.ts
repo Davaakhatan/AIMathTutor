@@ -157,7 +157,9 @@ export async function getReferralStats(userId: string): Promise<ReferralStats> {
     if (codeError || !codeData) {
       // If no code exists, create one
       const newCode = await getOrCreateReferralCode(userId);
-      const referralUrl = `${typeof window !== 'undefined' ? window.location.origin : ''}/signup?ref=${newCode}`;
+      // Safe origin detection for SSR
+      const origin = typeof window !== "undefined" && window.location ? window.location.origin : "";
+      const referralUrl = origin ? `${origin}/signup?ref=${newCode}` : `/signup?ref=${newCode}`;
       
       return {
         totalReferrals: 0,
