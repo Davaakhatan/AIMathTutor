@@ -17,6 +17,7 @@ import { createShare, type ShareMetadata } from "@/services/shareService";
 import { summarizeSession } from "@/services/conversationSummaryService";
 import { contextManager } from "@/services/contextManager";
 import { checkGoalProgress } from "@/services/goalService";
+import { getSubjectRecommendations } from "@/services/recommendationService";
 
 /**
  * Ecosystem Orchestrator Class
@@ -280,6 +281,7 @@ class EcosystemOrchestrator {
 
   /**
    * Generate subject recommendations after goal completion
+   * Critical for churn reduction - suggests next learning path
    */
   private async generateSubjectRecommendations(
     userId: string,
@@ -287,12 +289,30 @@ class EcosystemOrchestrator {
     goalData: GoalAchievedData
   ): Promise<void> {
     try {
-      // TODO: Week 2 - Implement recommendation engine
-      logger.debug("Subject recommendations (placeholder)", {
+      const recommendations = await getSubjectRecommendations(
         userId,
-        goalType: goalData.goalType,
-        targetSubject: goalData.targetSubject,
-      });
+        profileId,
+        goalData.targetSubject,
+        goalData.goalType
+      );
+
+      if (recommendations.length > 0) {
+        logger.info("Subject recommendations generated", {
+          userId,
+          goalId: goalData.goalId,
+          recommendationsCount: recommendations.length,
+          topRecommendation: recommendations[0]?.subject,
+        });
+
+        // Store recommendations in goal metadata for later retrieval
+        // This can be used by UI to show recommendations
+        // For now, we just log them - UI can fetch via API
+      } else {
+        logger.debug("No recommendations generated", {
+          userId,
+          targetSubject: goalData.targetSubject,
+        });
+      }
     } catch (error) {
       logger.error("Error generating recommendations", { error, userId, profileId });
     }
