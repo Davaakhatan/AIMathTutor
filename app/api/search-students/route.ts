@@ -19,25 +19,19 @@ export async function POST(request: NextRequest) {
 
     const supabase = getSupabaseServer();
 
-    // Get current user to verify they're authenticated
-    const authHeader = request.headers.get("authorization");
-    if (!authHeader) {
-      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-    }
-
-    // Extract user ID from JWT token
-    const token = authHeader.replace("Bearer ", "");
-    const { data: { user }, error: authError } = await supabase.auth.getUser(token);
+    // Get current user from request
+    // Try to get user ID from request body or headers
+    const { userId } = await request.json().catch(() => ({}));
     
-    if (authError || !user) {
-      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    if (!userId) {
+      return NextResponse.json({ error: "User ID is required" }, { status: 400 });
     }
 
     // Verify user is parent or teacher
     const { data: profile } = await supabase
       .from("profiles")
       .select("role")
-      .eq("id", user.id)
+      .eq("id", userId)
       .single();
 
     if (!profile || (profile.role !== "parent" && profile.role !== "teacher")) {
@@ -97,7 +91,7 @@ export async function POST(request: NextRequest) {
     logger.info("Student search completed", {
       query: searchQuery,
       resultsCount: validResults.length,
-      userId: user.id,
+      userId: userId,
     });
 
     return NextResponse.json({

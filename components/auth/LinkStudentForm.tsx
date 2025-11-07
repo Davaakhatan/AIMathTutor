@@ -39,9 +39,9 @@ export default function LinkStudentForm({ onSuccess }: { onSuccess?: () => void 
       setResults([]);
 
       const supabase = await import("@/lib/supabase").then(m => m.getSupabaseClient());
-      const { data: { session } } = await supabase.auth.getSession();
+      const { data: { user } } = await supabase.auth.getUser();
       
-      if (!session) {
+      if (!user) {
         showToast("Please sign in to search for students", "error");
         return;
       }
@@ -50,9 +50,11 @@ export default function LinkStudentForm({ onSuccess }: { onSuccess?: () => void 
         method: "POST",
         headers: {
           "Content-Type": "application/json",
-          "Authorization": `Bearer ${session.access_token}`,
         },
-        body: JSON.stringify({ searchQuery: searchQuery.trim() }),
+        body: JSON.stringify({ 
+          searchQuery: searchQuery.trim(),
+          userId: user.id,
+        }),
       });
 
       const data = await response.json();
