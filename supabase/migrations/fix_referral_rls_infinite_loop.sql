@@ -26,21 +26,15 @@ BEGIN
   new_code := generate_referral_code();
   
   -- Insert new referral code (bypasses RLS due to SECURITY DEFINER)
+  -- First, deactivate any existing active codes for this user
+  UPDATE referral_codes
+  SET is_active = false
+  WHERE user_id = p_user_id AND is_active = true;
+  
+  -- Then insert the new code
   INSERT INTO referral_codes (user_id, code)
   VALUES (p_user_id, new_code)
-  ON CONFLICT (user_id, code) DO NOTHING;
-  
-  -- If insert was skipped due to conflict, fetch the existing code
-  IF NOT FOUND THEN
-    SELECT code INTO existing_code
-    FROM referral_codes
-    WHERE user_id = p_user_id AND code = new_code AND is_active = true
-    LIMIT 1;
-    
-    IF existing_code IS NOT NULL THEN
-      RETURN existing_code;
-    END IF;
-  END IF;
+  ON CONFLICT (user_id, code) DO UPDATE SET is_active = true;
   
   RETURN new_code;
 END;

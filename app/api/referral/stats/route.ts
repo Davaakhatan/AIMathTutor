@@ -53,19 +53,28 @@ export async function GET(request: NextRequest) {
         
         if (!rpcError && newCode) {
           logger.info("Referral code created via RPC", { userId, code: newCode });
-          // Fetch the newly created code
-          const { data: fetchedCode, error: fetchError } = await supabase
+          // Fetch the newly created code (use limit(1) to handle duplicates)
+          const { data: fetchedCodes, error: fetchError } = await supabase
             .from("referral_codes")
             .select("code, total_signups, total_rewards_earned")
             .eq("user_id", userId)
             .eq("is_active", true)
-            .single();
+            .order("created_at", { ascending: false })
+            .limit(1);
           
           if (fetchError) {
             logger.error("Error fetching newly created code", { error: fetchError, userId });
-          } else {
-            finalCodeData = fetchedCode as CodeData;
+          } else if (fetchedCodes && fetchedCodes.length > 0) {
+            finalCodeData = fetchedCodes[0] as CodeData;
             logger.info("Successfully fetched new referral code", { userId, code: finalCodeData?.code });
+          } else {
+            logger.warn("No code found after creation", { userId, newCode });
+            // Use the code returned from RPC directly
+            finalCodeData = {
+              code: newCode,
+              total_signups: 0,
+              total_rewards_earned: 0,
+            };
           }
         } else if (!newCode) {
           logger.warn("RPC returned no code", { userId });
