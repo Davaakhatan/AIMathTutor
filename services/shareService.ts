@@ -122,23 +122,44 @@ export async function getShareByCode(shareCode: string): Promise<ShareData | nul
     
     let result;
     try {
-      result = await response.json();
+      const responseText = await response.text();
+      if (!responseText) {
+        logger.error("Empty response from share API", { shareCode, status: response.status });
+        return null;
+      }
+      result = JSON.parse(responseText);
     } catch (jsonError) {
-      logger.error("Error parsing JSON response", { error: jsonError, shareCode, responseStatus: response.status });
+      logger.error("Error parsing JSON response", { 
+        error: jsonError instanceof Error ? jsonError.message : String(jsonError),
+        shareCode, 
+        responseStatus: response.status 
+      });
       return null;
     }
     
-    if (result && result.success && result.share) {
-      // Check if expired
-      if (result.share.expires_at && new Date(result.share.expires_at) < new Date()) {
-        logger.warn("Share code expired", { shareCode, expiresAt: result.share.expires_at });
-        return null;
-      }
-      return result.share as ShareData;
+    // Defensive checks
+    if (!result) {
+      logger.warn("Share API returned null/undefined result", { shareCode });
+      return null;
     }
     
-    logger.warn("Share API returned unexpected format", { shareCode, result });
-    return null;
+    if (result.success !== true) {
+      logger.warn("Share API returned success: false", { shareCode, result });
+      return null;
+    }
+    
+    if (!result.share || typeof result.share !== 'object') {
+      logger.warn("Share API returned invalid share data", { shareCode, result });
+      return null;
+    }
+    
+    // Check if expired
+    if (result.share.expires_at && new Date(result.share.expires_at) < new Date()) {
+      logger.warn("Share code expired", { shareCode, expiresAt: result.share.expires_at });
+      return null;
+    }
+    
+    return result.share as ShareData;
   } catch (error) {
     // Safely extract error information
     let errorMessage = "Unknown error";
