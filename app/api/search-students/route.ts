@@ -8,7 +8,7 @@ import { logger } from "@/lib/logger";
  */
 export async function POST(request: NextRequest) {
   try {
-    const { searchQuery } = await request.json();
+    const { searchQuery, userId } = await request.json();
 
     if (!searchQuery || typeof searchQuery !== "string" || searchQuery.trim().length < 2) {
       return NextResponse.json(
@@ -17,15 +17,11 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    const supabase = getSupabaseServer();
-
-    // Get current user from request
-    // Try to get user ID from request body or headers
-    const { userId } = await request.json().catch(() => ({}));
-    
     if (!userId) {
       return NextResponse.json({ error: "User ID is required" }, { status: 400 });
     }
+
+    const supabase = getSupabaseServer();
 
     // Verify user is parent or teacher
     const { data: profile } = await supabase
