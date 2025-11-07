@@ -23,61 +23,69 @@ export default function SharePage() {
   const [error, setError] = useState<string | null>(null);
   const shareCode = params.code as string;
 
-  useEffect(() => {
-    if (!shareCode) {
-      setError("Invalid share code");
-      setLoading(false);
-      return;
+  // Fetch sharer's name from API
+  const fetchSharerName = async (data: any): Promise<string | null> => {
+    if (!data.user_id && !data.student_profile_id) {
+      return null;
     }
 
-    const loadShare = async () => {
-      try {
-        // Track click (don't wait for it - non-blocking)
-        trackShareClick(shareCode).catch((err) => {
-          console.error("[SharePage] Error tracking share click:", err, shareCode);
-        });
-
-        // Get share data
-        const data = await getShareByCode(shareCode);
-
-        if (!data) {
-          setError("Share not found or expired");
-          setLoading(false);
-          return;
-        }
-
-        setShareData(data);
-
-        // Fetch sharer's name and challenge in parallel
-        const [name, challengeText] = await Promise.allSettled([
-          fetchSharerName(data).catch(() => null),
-          generateRelatedChallenge(data).catch(() => getDefaultChallenge(data)),
-        ]);
-
-        setSharerName(name.status === "fulfilled" ? name.value : null);
-        setChallenge(challengeText.status === "fulfilled" ? challengeText.value : getDefaultChallenge(data));
-
-        setLoading(false);
-      } catch (err) {
-        // Safely extract error info to avoid TypeError
-        let errorMsg = "Failed to load share";
-        try {
-          if (err instanceof Error) {
-            errorMsg = err.message || "Failed to load share";
-          } else if (err) {
-            errorMsg = String(err);
+    try {
+      // Try to get profile name from student_profile_id first
+      if (data.student_profile_id) {
+        const response = await fetch(`/api/get-profile-name?profileId=${data.student_profile_id}`);
+        if (response.ok) {
+          const result = await response.json();
+          if (result.name) {
+            return result.name;
           }
-        } catch (e) {
-          // Ignore serialization errors
         }
-        console.error("[SharePage] Error loading share:", errorMsg, shareCode);
-        setError("Failed to load share");
-        setLoading(false);
       }
-    };
 
-    // Generate a related challenge based on share data
-    const generateRelatedChallenge = async (data: any): Promise<string> => {
+      // Fallback: try to get user name from user_id
+      if (data.user_id) {
+        const response = await fetch(`/api/get-user-name?userId=${data.user_id}`);
+        if (response.ok) {
+          const result = await response.json();
+          if (result.name) {
+            return result.name;
+          }
+        }
+      }
+    } catch (e) {
+      console.error("[SharePage] Error fetching sharer name:", e);
+    }
+
+    return null;
+  };
+
+  // Get a default challenge based on share type
+  const getDefaultChallenge = (data: any): string => {
+    if (data.share_type === "achievement") {
+      // Use template challenges based on achievement type
+      const templates: Record<string, string> = {
+        first_problem: "Solve: If x + 5 = 12, what is the value of x?",
+        independent: "Solve: A rectangle has a length of 8 cm and a width of 5 cm. What is its area?",
+        hint_master: "Solve: Sarah has 3 times as many apples as Tom. If Tom has 4 apples, how many apples does Sarah have?",
+        speed_demon: "Solve: What is 15% of 80?",
+        perfectionist: "Solve: Find the value of x if 2x + 3 = 4x - 5",
+        streak_7: "Solve: A triangle has sides of length 3, 4, and 5. Is it a right triangle?",
+        streak_30: "Solve: If f(x) = x² + 3x - 2, what is f(4)?",
+        level_5: "Solve: A store sells shirts for $15 each. If you buy 4 shirts, how much do you pay?",
+        level_10: "Solve: Solve the system: 2x + y = 7 and x - y = 2",
+      };
+      return templates[data.metadata?.achievement_type] || "Solve: If 3x = 15, what is x?";
+    } else if (data.share_type === "streak") {
+      return "Solve: What is 25% of 120?";
+    } else if (data.share_type === "progress") {
+      return "Solve: A square has a side length of 6 cm. What is its perimeter?";
+    } else if (data.share_type === "problem") {
+      return data.metadata?.problem_text || "Solve: If 2x + 5 = 13, what is x?";
+    }
+    return "Solve: If 3x = 15, what is x?";
+  };
+
+  // Generate a related challenge based on share data
+  const generateRelatedChallenge = async (data: any): Promise<string> => {
       // For achievement shares, try to generate a related problem
       if (data.share_type === "achievement" && data.metadata?.achievement_type) {
         const achievementType = data.metadata.achievement_type;
@@ -130,65 +138,57 @@ export default function SharePage() {
       return getDefaultChallenge(data);
     };
 
-    // Get a default challenge based on share type
-    const getDefaultChallenge = (data: any): string => {
-      if (data.share_type === "achievement") {
-        // Use template challenges based on achievement type
-        const templates: Record<string, string> = {
-          first_problem: "Solve: If x + 5 = 12, what is the value of x?",
-          independent: "Solve: A rectangle has a length of 8 cm and a width of 5 cm. What is its area?",
-          hint_master: "Solve: Sarah has 3 times as many apples as Tom. If Tom has 4 apples, how many apples does Sarah have?",
-          speed_demon: "Solve: What is 15% of 80?",
-          perfectionist: "Solve: Find the value of x if 2x + 3 = 4x - 5",
-          streak_7: "Solve: A triangle has sides of length 3, 4, and 5. Is it a right triangle?",
-          streak_30: "Solve: If f(x) = x² + 3x - 2, what is f(4)?",
-          level_5: "Solve: A store sells shirts for $15 each. If you buy 4 shirts, how much do you pay?",
-          level_10: "Solve: Solve the system: 2x + y = 7 and x - y = 2",
-        };
-        return templates[data.metadata?.achievement_type] || "Solve: If 3x = 15, what is x?";
-      } else if (data.share_type === "streak") {
-        return "Solve: What is 25% of 120?";
-      } else if (data.share_type === "progress") {
-        return "Solve: A square has a side length of 6 cm. What is its perimeter?";
-      } else if (data.share_type === "problem") {
-        return data.metadata?.problem_text || "Solve: If 2x + 5 = 13, what is x?";
-      }
-      return "Solve: If 3x = 15, what is x?";
-    };
+  useEffect(() => {
+    if (!shareCode) {
+      setError("Invalid share code");
+      setLoading(false);
+      return;
+    }
 
-    // Fetch sharer's name from API
-    const fetchSharerName = async (data: any): Promise<string | null> => {
-      if (!data.user_id && !data.student_profile_id) {
-        return null;
-      }
-
+    const loadShare = async () => {
       try {
-        // Try to get profile name from student_profile_id first
-        if (data.student_profile_id) {
-          const response = await fetch(`/api/get-profile-name?profileId=${data.student_profile_id}`);
-          if (response.ok) {
-            const result = await response.json();
-            if (result.name) {
-              return result.name;
-            }
-          }
+        // Track click (don't wait for it - non-blocking)
+        trackShareClick(shareCode).catch((err) => {
+          console.error("[SharePage] Error tracking share click:", err, shareCode);
+        });
+
+        // Get share data
+        const data = await getShareByCode(shareCode);
+
+        if (!data) {
+          setError("Share not found or expired");
+          setLoading(false);
+          return;
         }
 
-        // Fallback: try to get user name from user_id
-        if (data.user_id) {
-          const response = await fetch(`/api/get-user-name?userId=${data.user_id}`);
-          if (response.ok) {
-            const result = await response.json();
-            if (result.name) {
-              return result.name;
-            }
+        setShareData(data);
+
+        // Fetch sharer's name and challenge in parallel
+        const [name, challengeText] = await Promise.allSettled([
+          fetchSharerName(data).catch(() => null),
+          generateRelatedChallenge(data).catch(() => getDefaultChallenge(data)),
+        ]);
+
+        setSharerName(name.status === "fulfilled" ? name.value : null);
+        setChallenge(challengeText.status === "fulfilled" ? challengeText.value : getDefaultChallenge(data));
+
+        setLoading(false);
+      } catch (err) {
+        // Safely extract error info to avoid TypeError
+        let errorMsg = "Failed to load share";
+        try {
+          if (err instanceof Error) {
+            errorMsg = err.message || "Failed to load share";
+          } else if (err) {
+            errorMsg = String(err);
           }
+        } catch (e) {
+          // Ignore serialization errors
         }
-      } catch (e) {
-        console.error("[SharePage] Error fetching sharer name:", e);
+        console.error("[SharePage] Error loading share:", errorMsg, shareCode);
+        setError("Failed to load share");
+        setLoading(false);
       }
-
-      return null;
     };
 
     loadShare();
