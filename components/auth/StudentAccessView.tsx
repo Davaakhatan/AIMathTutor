@@ -38,7 +38,16 @@ export default function StudentAccessView() {
 
     try {
       setIsLoading(true);
-      const relationships = await getStudentRelationships(activeProfile.id);
+      
+      // Add timeout to prevent infinite loading
+      const timeoutPromise = new Promise<never>((_, reject) => {
+        setTimeout(() => reject(new Error("Loading timed out")), 10000);
+      });
+
+      const relationships = await Promise.race([
+        getStudentRelationships(activeProfile.id),
+        timeoutPromise,
+      ]);
 
       if (relationships.length === 0) {
         setLinkedParents([]);
