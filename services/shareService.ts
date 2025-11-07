@@ -133,26 +133,21 @@ export async function getShareByCode(shareCode: string): Promise<ShareData | nul
     // Read response body once - can only be read once
     let responseText: string;
     try {
+      console.log("[getShareByCode] Reading response body...");
       responseText = await response.text();
+      console.log("[getShareByCode] Response text length:", responseText.length);
     } catch (readError) {
-      logger.error("Error reading response body", { 
-        error: readError instanceof Error ? readError.message : String(readError),
-        shareCode,
-        status: response.status 
-      });
+      const errorMsg = readError instanceof Error ? readError.message : String(readError);
+      console.error("[getShareByCode] Error reading response body:", errorMsg, shareCode, response.status);
       return null;
     }
     
     if (!response.ok) {
       if (response.status === 404) {
-        logger.debug("Share not found", { shareCode, status: response.status });
+        console.log("[getShareByCode] Share not found (404):", shareCode);
         return null; // Not found
       }
-      logger.error("Error fetching share by code", { 
-        shareCode, 
-        status: response.status, 
-        errorText: responseText || "Unknown error" 
-      });
+      console.error("[getShareByCode] Error response:", response.status, responseText?.substring(0, 100), shareCode);
       return null;
     }
     
@@ -160,43 +155,41 @@ export async function getShareByCode(shareCode: string): Promise<ShareData | nul
     let result;
     try {
       if (!responseText || responseText.trim() === '') {
-        logger.error("Empty response from share API", { shareCode, status: response.status });
+        console.error("[getShareByCode] Empty response:", shareCode, response.status);
         return null;
       }
+      console.log("[getShareByCode] Parsing JSON...");
       result = JSON.parse(responseText);
+      console.log("[getShareByCode] JSON parsed successfully, result.success:", result?.success);
     } catch (jsonError) {
       const jsonErrorMessage = jsonError instanceof Error ? jsonError.message : String(jsonError);
-      logger.error("Error parsing JSON response", { 
-        error: jsonErrorMessage,
-        shareCode, 
-        responseStatus: response.status,
-        responseText: responseText.substring(0, 200) // First 200 chars for debugging
-      });
+      console.error("[getShareByCode] JSON parse error:", jsonErrorMessage, shareCode, response.status);
       return null;
     }
     
     // Defensive checks
     if (!result) {
-      logger.warn("Share API returned null/undefined result", { shareCode });
+      console.warn("[getShareByCode] Null/undefined result:", shareCode);
       return null;
     }
     
     if (result.success !== true) {
-      logger.warn("Share API returned success: false", { shareCode, result });
+      console.warn("[getShareByCode] Success is not true:", shareCode, result);
       return null;
     }
     
     if (!result.share || typeof result.share !== 'object') {
-      logger.warn("Share API returned invalid share data", { shareCode, hasShare: !!result.share, shareType: typeof result.share });
+      console.warn("[getShareByCode] Invalid share data:", shareCode, !!result.share, typeof result.share);
       return null;
     }
     
     // Check if expired
     if (result.share.expires_at && new Date(result.share.expires_at) < new Date()) {
-      logger.warn("Share code expired", { shareCode, expiresAt: result.share.expires_at });
+      console.warn("[getShareByCode] Share expired:", shareCode, result.share.expires_at);
       return null;
     }
     
+    console.log("[getShareByCode] Success! Returning share data for:", shareCode);
     return result.share as ShareData;
   } catch (error) {
     // Safely extract error information - this is the catch-all
