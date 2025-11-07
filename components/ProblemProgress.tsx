@@ -255,6 +255,20 @@ export default function ProblemProgress({ messages, problem, difficultyMode = "m
   // Force re-render when completion status changes (for debugging)
   const stage = getStage();
   
+  // Listen for server-side completion events to force re-check
+  // This ensures the UI updates even if there's a timing issue with message updates
+  const [forceCheck, setForceCheck] = useState(0);
+  useEffect(() => {
+    const handleProblemCompleted = () => {
+      // Force a re-check by updating state
+      setForceCheck(prev => prev + 1);
+    };
+    
+    // Listen for custom event that might be dispatched from the page
+    window.addEventListener("problem_completed", handleProblemCompleted);
+    return () => window.removeEventListener("problem_completed", handleProblemCompleted);
+  }, []);
+  
   // Log state changes for debugging
   if (process.env.NODE_ENV === "development") {
     const prevSolvedRef = useRef(isSolved);
@@ -266,10 +280,11 @@ export default function ProblemProgress({ messages, problem, difficultyMode = "m
           score: completionResult.score,
           stage,
           messageCount: messages.length,
+          forceCheck,
         });
         prevSolvedRef.current = isSolved;
       }
-    }, [isSolved, completionResult.score, stage, messages.length]);
+    }, [isSolved, completionResult.score, stage, messages.length, forceCheck]);
   }
 
   if (messages.length === 0) return null;
