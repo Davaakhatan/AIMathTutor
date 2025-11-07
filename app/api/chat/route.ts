@@ -389,6 +389,14 @@ export async function POST(request: NextRequest) {
 
       // Emit problem_completed event if detected
       if (isCompleted && userId && session.problem) {
+        logger.info("Problem completion detected", {
+          userId,
+          profileId: body.profileId,
+          sessionId: body.sessionId,
+          problemType: session.problem.type,
+          responseText: responseText.substring(0, 100), // First 100 chars for debugging
+        });
+        
         eventBus.emit({
           type: "problem_completed",
           userId,
@@ -407,6 +415,18 @@ export async function POST(request: NextRequest) {
           timestamp: new Date(),
         }).catch((error) => {
           logger.error("Error emitting problem_completed event", { error });
+          console.error("❌ Failed to emit problem_completed event:", error);
+        });
+      } else if (isCompleted) {
+        // Log why event wasn't emitted
+        logger.warn("Problem completed but event not emitted", {
+          hasUserId: !!userId,
+          hasProblem: !!session.problem,
+          responseText: responseText.substring(0, 100),
+        });
+        console.warn("⚠️ Problem completed but missing:", {
+          userId: userId || "MISSING",
+          problem: session.problem ? "exists" : "MISSING",
         });
       }
 
