@@ -3,7 +3,7 @@
  * Handles learning goal creation, tracking, and completion
  */
 
-import { getSupabaseClient } from "@/lib/supabase";
+import { getSupabaseAdmin } from "@/lib/supabase-admin";
 import { logger } from "@/lib/logger";
 
 export interface LearningGoal {
@@ -44,7 +44,11 @@ export async function createGoal(
   input: CreateGoalInput
 ): Promise<LearningGoal | null> {
   try {
-    const supabase = await getSupabaseClient();
+    const supabase = getSupabaseAdmin();
+    if (!supabase) {
+      logger.error("Supabase admin client not available for creating goal");
+      return null;
+    }
 
     const { data, error } = await supabase
       .from("learning_goals")
@@ -89,7 +93,11 @@ export async function getGoals(
   status?: LearningGoal["status"]
 ): Promise<LearningGoal[]> {
   try {
-    const supabase = await getSupabaseClient();
+    const supabase = getSupabaseAdmin();
+    if (!supabase) {
+      logger.error("Supabase admin client not available for creating goal");
+      return null;
+    }
 
     let query = supabase
       .from("learning_goals")
@@ -132,7 +140,11 @@ export async function updateGoal(
   input: UpdateGoalInput
 ): Promise<LearningGoal | null> {
   try {
-    const supabase = await getSupabaseClient();
+    const supabase = getSupabaseAdmin();
+    if (!supabase) {
+      logger.error("Supabase admin client not available for creating goal");
+      return null;
+    }
 
     const updateData: any = {};
     if (input.progress !== undefined) updateData.progress = Math.max(0, Math.min(100, input.progress));
@@ -172,7 +184,11 @@ export async function updateGoal(
  */
 export async function deleteGoal(userId: string, goalId: string): Promise<boolean> {
   try {
-    const supabase = await getSupabaseClient();
+    const supabase = getSupabaseAdmin();
+    if (!supabase) {
+      logger.error("Supabase admin client not available for creating goal");
+      return null;
+    }
 
     const { error } = await supabase
       .from("learning_goals")
