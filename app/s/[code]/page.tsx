@@ -38,6 +38,21 @@ export default function DeepLinkPage() {
   const [completed, setCompleted] = useState(false);
   const [difficultyMode, setDifficultyMode] = useState<"elementary" | "middle" | "high" | "advanced">("middle");
   const shareCode = params.code as string;
+  
+  // Get challenge from URL query params (passed from share page)
+  const [challengeFromUrl, setChallengeFromUrl] = useState<string | null>(null);
+  
+  useEffect(() => {
+    // Check for challenge in URL query params
+    if (typeof window !== "undefined") {
+      const urlParams = new URLSearchParams(window.location.search);
+      const challengeParam = urlParams.get("challenge");
+      if (challengeParam) {
+        setChallengeFromUrl(decodeURIComponent(challengeParam));
+        logger.info("Challenge found in URL params", { challenge: challengeParam });
+      }
+    }
+  }, []);
 
   // Get challenge problem from share data
   const getChallengeProblem = async (data: any): Promise<string> => {
@@ -143,7 +158,26 @@ export default function DeepLinkPage() {
         setShareData(shareDataResult);
 
         // Get challenge problem text
-        const challengeText = await getChallengeProblem(shareDataResult);
+        // Priority: 1. URL query param (from share page), 2. Share metadata, 3. Generate new
+        let challengeText: string;
+        
+        if (challengeFromUrl) {
+          // Use challenge from URL (passed from share page) - ensures both pages use the same problem
+          challengeText = challengeFromUrl;
+          logger.info("Using challenge from URL params", { challengeText });
+        } else if (shareDataResult.metadata?.challenge_text) {
+          // Use challenge stored in share metadata
+          challengeText = shareDataResult.metadata.challenge_text;
+          logger.info("Using challenge from share metadata", { challengeText });
+        } else {
+          // Generate new challenge (fallback)
+          challengeText = await getChallengeProblem(shareDataResult);
+          logger.info("Generated new challenge problem", { 
+            challengeText,
+            shareType: shareDataResult.share_type,
+            achievementType: shareDataResult.metadata?.achievement_type 
+          });
+        }
         
         // Parse the problem (create ParsedProblem object)
         const normalizedText = normalizeProblemText(challengeText);
@@ -152,6 +186,12 @@ export default function DeepLinkPage() {
           type: "algebra", // Default, can be enhanced
           confidence: 0.9, // Default confidence
         };
+
+        logger.info("Parsed challenge problem", { 
+          originalText: challengeText,
+          normalizedText: problem.text,
+          problemType: problem.type
+        });
 
         setChallengeProblem(problem);
         setLoading(false);
@@ -164,7 +204,7 @@ export default function DeepLinkPage() {
     };
 
     handleDeepLink();
-  }, [shareCode]);
+  }, [shareCode, challengeFromUrl]);
 
   // Initialize chat session with challenge problem
   useEffect(() => {
@@ -176,6 +216,13 @@ export default function DeepLinkPage() {
       try {
         const controller = new AbortController();
         const timeoutId = setTimeout(() => controller.abort(), 30000);
+
+        // Log the problem being sent to the API
+        logger.info("Initializing chat with challenge problem", {
+          problemText: challengeProblem.text,
+          problemType: challengeProblem.type,
+          difficultyMode,
+        });
 
         const requestBody: any = {
           problem: challengeProblem,

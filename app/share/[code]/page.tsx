@@ -243,7 +243,9 @@ export default function SharePage() {
 
   const handleTryNow = () => {
     // Always redirect to deep link for micro-task
-    router.push(`/s/${shareCode}`);
+    // Pass the challenge problem via URL query params so both pages use the same problem
+    const challengeParam = challenge ? encodeURIComponent(challenge) : "";
+    router.push(`/s/${shareCode}${challengeParam ? `?challenge=${challengeParam}` : ""}`);
   };
 
   if (loading) {
