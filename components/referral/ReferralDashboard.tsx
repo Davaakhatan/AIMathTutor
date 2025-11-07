@@ -43,27 +43,16 @@ export default function ReferralDashboard() {
     try {
       setLoading(true);
 
-      // Get stats via API route with timeout
-      const statsPromise = fetch(`/api/referral/stats?userId=${user.id}`);
-      const timeoutPromise = new Promise<Response>((_, reject) =>
-        setTimeout(() => reject(new Error("Request timeout")), 10000)
-      );
-
-      let statsResponse: Response;
-      try {
-        statsResponse = await Promise.race([statsPromise, timeoutPromise]);
-      } catch (timeoutError) {
-        logger.error("Stats API timeout", { error: timeoutError, userId: user.id });
-        statsResponse = { ok: false, status: 408 } as Response;
-      }
-
+      // Get stats via API route - this is the critical path, show immediately
+      const statsResponse = await fetch(`/api/referral/stats?userId=${user.id}`);
+      
       if (statsResponse.ok) {
         const statsData = await statsResponse.json();
         if (statsData.success && statsData.stats) {
           setStats(statsData.stats);
+          setLoading(false); // Show UI immediately after stats load
         } else {
           logger.error("Invalid stats response", { statsData });
-          // Create default stats if API returns invalid data
           setStats({
             totalReferrals: 0,
             completedReferrals: 0,
@@ -72,11 +61,11 @@ export default function ReferralDashboard() {
             referralUrl: "",
             totalSignups: 0,
           });
+          setLoading(false);
         }
       } else {
         const errorData = await statsResponse.json().catch(() => ({}));
         logger.error("Stats API error", { status: statsResponse.status, error: errorData });
-        // Create default stats on error
         setStats({
           totalReferrals: 0,
           completedReferrals: 0,
@@ -85,23 +74,20 @@ export default function ReferralDashboard() {
           referralUrl: "",
           totalSignups: 0,
         });
+        setLoading(false);
       }
 
-      // Get referrals list with timeout
-      try {
-        const referralsPromise = getUserReferrals(user.id);
-        const referralsTimeout = new Promise<Referral[]>((_, reject) =>
-          setTimeout(() => reject(new Error("Referrals timeout")), 5000)
-        );
-        const referralsList = await Promise.race([referralsPromise, referralsTimeout]);
-        setReferrals(referralsList || []);
-      } catch (referralsError) {
-        logger.error("Error loading referrals list", { error: referralsError });
-        setReferrals([]);
-      }
+      // Load referrals list in background (non-blocking)
+      getUserReferrals(user.id)
+        .then((referralsList) => {
+          setReferrals(referralsList || []);
+        })
+        .catch((referralsError) => {
+          logger.error("Error loading referrals list", { error: referralsError });
+          setReferrals([]);
+        });
     } catch (error) {
       logger.error("Error loading referral data", { error, userId: user.id });
-      // Set default stats on error
       setStats({
         totalReferrals: 0,
         completedReferrals: 0,
@@ -111,7 +97,6 @@ export default function ReferralDashboard() {
         totalSignups: 0,
       });
       setReferrals([]);
-    } finally {
       setLoading(false);
     }
   }, [user]);
@@ -177,140 +162,115 @@ export default function ReferralDashboard() {
   }
 
   return (
-    <div className="p-6 space-y-6">
-      {/* Header */}
-      <div>
-        <h2 className="text-2xl font-bold text-gray-900 dark:text-white mb-2">
-          Referral Program
-        </h2>
-        <p className="text-gray-600 dark:text-gray-400">
-          Invite friends and earn rewards when they sign up!
-        </p>
-      </div>
-
-      {/* Stats Cards */}
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-        <div className="bg-white dark:bg-gray-800 rounded-lg p-4 border border-gray-200 dark:border-gray-700">
-          <div className="text-sm text-gray-600 dark:text-gray-400 mb-1">
-            Total Referrals
+    <div className="p-4 space-y-4">
+      {/* Stats Cards - Compact Design */}
+      <div className="grid grid-cols-3 gap-2">
+        <div className="bg-gray-50 dark:bg-gray-800 rounded-lg p-3 border border-gray-200 dark:border-gray-700">
+          <div className="text-xs text-gray-600 dark:text-gray-400 mb-1">
+            Referrals
           </div>
-          <div className="text-2xl font-bold text-gray-900 dark:text-white">
+          <div className="text-lg font-bold text-gray-900 dark:text-white">
             {stats.totalReferrals}
           </div>
-          <div className="text-xs text-gray-500 dark:text-gray-500 mt-1">
-            {stats.completedReferrals} completed
+          <div className="text-[10px] text-gray-500 dark:text-gray-500 mt-0.5">
+            {stats.completedReferrals} done
           </div>
         </div>
 
-        <div className="bg-white dark:bg-gray-800 rounded-lg p-4 border border-gray-200 dark:border-gray-700">
-          <div className="text-sm text-gray-600 dark:text-gray-400 mb-1">
-            Rewards Earned
+        <div className="bg-gray-50 dark:bg-gray-800 rounded-lg p-3 border border-gray-200 dark:border-gray-700">
+          <div className="text-xs text-gray-600 dark:text-gray-400 mb-1">
+            Rewards
           </div>
-          <div className="text-2xl font-bold text-gray-900 dark:text-white">
-            {stats.totalRewardsEarned} XP
+          <div className="text-lg font-bold text-gray-900 dark:text-white">
+            {stats.totalRewardsEarned}
           </div>
-          <div className="text-xs text-gray-500 dark:text-gray-500 mt-1">
-            From referrals
+          <div className="text-[10px] text-gray-500 dark:text-gray-500 mt-0.5">
+            XP earned
           </div>
         </div>
 
-        <div className="bg-white dark:bg-gray-800 rounded-lg p-4 border border-gray-200 dark:border-gray-700">
-          <div className="text-sm text-gray-600 dark:text-gray-400 mb-1">
+        <div className="bg-gray-50 dark:bg-gray-800 rounded-lg p-3 border border-gray-200 dark:border-gray-700">
+          <div className="text-xs text-gray-600 dark:text-gray-400 mb-1">
             Signups
           </div>
-          <div className="text-2xl font-bold text-gray-900 dark:text-white">
+          <div className="text-lg font-bold text-gray-900 dark:text-white">
             {stats.totalSignups}
           </div>
-          <div className="text-xs text-gray-500 dark:text-gray-500 mt-1">
-            Total signups
+          <div className="text-[10px] text-gray-500 dark:text-gray-500 mt-0.5">
+            Total
           </div>
         </div>
       </div>
 
-      {/* Referral Code & Link */}
-      <div className="bg-white dark:bg-gray-800 rounded-lg p-6 border border-gray-200 dark:border-gray-700">
-        <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-4">
-          Your Referral Code
-        </h3>
-        <div className="flex items-center gap-4 mb-4">
-          <div className="flex-1">
-            <div className="text-sm text-gray-600 dark:text-gray-400 mb-2">
-              Code
-            </div>
-            <div className="font-mono text-xl font-bold text-gray-900 dark:text-white bg-gray-50 dark:bg-gray-900 px-4 py-2 rounded border border-gray-200 dark:border-gray-700">
-              {stats.referralCode || "Generating..."}
-            </div>
-          </div>
+      {/* Referral Code & Link - Compact */}
+      <div className="bg-gray-50 dark:bg-gray-800 rounded-lg p-4 border border-gray-200 dark:border-gray-700">
+        <div className="text-xs font-medium text-gray-600 dark:text-gray-400 mb-2">
+          Your Code
+        </div>
+        <div className="font-mono text-base font-bold text-gray-900 dark:text-white bg-white dark:bg-gray-900 px-3 py-2 rounded border border-gray-200 dark:border-gray-700 mb-3">
+          {stats.referralCode || "Generating..."}
         </div>
 
-        <div className="mb-4">
-          <div className="text-sm text-gray-600 dark:text-gray-400 mb-2">
-            Referral Link
-          </div>
-          <div className="flex items-center gap-2">
-            <input
-              type="text"
-              readOnly
-              value={stats.referralUrl || ""}
-              placeholder={stats.referralCode ? "Generating link..." : "No referral code"}
-              className="flex-1 font-mono text-sm text-gray-900 dark:text-white bg-gray-50 dark:bg-gray-900 px-4 py-2 rounded border border-gray-200 dark:border-gray-700"
-            />
+        <div className="flex items-center gap-2">
+          <input
+            type="text"
+            readOnly
+            value={stats.referralUrl || ""}
+            placeholder="Generating link..."
+            className="flex-1 font-mono text-xs text-gray-900 dark:text-white bg-white dark:bg-gray-900 px-3 py-2 rounded border border-gray-200 dark:border-gray-700"
+          />
+          <button
+            onClick={copyReferralLink}
+            disabled={!stats.referralUrl}
+            className="px-3 py-2 bg-gray-900 dark:bg-gray-700 text-white text-xs rounded hover:bg-gray-800 dark:hover:bg-gray-600 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+          >
+            {copied ? "Copied" : "Copy"}
+          </button>
+          {canShare && (
             <button
-              onClick={copyReferralLink}
+              onClick={shareReferralLink}
               disabled={!stats.referralUrl}
-              className="px-4 py-2 bg-gray-900 dark:bg-gray-700 text-white rounded hover:bg-gray-800 dark:hover:bg-gray-600 transition-colors text-sm disabled:opacity-50 disabled:cursor-not-allowed"
+              className="px-3 py-2 bg-gray-900 dark:bg-gray-700 text-white text-xs rounded hover:bg-gray-800 dark:hover:bg-gray-600 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
             >
-              {copied ? "Copied!" : "Copy"}
+              Share
             </button>
-            {canShare && (
-              <button
-                onClick={shareReferralLink}
-                disabled={!stats.referralUrl}
-                className="px-4 py-2 bg-gray-900 dark:bg-gray-700 text-white rounded hover:bg-gray-800 dark:hover:bg-gray-600 transition-colors text-sm disabled:opacity-50 disabled:cursor-not-allowed"
-              >
-                Share
-              </button>
-            )}
-          </div>
-        </div>
-
-        {/* Rewards Info */}
-        <div className="bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 rounded-lg p-4">
-          <div className="text-sm font-semibold text-blue-900 dark:text-blue-200 mb-2">
-            How it works
-          </div>
-          <ul className="text-sm text-blue-800 dark:text-blue-300 space-y-1">
-            <li>• Share your referral link with friends</li>
-            <li>• They get 100 XP when they sign up</li>
-            <li>• You get 200 XP for each successful referral</li>
-            <li>• Rewards are awarded automatically</li>
-          </ul>
+          )}
         </div>
       </div>
 
-      {/* Recent Referrals */}
+      {/* How it works - Compact */}
+      <div className="bg-gray-50 dark:bg-gray-800 rounded-lg p-3 border border-gray-200 dark:border-gray-700">
+        <div className="text-xs font-medium text-gray-900 dark:text-white mb-2">
+          How it works
+        </div>
+        <div className="text-xs text-gray-600 dark:text-gray-400 space-y-1">
+          <div>Share your link • Friends get 100 XP • You get 200 XP</div>
+        </div>
+      </div>
+
+      {/* Recent Referrals - Compact */}
       {referrals.length > 0 && (
-        <div className="bg-white dark:bg-gray-800 rounded-lg p-6 border border-gray-200 dark:border-gray-700">
-          <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-4">
+        <div className="bg-gray-50 dark:bg-gray-800 rounded-lg p-4 border border-gray-200 dark:border-gray-700">
+          <div className="text-xs font-medium text-gray-900 dark:text-white mb-3">
             Recent Referrals
-          </h3>
-          <div className="space-y-3">
-            {referrals.slice(0, 10).map((referral) => (
+          </div>
+          <div className="space-y-2">
+            {referrals.slice(0, 5).map((referral) => (
               <div
                 key={referral.id}
-                className="flex items-center justify-between p-3 bg-gray-50 dark:bg-gray-900 rounded border border-gray-200 dark:border-gray-700"
+                className="flex items-center justify-between p-2 bg-white dark:bg-gray-900 rounded border border-gray-200 dark:border-gray-700"
               >
-                <div>
-                  <div className="text-sm font-medium text-gray-900 dark:text-white">
+                <div className="flex-1 min-w-0">
+                  <div className="text-xs font-medium text-gray-900 dark:text-white truncate">
                     {referral.referral_code}
                   </div>
-                  <div className="text-xs text-gray-500 dark:text-gray-500">
+                  <div className="text-[10px] text-gray-500 dark:text-gray-500">
                     {new Date(referral.created_at).toLocaleDateString()}
                   </div>
                 </div>
-                <div className="flex items-center gap-2">
+                <div className="flex items-center gap-2 ml-2">
                   <span
-                    className={`px-2 py-1 text-xs rounded ${
+                    className={`px-1.5 py-0.5 text-[10px] rounded ${
                       referral.status === "rewarded"
                         ? "bg-green-100 dark:bg-green-900/30 text-green-800 dark:text-green-200"
                         : referral.status === "completed"
@@ -320,9 +280,9 @@ export default function ReferralDashboard() {
                   >
                     {referral.status}
                   </span>
-                  {referral.referrer_reward_amount && (
-                    <span className="text-sm font-medium text-gray-900 dark:text-white">
-                      +{referral.referrer_reward_amount} XP
+                  {referral.referrer_reward_amount > 0 && (
+                    <span className="text-xs font-medium text-gray-900 dark:text-white">
+                      +{referral.referrer_reward_amount}
                     </span>
                   )}
                 </div>

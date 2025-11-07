@@ -201,20 +201,21 @@ export async function getReferralStats(userId: string): Promise<ReferralStats> {
  */
 export async function getUserReferrals(userId: string): Promise<Referral[]> {
   try {
-    const supabase = await getSupabaseClient();
-
-    const { data, error } = await supabase
-      .from("referrals")
-      .select("*")
-      .eq("referrer_id", userId)
-      .order("created_at", { ascending: false });
-
-    if (error) {
-      logger.error("Error fetching user referrals", { error, userId });
-      throw error;
+    // Use API route instead of direct Supabase call for better RLS handling
+    const response = await fetch(`/api/referral/list?userId=${userId}`);
+    
+    if (!response.ok) {
+      const errorData = await response.json().catch(() => ({}));
+      logger.error("Error fetching user referrals", { error: errorData, userId });
+      return [];
     }
 
-    return (data as Referral[]) || [];
+    const data = await response.json();
+    if (data.success && data.referrals) {
+      return data.referrals as Referral[];
+    }
+
+    return [];
   } catch (error) {
     logger.error("Error in getUserReferrals", { error, userId });
     return [];
