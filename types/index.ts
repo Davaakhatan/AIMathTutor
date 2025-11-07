@@ -63,6 +63,7 @@ export interface ChatRequest {
   whiteboardImage?: string; // Base64 image data URL from whiteboard
   stream?: boolean; // Enable streaming responses
   userId?: string; // Optional: User ID for authenticated users (for persistent sessions)
+  profileId?: string; // Optional: Student profile ID for authenticated users
 }
 
 export interface ChatResponse {
