@@ -1,28 +1,38 @@
 # Product Requirements Document (PRD)
-## AI Math Tutor - Enhanced with Viral Growth & Study Companion
+## AI Math Tutor - Unified Ecosystem Platform
 
-**Version**: 2.0  
+**Version**: 3.0 (Unified Ecosystem)  
 **Date**: November 2025  
-**Status**: Active Development
+**Status**: Active Development - Phase 1
 
 ---
 
 ## Executive Summary
 
-This PRD outlines the enhanced AI Math Tutor platform that combines:
+This PRD defines the **unified ecosystem platform** that seamlessly integrates three core systems:
 1. **Core AI Tutoring** - Socratic method-based math tutoring (✅ Complete)
-2. **Viral Growth System** - Social features and referral mechanics (🚧 Phase 1)
-3. **AI Study Companion** - Persistent learning companion with memory (🚧 Phase 1)
+2. **Viral Growth System** - Social features and referral mechanics (🚧 40% Complete)
+3. **AI Study Companion** - Persistent learning companion with memory (🚧 0% Complete)
+
+**Key Innovation**: These systems are **not separate features** - they form a **cohesive ecosystem** where each system enhances and triggers the others through a unified event orchestration layer.
 
 ---
 
 ## Product Vision
 
-Transform the AI Math Tutor into a **social, engaging learning platform** that:
-- Helps students learn math through Socratic questioning
-- Encourages social learning through challenges and sharing
-- Provides persistent AI companion that remembers and adapts
-- Drives organic growth through viral mechanics
+Transform the AI Math Tutor into a **social, engaging, intelligent learning ecosystem** that:
+- **Teaches** students math through Socratic questioning (Core)
+- **Grows** organically through viral mechanics and social engagement (Growth)
+- **Remembers** and adapts to each student's learning journey (Companion)
+- **Orchestrates** all systems to work together seamlessly (Ecosystem)
+
+### Ecosystem Principles
+
+1. **Unified Event System**: All features communicate via events
+2. **Orchestrated Actions**: Problem completion triggers growth + companion actions
+3. **Shared Data Model**: Single source of truth (Supabase)
+4. **Seamless Integration**: Features enhance each other, not isolated
+5. **User-Centric Flow**: Natural journey through all systems
 
 ---
 
@@ -273,91 +283,213 @@ Transform the AI Math Tutor into a **social, engaging learning platform** that:
 
 ---
 
-## Technical Architecture
+## Unified Ecosystem Architecture
 
-### Database Schema Additions
+### Event-Driven Architecture
+
+The platform uses an **event bus** to orchestrate interactions between systems:
+
+```typescript
+// Event Types
+type EventType = 
+  | 'problem_completed'
+  | 'goal_achieved'
+  | 'streak_at_risk'
+  | 'achievement_unlocked'
+  | 'session_started'
+  | 'session_ended';
+
+// Event Flow Example
+problem_completed → {
+  growth: ['generate_challenge', 'create_share'],
+  companion: ['summarize_session', 'update_memory', 'check_goals'],
+  gamification: ['award_xp', 'update_streak']
+}
+```
+
+### Orchestrator Service
+
+The `EcosystemOrchestrator` coordinates all systems:
+
+```typescript
+class EcosystemOrchestrator {
+  async onProblemCompleted(userId: string, problem: ParsedProblem) {
+    // Parallel execution
+    await Promise.all([
+      this.updateGamification(userId, problem),
+      this.triggerGrowthActions(userId, problem),
+      this.updateCompanionMemory(userId, problem),
+      this.checkGoals(userId, problem)
+    ]);
+  }
+}
+```
+
+### Database Schema (Unified)
 
 ```sql
--- Referrals
-CREATE TABLE referrals (
-  id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
-  referrer_id UUID REFERENCES auth.users(id),
-  referee_id UUID REFERENCES auth.users(id),
-  status TEXT, -- 'pending', 'completed', 'rewarded'
-  created_at TIMESTAMP DEFAULT NOW()
-);
+-- Core: Sessions (existing)
+-- Core: Problems (existing)
+-- Core: Messages (existing)
 
--- Challenges
+-- Growth: Referrals (existing)
+-- Growth: Referral Codes (existing)
+-- Growth: Shares (existing)
+
+-- Growth: Challenges (NEW)
 CREATE TABLE challenges (
-  id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   challenger_id UUID REFERENCES auth.users(id),
   challengee_id UUID REFERENCES auth.users(id),
-  problem_id UUID REFERENCES problems(id),
-  status TEXT, -- 'pending', 'accepted', 'completed', 'expired'
-  created_at TIMESTAMP DEFAULT NOW()
+  student_profile_id UUID REFERENCES student_profiles(id),
+  challenge_type TEXT NOT NULL, -- 'beat_score', 'streak_rescue', 'co_practice'
+  problem_id UUID,
+  share_code TEXT REFERENCES shares(share_code),
+  status TEXT NOT NULL DEFAULT 'pending', -- 'pending', 'accepted', 'completed', 'expired'
+  expires_at TIMESTAMPTZ,
+  created_at TIMESTAMPTZ DEFAULT NOW()
 );
 
--- Conversation Summaries
+-- Companion: Conversation Summaries (NEW)
 CREATE TABLE conversation_summaries (
-  id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   user_id UUID REFERENCES auth.users(id),
-  session_id UUID REFERENCES sessions(id),
-  summary TEXT,
+  student_profile_id UUID REFERENCES student_profiles(id),
+  session_id UUID,
+  summary TEXT NOT NULL,
   concepts_covered TEXT[],
-  created_at TIMESTAMP DEFAULT NOW()
+  difficulty_level TEXT,
+  problem_types TEXT[],
+  created_at TIMESTAMPTZ DEFAULT NOW()
 );
 
--- Learning Goals
+-- Companion: Learning Goals (NEW)
 CREATE TABLE learning_goals (
-  id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   user_id UUID REFERENCES auth.users(id),
-  goal_type TEXT, -- 'subject_mastery', 'exam_prep', 'skill_building'
-  target_subject TEXT,
+  student_profile_id UUID REFERENCES student_profiles(id),
+  goal_type TEXT NOT NULL, -- 'subject_mastery', 'exam_prep', 'skill_building'
+  target_subject TEXT NOT NULL,
   target_date DATE,
-  status TEXT, -- 'active', 'completed', 'paused'
+  status TEXT NOT NULL DEFAULT 'active', -- 'active', 'completed', 'paused'
   progress INTEGER DEFAULT 0,
-  created_at TIMESTAMP DEFAULT NOW()
+  metadata JSONB DEFAULT '{}'::jsonb,
+  created_at TIMESTAMPTZ DEFAULT NOW()
 );
 
--- Practice Assignments
+-- Companion: Practice Assignments (NEW)
 CREATE TABLE practice_assignments (
-  id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   user_id UUID REFERENCES auth.users(id),
-  problem_ids UUID[],
-  due_date TIMESTAMP,
-  completed BOOLEAN DEFAULT FALSE,
-  created_at TIMESTAMP DEFAULT NOW()
+  student_profile_id UUID REFERENCES student_profiles(id),
+  assignment_type TEXT NOT NULL, -- 'adaptive', 'goal_based', 'weak_area'
+  problems JSONB NOT NULL,
+  status TEXT NOT NULL DEFAULT 'pending', -- 'pending', 'in_progress', 'completed'
+  due_date TIMESTAMPTZ,
+  completed_at TIMESTAMPTZ,
+  created_at TIMESTAMPTZ DEFAULT NOW()
 );
+
+-- Presence: Activity Feed (NEW)
+CREATE TABLE activity_feed (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  user_id UUID REFERENCES auth.users(id),
+  student_profile_id UUID REFERENCES student_profiles(id),
+  activity_type TEXT NOT NULL, -- 'problem_solved', 'achievement', 'goal_completed', 'challenge_created'
+  metadata JSONB DEFAULT '{}'::jsonb,
+  created_at TIMESTAMPTZ DEFAULT NOW()
+);
+
+-- Indexes for performance
+CREATE INDEX idx_challenges_challenger ON challenges(challenger_id);
+CREATE INDEX idx_challenges_challengee ON challenges(challengee_id);
+CREATE INDEX idx_challenges_status ON challenges(status);
+CREATE INDEX idx_summaries_user_profile ON conversation_summaries(user_id, student_profile_id);
+CREATE INDEX idx_summaries_created ON conversation_summaries(created_at DESC);
+CREATE INDEX idx_goals_user_profile ON learning_goals(user_id, student_profile_id);
+CREATE INDEX idx_goals_status ON learning_goals(status);
+CREATE INDEX idx_activity_user ON activity_feed(user_id);
+CREATE INDEX idx_activity_created ON activity_feed(created_at DESC);
 ```
 
-### API Routes
+### API Routes (Organized by Domain)
 
 ```
-POST /api/share/generate - Generate share card
-GET /api/deep-link/:code - Handle deep link
-POST /api/referral/create - Create referral link
-GET /api/referral/stats - Get referral stats
-POST /api/challenge/create - Create challenge
-POST /api/challenge/accept - Accept challenge
-GET /api/summaries - Get conversation summaries
-POST /api/goals - Create/update goal
-GET /api/goals - Get user goals
-POST /api/practice/assign - Assign practice
-GET /api/practice - Get practice assignments
-POST /api/nudges/send - Send re-engagement nudge
+# Core Tutoring (existing)
+/api/chat - Chat messages
+/api/parse-problem - Parse problem
+/api/session - Session management
+
+# Growth System
+/api/growth/
+  ├── share/generate - Generate share card
+  ├── share/[code] - Get share by code
+  ├── referral/stats - Get referral stats
+  ├── referral/list - List referrals
+  ├── referral/track-signup - Track signup
+  ├── challenge/create - Create challenge
+  ├── challenge/accept - Accept challenge
+  └── presence/feed - Get activity feed
+
+# Study Companion
+/api/companion/
+  ├── memory/summaries - Get conversation summaries
+  ├── memory/summarize - Create summary
+  ├── goals - CRUD goals
+  ├── goals/[id]/complete - Complete goal
+  ├── practice/assign - Assign practice
+  ├── practice/list - List assignments
+  └── recommendations - Get subject recommendations
+
+# Analytics & Events
+/api/analytics/
+  └── events - Track events
 ```
 
-### Services
+### Services (Unified)
 
 ```
 services/
+  # Core
+  problemParser.ts - Parse problems
+  dialogueManager.ts - Dialogue orchestration
+  contextManager.ts - Context management
+  
+  # Growth
   referralService.ts - Referral logic
   challengeService.ts - Challenge logic
   shareService.ts - Share card generation
+  presenceService.ts - Activity feed
+  
+  # Companion
   goalService.ts - Goal management
   practiceService.ts - Practice assignment
-  reEngagementService.ts - Re-engagement logic
   conversationSummaryService.ts - Summary management
+  recommendationService.ts - Subject recommendations
+  reEngagementService.ts - Re-engagement logic
+  
+  # Orchestration (NEW)
+  orchestrator.ts - Ecosystem orchestrator
+  eventBus.ts - Event system
+```
+
+### Event System
+
+```typescript
+// lib/eventBus.ts
+interface Event {
+  type: EventType;
+  userId: string;
+  profileId?: string;
+  data: Record<string, any>;
+  timestamp: Date;
+}
+
+class EventBus {
+  emit(event: Event): Promise<void>;
+  on(eventType: EventType, handler: (event: Event) => Promise<void>): void;
+  off(eventType: EventType, handler: Function): void;
+}
 ```
 
 ---
@@ -385,30 +517,66 @@ services/
 
 ---
 
-## Implementation Roadmap
+## Phase-Based Implementation Plan
 
-### Week 1-2: Foundation
-- [ ] Database schema updates
-- [ ] Basic referral system
-- [ ] Share card generation
-- [ ] Deep link routing
+### Phase 0: Foundation ✅ (Complete)
+- Core tutoring system
+- User authentication (Model B)
+- Basic gamification
+- Database setup
 
-### Week 3-4: Social Features
-- [ ] Challenge system
-- [ ] Enhanced leaderboards
-- [ ] Friend connections (basic)
+### Phase 1: Ecosystem Cohesion (4 weeks)
 
-### Week 5-6: Study Companion
-- [ ] Conversation summaries
-- [ ] Goal system
-- [ ] Practice assignments
-- [ ] Re-engagement nudges
+#### Week 1: Event System & Orchestration
+- [ ] Build event bus (`lib/eventBus.ts`)
+- [ ] Create orchestrator service (`services/orchestrator.ts`)
+- [ ] Integrate with existing features
+- [ ] Test event flow end-to-end
 
-### Week 7-8: Polish & Testing
-- [ ] UI/UX improvements
-- [ ] Analytics dashboard
-- [ ] Testing & bug fixes
+#### Week 2: Study Companion Core
+- [ ] Conversation summary generation
+- [ ] Summary storage & retrieval
+- [ ] Goal system (create, track, complete)
+- [ ] Subject recommendations engine
+
+#### Week 3: Growth System Completion
+- [ ] Agentic actions (simplified)
+  - Auto "Beat-My-Skill" challenge
+  - Streak rescue
+- [ ] Presence UI (activity feed)
+- [ ] Challenge system database & API
+
+#### Week 4: Integration & Polish
+- [ ] End-to-end testing
+- [ ] Performance optimization
+- [ ] UI/UX polish
 - [ ] Documentation
+
+### Phase 2: Advanced Features (8 weeks)
+
+#### Weeks 5-6: Advanced Study Companion
+- [ ] Adaptive practice assignments
+- [ ] Re-engagement nudges
+- [ ] Multi-goal tracking
+- [ ] Learning path recommendations
+
+#### Weeks 7-8: Advanced Growth
+- [ ] Full MCP agent system (optional)
+- [ ] Session transcription (optional)
+- [ ] Advanced analytics
+- [ ] A/B testing framework
+
+#### Weeks 9-10: Social Features
+- [ ] Friend system
+- [ ] Study groups
+- [ ] Collaborative challenges
+- [ ] Social leaderboards
+
+#### Weeks 11-12: Polish & Scale
+- [ ] Performance optimization
+- [ ] Mobile app (PWA enhancement)
+- [ ] Analytics dashboard
+- [ ] Production hardening
 
 ---
 

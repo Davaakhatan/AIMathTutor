@@ -1,24 +1,89 @@
 # Architecture Documentation
-## AI Math Tutor - Enhanced with Viral Growth & Study Companion
+## AI Math Tutor - Unified Ecosystem Platform
 
-**Version**: 2.0  
+**Version**: 3.0 (Unified Ecosystem)  
 **Last Updated**: November 2025
 
 ---
 
 ## Table of Contents
-1. [System Overview](#system-overview)
-2. [Architecture Patterns](#architecture-patterns)
-3. [Component Design](#component-design)
-4. [Data Flow](#data-flow)
-5. [API Design](#api-design)
-6. [State Management](#state-management)
-7. [Prompt Engineering](#prompt-engineering)
-8. [Technology Stack](#technology-stack)
-9. [Deployment Architecture](#deployment-architecture)
-10. [Viral Growth Architecture](#viral-growth-architecture)
-11. [Study Companion Architecture](#study-companion-architecture)
-12. [Database Schema](#database-schema)
+1. [Unified Ecosystem Overview](#unified-ecosystem-overview)
+2. [System Overview](#system-overview)
+3. [Event-Driven Architecture](#event-driven-architecture)
+4. [Orchestration Layer](#orchestration-layer)
+5. [Architecture Patterns](#architecture-patterns)
+6. [Component Design](#component-design)
+7. [Data Flow](#data-flow)
+8. [API Design](#api-design)
+9. [State Management](#state-management)
+10. [Database Schema](#database-schema)
+11. [Technology Stack](#technology-stack)
+12. [Deployment Architecture](#deployment-architecture)
+
+---
+
+## Unified Ecosystem Overview
+
+### The Three Systems, One Platform
+
+This platform integrates **three core systems** into a **unified ecosystem**:
+
+1. **Core AI Tutoring** - Socratic method-based math tutoring
+2. **Viral Growth System** - Social features and referral mechanics
+3. **AI Study Companion** - Persistent learning companion with memory
+
+**Key Innovation**: These systems communicate via an **event-driven architecture** with an **orchestration layer** that coordinates all interactions.
+
+### Ecosystem Architecture Diagram
+
+```
+┌─────────────────────────────────────────────────────────────────┐
+│                    UNIFIED ECOSYSTEM PLATFORM                   │
+├─────────────────────────────────────────────────────────────────┤
+│                                                                 │
+│  ┌──────────────────────────────────────────────────────────┐ │
+│  │              Event Bus (Central Nervous System)          │ │
+│  │  problem_completed │ goal_achieved │ streak_at_risk     │ │
+│  └────────────────────┬─────────────────────────────────────┘ │
+│                       │                                        │
+│         ┌─────────────┼─────────────┐                          │
+│         │             │             │                         │
+│         ▼             ▼             ▼                          │
+│  ┌──────────┐  ┌──────────┐  ┌──────────┐                   │
+│  │   Core    │  │  Growth  │  │Companion │                   │
+│  │ Tutoring  │  │  System  │  │  System  │                   │
+│  └─────┬─────┘  └─────┬────┘  └─────┬────┘                   │
+│        │              │             │                         │
+│        └──────────────┼─────────────┘                         │
+│                       │                                        │
+│              ┌────────▼────────┐                              │
+│              │  Orchestrator   │                              │
+│              │   Service       │                              │
+│              └────────┬─────────┘                              │
+│                       │                                        │
+│              ┌────────▼────────┐                              │
+│              │   Supabase DB    │                              │
+│              │  (Single Source) │                              │
+│              └──────────────────┘                              │
+│                                                                 │
+└─────────────────────────────────────────────────────────────────┘
+```
+
+### How Systems Interact
+
+```
+User Action: Problem Completed
+    ↓
+Event: problem_completed
+    ↓
+Orchestrator (parallel execution):
+    ├─→ Growth: Generate challenge + share link
+    ├─→ Companion: Summarize session + update memory
+    ├─→ Gamification: Award XP + update streak
+    └─→ Companion: Check goals + recommend subjects
+    ↓
+Unified UI: Show all results together
+```
 
 ---
 
@@ -47,9 +112,14 @@
 │  │   Parser     │  │   Manager    │  │   Manager    │      │
 │  └──────────────┘  └──────────────┘  └──────────────┘      │
 │                                                               │
+│  ┌──────────────┐  ┌──────────────┐  ┌──────────────┐      │
+│  │   Prompt     │  │   Session    │  │ Orchestrator │      │
+│  │   Engine     │  │   Store      │  │   Service    │      │
+│  └──────────────┘  └──────────────┘  └──────────────┘      │
+│                                                               │
 │  ┌──────────────┐  ┌──────────────┐                         │
-│  │   Prompt     │  │   Session    │                         │
-│  │   Engine     │  │   Store      │                         │
+│  │   Event Bus  │  │   Growth     │                         │
+│  │              │  │   Services   │                         │
 │  └──────────────┘  └──────────────┘                         │
 └───────────────────────────┬─────────────────────────────────┘
                             │ API Calls
@@ -60,7 +130,203 @@
 │  │     API      │  │  (Dialogue)  │                         │
 │  └──────────────┘  └──────────────┘                         │
 └─────────────────────────────────────────────────────────────┘
+                            │
+┌───────────────────────────┴─────────────────────────────────┐
+│                    Supabase (Database)                        │
+│  ┌──────────────┐  ┌──────────────┐  ┌──────────────┐      │
+│  │   Auth       │  │   Database  │  │   Storage    │      │
+│  └──────────────┘  └──────────────┘  └──────────────┘      │
+└─────────────────────────────────────────────────────────────┘
 ```
+
+---
+
+## Event-Driven Architecture
+
+### Event Bus System
+
+The platform uses an **event bus** to enable communication between systems:
+
+```typescript
+// lib/eventBus.ts
+type EventType = 
+  | 'problem_completed'
+  | 'goal_achieved'
+  | 'streak_at_risk'
+  | 'achievement_unlocked'
+  | 'session_started'
+  | 'session_ended'
+  | 'challenge_created'
+  | 'share_clicked';
+
+interface Event {
+  type: EventType;
+  userId: string;
+  profileId?: string;
+  data: Record<string, any>;
+  timestamp: Date;
+}
+
+class EventBus {
+  private handlers: Map<EventType, Array<(event: Event) => Promise<void>>> = new Map();
+
+  async emit(event: Event): Promise<void> {
+    const handlers = this.handlers.get(event.type) || [];
+    await Promise.all(handlers.map(handler => handler(event)));
+  }
+
+  on(eventType: EventType, handler: (event: Event) => Promise<void>): void {
+    if (!this.handlers.has(eventType)) {
+      this.handlers.set(eventType, []);
+    }
+    this.handlers.get(eventType)!.push(handler);
+  }
+
+  off(eventType: EventType, handler: Function): void {
+    const handlers = this.handlers.get(eventType);
+    if (handlers) {
+      const index = handlers.findIndex(h => h === handler);
+      if (index > -1) handlers.splice(index, 1);
+    }
+  }
+}
+
+export const eventBus = new EventBus();
+```
+
+### Event Flow Example
+
+```
+User completes problem
+    ↓
+API: POST /api/chat (problem solved)
+    ↓
+Event: problem_completed {
+  userId: "user-123",
+  profileId: "profile-456",
+  data: { problem, sessionId, timeSpent }
+}
+    ↓
+Event Bus distributes to handlers:
+    ├─→ Growth Handler: Generate challenge
+    ├─→ Companion Handler: Summarize session
+    ├─→ Gamification Handler: Award XP
+    └─→ Analytics Handler: Track event
+```
+
+---
+
+## Orchestration Layer
+
+### Ecosystem Orchestrator
+
+The `EcosystemOrchestrator` coordinates all systems when events occur:
+
+```typescript
+// services/orchestrator.ts
+import { eventBus } from '@/lib/eventBus';
+import { generateChallenge } from '@/services/challengeService';
+import { createShareLink } from '@/services/shareService';
+import { summarizeSession } from '@/services/conversationSummaryService';
+import { checkGoals } from '@/services/goalService';
+import { awardXP } from '@/services/supabaseDataService';
+
+class EcosystemOrchestrator {
+  async onProblemCompleted(userId: string, profileId: string, problem: ParsedProblem, sessionId: string) {
+    // Parallel execution for performance
+    await Promise.all([
+      // Growth actions
+      this.triggerGrowthActions(userId, profileId, problem),
+      
+      // Companion actions
+      this.updateCompanionMemory(userId, profileId, sessionId, problem),
+      
+      // Gamification
+      this.updateGamification(userId, profileId, problem),
+      
+      // Analytics
+      this.trackEvent(userId, profileId, 'problem_completed', { problem })
+    ]);
+  }
+
+  private async triggerGrowthActions(userId: string, profileId: string, problem: ParsedProblem) {
+    // Auto-generate challenge
+    const challenge = await generateChallenge(userId, profileId, problem);
+    
+    // Create share link
+    const shareLink = await createShareLink(userId, profileId, {
+      type: 'problem',
+      problem,
+      challenge
+    });
+    
+    // Emit event for UI updates
+    eventBus.emit({
+      type: 'challenge_created',
+      userId,
+      profileId,
+      data: { challenge, shareLink },
+      timestamp: new Date()
+    });
+  }
+
+  private async updateCompanionMemory(userId: string, profileId: string, sessionId: string, problem: ParsedProblem) {
+    // Summarize session
+    const summary = await summarizeSession(userId, profileId, sessionId);
+    
+    // Check goals
+    const goalUpdates = await checkGoals(userId, profileId, problem);
+    
+    // Emit event for UI updates
+    eventBus.emit({
+      type: 'session_ended',
+      userId,
+      profileId,
+      data: { summary, goalUpdates },
+      timestamp: new Date()
+    });
+  }
+
+  private async updateGamification(userId: string, profileId: string, problem: ParsedProblem) {
+    await awardXP(userId, profileId, {
+      type: 'problem_solved',
+      amount: 50,
+      problem
+    });
+  }
+
+  private async trackEvent(userId: string, profileId: string, eventType: string, data: any) {
+    // Store in activity_feed table
+    // Analytics tracking
+  }
+}
+
+export const orchestrator = new EcosystemOrchestrator();
+```
+
+### Integration Points
+
+The orchestrator integrates with:
+
+1. **Growth System**
+   - Challenge generation
+   - Share link creation
+   - Referral tracking
+
+2. **Study Companion**
+   - Session summarization
+   - Goal checking
+   - Subject recommendations
+
+3. **Gamification**
+   - XP awards
+   - Streak updates
+   - Achievement unlocks
+
+4. **Analytics**
+   - Event tracking
+   - Activity feed
+   - Performance metrics
 
 ---
 
