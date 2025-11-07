@@ -148,6 +148,21 @@ function HomeContentInternal() {
     };
   }, []);
 
+  // Effect to reload data when activeProfile changes (for parent/teacher profile switching)
+  useEffect(() => {
+    if (user && activeProfile && (userRole === "parent" || userRole === "teacher")) {
+      logger.info("Active profile changed, reloading data", { 
+        userId: user.id, 
+        activeProfileId: activeProfile.id,
+        userRole 
+      });
+      // Reload user data from Supabase for the new active profile
+      loadUserDataFromSupabase().catch((error) => {
+        logger.error("Error reloading data after profile switch", { error });
+      });
+    }
+  }, [activeProfile?.id, user, userRole, loadUserDataFromSupabase]);
+
   // Handle session resume
   const handleResumeSession = (problem: ParsedProblem, messages: Message[], sessionId: string) => {
     setCurrentProblem(problem);
