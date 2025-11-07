@@ -140,8 +140,18 @@ export default function SharePage() {
 
           if (response.ok) {
             const result = await response.json();
+            // API returns { problem: "..." } or { problem: { text: "...", type: "..." } }
             if (result.problem) {
-              return result.problem;
+              // If it's a string, return it directly
+              if (typeof result.problem === 'string') {
+                return result.problem;
+              }
+              // If it's an object with text property, extract the text
+              if (typeof result.problem === 'object' && result.problem.text) {
+                return result.problem.text;
+              }
+              // Fallback: try to stringify or use the whole object
+              return typeof result.problem === 'string' ? result.problem : result.problem.text || JSON.stringify(result.problem);
             }
           }
         } catch (e) {
@@ -194,10 +204,15 @@ export default function SharePage() {
         ]);
 
         const finalName = name.status === "fulfilled" ? name.value : null;
-        const finalChallenge = challengeText.status === "fulfilled" ? challengeText.value : getDefaultChallenge(data);
+        let finalChallenge = challengeText.status === "fulfilled" ? challengeText.value : getDefaultChallenge(data);
+        
+        // Extract text if challenge is an object (from API response)
+        if (finalChallenge && typeof finalChallenge === 'object' && finalChallenge.text) {
+          finalChallenge = finalChallenge.text;
+        }
 
         console.log("[SharePage] Sharer name:", finalName);
-        console.log("[SharePage] Challenge:", finalChallenge);
+        console.log("[SharePage] Challenge (final):", finalChallenge);
 
         // Set both state values before hiding loading
         setSharerName(finalName);
