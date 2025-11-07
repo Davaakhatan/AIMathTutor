@@ -106,8 +106,19 @@ export default function StudentAccessView() {
       const validParents = parents.filter(p => p !== null) as LinkedParent[];
       setLinkedParents(validParents);
     } catch (error) {
-      logger.error("Error loading linked parents", { error });
-      showToast("Failed to load linked parents", "error");
+      logger.error("Error loading linked parents", { 
+        error,
+        profileId: activeProfile?.id,
+        errorMessage: error instanceof Error ? error.message : String(error),
+      });
+      
+      // Don't show toast for timeout - just show empty state
+      if (error instanceof Error && error.message === "Loading timed out") {
+        logger.warn("Profile access loading timed out", { profileId: activeProfile?.id });
+      } else {
+        showToast("Failed to load linked parents", "error");
+      }
+      
       setLinkedParents([]);
     } finally {
       setIsLoading(false);
