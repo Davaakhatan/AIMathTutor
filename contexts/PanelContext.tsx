@@ -2,7 +2,7 @@
 
 import { createContext, useContext, useState, ReactNode } from "react";
 
-type PanelId = "learning" | "gamification" | "tools" | "settings" | "progress" | null;
+type PanelId = "learning" | "gamification" | "tools" | "settings" | "progress" | "referrals" | null;
 
 interface PanelContextType {
   activePanel: PanelId;

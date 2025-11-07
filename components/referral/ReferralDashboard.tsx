@@ -144,9 +144,15 @@ export default function ReferralDashboard() {
   if (!stats) {
     return (
       <div className="p-6">
-        <p className="text-gray-600 dark:text-gray-400">
+        <p className="text-gray-600 dark:text-gray-400 mb-4">
           Unable to load referral data. Please try again later.
         </p>
+        <button
+          onClick={() => loadReferralData()}
+          className="px-4 py-2 bg-gray-900 dark:bg-gray-700 text-white rounded hover:bg-gray-800 dark:hover:bg-gray-600 transition-colors text-sm"
+        >
+          Retry
+        </button>
       </div>
     );
   }
@@ -213,7 +219,7 @@ export default function ReferralDashboard() {
               Code
             </div>
             <div className="font-mono text-xl font-bold text-gray-900 dark:text-white bg-gray-50 dark:bg-gray-900 px-4 py-2 rounded border border-gray-200 dark:border-gray-700">
-              {stats.referralCode}
+              {stats.referralCode || "Generating..."}
             </div>
           </div>
         </div>
@@ -226,19 +232,22 @@ export default function ReferralDashboard() {
             <input
               type="text"
               readOnly
-              value={stats.referralUrl}
+              value={stats.referralUrl || ""}
+              placeholder={stats.referralCode ? "Generating link..." : "No referral code"}
               className="flex-1 font-mono text-sm text-gray-900 dark:text-white bg-gray-50 dark:bg-gray-900 px-4 py-2 rounded border border-gray-200 dark:border-gray-700"
             />
             <button
               onClick={copyReferralLink}
-              className="px-4 py-2 bg-gray-900 dark:bg-gray-700 text-white rounded hover:bg-gray-800 dark:hover:bg-gray-600 transition-colors text-sm"
+              disabled={!stats.referralUrl}
+              className="px-4 py-2 bg-gray-900 dark:bg-gray-700 text-white rounded hover:bg-gray-800 dark:hover:bg-gray-600 transition-colors text-sm disabled:opacity-50 disabled:cursor-not-allowed"
             >
               {copied ? "Copied!" : "Copy"}
             </button>
             {canShare && (
               <button
                 onClick={shareReferralLink}
-                className="px-4 py-2 bg-gray-900 dark:bg-gray-700 text-white rounded hover:bg-gray-800 dark:hover:bg-gray-600 transition-colors text-sm"
+                disabled={!stats.referralUrl}
+                className="px-4 py-2 bg-gray-900 dark:bg-gray-700 text-white rounded hover:bg-gray-800 dark:hover:bg-gray-600 transition-colors text-sm disabled:opacity-50 disabled:cursor-not-allowed"
               >
                 Share
               </button>
