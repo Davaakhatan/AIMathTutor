@@ -127,10 +127,9 @@ export default function SettingsMenu({ onXPDataChange }: SettingsMenuProps) {
         right: rightOffset, 
         zIndex: 60,
         maxWidth: 'calc(100vw - 2rem - env(safe-area-inset-left, 0px) - env(safe-area-inset-right, 0px))',
-        height: 'calc(85vh - max(1rem, env(safe-area-inset-top, 1rem)) - 4rem - 10.5rem)',
-        maxHeight: '85vh'
+        maxHeight: 'calc(100vh - max(1rem, env(safe-area-inset-top, 1rem)) - 4rem - 10.5rem - 1rem)'
       }}
-      className="bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-700 rounded-lg shadow-xl w-96 max-w-[calc(100vw-2rem)] flex flex-col transition-all duration-200"
+      className="bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-700 rounded-lg shadow-xl w-96 max-w-[calc(100vw-2rem)] h-[calc(100vh-max(1rem,env(safe-area-inset-top,1rem))-4rem-10.5rem-1rem)] flex flex-col transition-all duration-200"
     >
       {/* Header with Tabs */}
       <div className="flex items-center justify-between p-4 border-b border-gray-200 dark:border-gray-700 flex-shrink-0">
