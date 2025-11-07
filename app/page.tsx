@@ -91,7 +91,7 @@ function HomeContentInternal() {
   const [difficultyMode, setDifficultyMode] = useState<"elementary" | "middle" | "high" | "advanced">("middle");
   const [allMessages, setAllMessages] = useState<Message[]>([]);
   const { toasts, showToast, removeToast } = useToast();
-  const { user, loading: authLoading } = useAuth();
+  const { user, loading: authLoading, activeProfile, userRole } = useAuth();
   const [xpData, setXPData] = useState({ totalXP: 0, level: 1, problemsSolved: 0 });
   const [streak, setStreak] = useState(0);
   const [isStudyActive, setIsStudyActive] = useState(false);
