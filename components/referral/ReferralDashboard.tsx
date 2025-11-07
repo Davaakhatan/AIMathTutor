@@ -40,8 +40,16 @@ export default function ReferralDashboard() {
     try {
       setLoading(true);
 
+      // Add timeout to prevent infinite loading
+      const timeoutPromise = new Promise((_, reject) => 
+        setTimeout(() => reject(new Error("Request timeout")), 10000)
+      );
+
       // Get stats via API route
-      const statsResponse = await fetch(`/api/referral/stats?userId=${user.id}`);
+      const statsResponse = await Promise.race([
+        fetch(`/api/referral/stats?userId=${user.id}`),
+        timeoutPromise
+      ]) as Response;
       if (statsResponse.ok) {
         const statsData = await statsResponse.json();
         if (statsData.success && statsData.stats) {
@@ -81,7 +89,7 @@ export default function ReferralDashboard() {
         setReferrals([]);
       }
     } catch (error) {
-      logger.error("Error loading referral data", { error });
+      logger.error("Error loading referral data", { error, userId: user.id });
       // Set default stats on error
       setStats({
         totalReferrals: 0,
