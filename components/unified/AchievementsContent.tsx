@@ -2,40 +2,60 @@
 
 import { useState, useEffect } from "react";
 import { useLocalStorage } from "@/hooks/useLocalStorage";
+import { useAuth } from "@/contexts/AuthContext";
+import { ALL_ACHIEVEMENTS, checkAchievements, type Achievement } from "@/services/achievementService";
+import ShareCard from "@/components/ShareCard";
 
-interface Achievement {
-  id: string;
-  name: string;
-  description: string;
-  icon: string;
-  unlockedAt?: number;
-}
-
-const allAchievements: Achievement[] = [
-  { id: "first_problem", name: "Getting Started", description: "Solved your first problem", icon: "🎯" },
-  { id: "streak_3", name: "On Fire", description: "3-day study streak", icon: "🔥" },
-  { id: "streak_7", name: "Week Warrior", description: "7-day study streak", icon: "⭐" },
-  { id: "streak_30", name: "Dedicated", description: "30-day study streak", icon: "🏆" },
-  { id: "problems_10", name: "Problem Solver", description: "Solved 10 problems", icon: "💪" },
-  { id: "problems_50", name: "Math Master", description: "Solved 50 problems", icon: "👑" },
-  { id: "no_hints", name: "Independent", description: "Solved a problem without hints", icon: "🧠" },
-  { id: "voice_user", name: "Voice Learner", description: "Used voice interface 10 times", icon: "🎤" },
-  { id: "whiteboard_user", name: "Visual Thinker", description: "Used whiteboard 5 times", icon: "✏️" },
-  { id: "all_types", name: "Versatile", description: "Solved problems of all types", icon: "🌟" },
-];
+const allAchievements = ALL_ACHIEVEMENTS;
 
 /**
  * Achievements Content - Display unlocked and locked achievements
  */
 export default function AchievementsContent() {
+  const { user } = useAuth();
   const [unlockedAchievements, setUnlockedAchievements] = useLocalStorage<string[]>("aitutor-achievements", []);
   const [newAchievement, setNewAchievement] = useState<Achievement | null>(null);
+  const [xpData] = useLocalStorage<any>("aitutor-xp", { totalXP: 0, level: 1, problemsSolved: 0 });
+  const [streakData] = useLocalStorage<any>("aitutor-streak", { currentStreak: 0 });
+  const [problemHistory] = useLocalStorage<any[]>("aitutor-problem-history", []);
 
-  // Check for new achievements
+  // Check achievements periodically based on stats
   useEffect(() => {
-    // Listen for achievement events
+    const stats = {
+      problemsSolved: xpData.problemsSolved || problemHistory.length,
+      currentStreak: streakData.currentStreak || 0,
+      hintsUsed: 0, // TODO: Track hints used
+      problemTypes: problemHistory.map((p: any) => p.type || "unknown").filter(Boolean),
+      voiceUsageCount: 0, // TODO: Track voice usage
+      whiteboardUsageCount: 0, // TODO: Track whiteboard usage
+    };
+
+    const newlyUnlocked = checkAchievements(unlockedAchievements, stats);
+    
+    if (newlyUnlocked.length > 0) {
+      newlyUnlocked.forEach(achievementId => {
+        const achievement = allAchievements.find(a => a.id === achievementId);
+        if (achievement) {
+          setUnlockedAchievements([...unlockedAchievements, achievementId]);
+          setNewAchievement(achievement);
+          setTimeout(() => setNewAchievement(null), 5000);
+          // Dispatch event
+          window.dispatchEvent(
+            new CustomEvent("achievementUnlocked", {
+              detail: achievementId,
+            })
+          );
+        }
+      });
+    }
+  }, [xpData.problemsSolved, problemHistory.length, streakData.currentStreak, unlockedAchievements, setUnlockedAchievements]);
+
+  // Listen for achievement events (from other components)
+  useEffect(() => {
     const handleAchievementUnlocked = (event: CustomEvent) => {
-      const achievementId = event.detail;
+      const achievementId = typeof event.detail === 'string' ? event.detail : event.detail?.id;
+      if (!achievementId) return;
+      
       const achievement = allAchievements.find(a => a.id === achievementId);
       
       if (achievement && !unlockedAchievements.includes(achievementId)) {
@@ -92,11 +112,23 @@ export default function AchievementsContent() {
               unlocked.map((achievement) => (
                 <div
                   key={achievement.id}
-                  className="p-3 bg-yellow-50 dark:bg-yellow-900/20 border-2 border-yellow-400 dark:border-yellow-500 rounded-lg text-center transition-colors"
+                  className="p-3 bg-yellow-50 dark:bg-yellow-900/20 border-2 border-yellow-400 dark:border-yellow-500 rounded-lg text-center transition-colors relative"
                 >
                   <div className="text-2xl mb-1">{achievement.icon}</div>
                   <div className="text-xs font-medium text-gray-900 dark:text-gray-100 transition-colors">{achievement.name}</div>
                   <div className="text-xs text-gray-600 dark:text-gray-400 mt-0.5 transition-colors">{achievement.description}</div>
+                  {user && (
+                    <div className="mt-2">
+                      <ShareCard
+                        shareType="achievement"
+                        metadata={{
+                          achievement_title: achievement.name,
+                          achievement_type: achievement.id,
+                        }}
+                        className="text-xs px-2 py-1"
+                      />
+                    </div>
+                  )}
                 </div>
               ))
             )}
