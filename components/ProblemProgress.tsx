@@ -244,6 +244,26 @@ export default function ProblemProgress({ messages, problem, difficultyMode = "m
     return "Finalizing";
   };
 
+  // Force re-render when completion status changes (for debugging)
+  const stage = getStage();
+  
+  // Log state changes for debugging
+  if (process.env.NODE_ENV === "development") {
+    const prevSolvedRef = useRef(isSolved);
+    useEffect(() => {
+      if (prevSolvedRef.current !== isSolved) {
+        console.log("🔄 Progress status changed:", {
+          wasSolved: prevSolvedRef.current,
+          isSolved,
+          score: completionResult.score,
+          stage,
+          messageCount: messages.length,
+        });
+        prevSolvedRef.current = isSolved;
+      }
+    }, [isSolved, completionResult.score, stage, messages.length]);
+  }
+
   if (messages.length === 0) return null;
 
   return (
