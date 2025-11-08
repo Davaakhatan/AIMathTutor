@@ -11,13 +11,15 @@ interface ProblemProgressProps {
   messages: Message[];
   problem: ParsedProblem;
   difficultyMode?: DifficultyLevel;
+  userId?: string;
+  profileId?: string | null;
 }
 
 /**
  * Shows progress through solving a problem
  * Based on conversation length and hints used
  */
-export default function ProblemProgress({ messages, problem, difficultyMode = "middle" }: ProblemProgressProps) {
+export default function ProblemProgress({ messages, problem, difficultyMode = "middle", userId, profileId }: ProblemProgressProps) {
   const [showDetails, setShowDetails] = useState(false);
   
   const userMessages = messages.filter(m => m.role === "user");
@@ -283,8 +285,26 @@ export default function ProblemProgress({ messages, problem, difficultyMode = "m
         forceCheck,
       });
     }
+    
+    // Emit event when problem becomes solved (state transition)
+    if (!prevSolvedRef.current && isSolved && problem && userId) {
+      // Problem just became solved - emit event to orchestrator
+      console.log("🎉 Problem solved! Emitting completion event", { userId, problemType: problem.type });
+      
+      import("@/lib/eventBus").then(({ default: eventBus }) => {
+        eventBus.emit("problem_completed", userId, {
+          problemText: problem.text || "",
+          problemType: problem.type || "unknown",
+          difficulty: problem.difficulty,
+          hintsUsed: 0, // TODO: Track from state
+          timeSpent: 0, // TODO: Track from session start
+          profileId: profileId,
+        });
+      });
+    }
+    
     prevSolvedRef.current = isSolved;
-  }, [isSolved, completionResult.score, stage, messages.length, forceCheck]);
+  }, [isSolved, completionResult.score, stage, messages.length, forceCheck, problem]);
 
   if (messages.length === 0) return null;
 

@@ -3,6 +3,7 @@ import "./globals.css";
 import ErrorBoundary from "@/components/ErrorBoundary";
 import MobileOptimizer from "@/components/MobileOptimizer";
 import ServiceWorkerRegistration from "@/components/ServiceWorkerRegistration";
+import OrchestratorInit from "@/components/OrchestratorInit";
 
 export const metadata: Metadata = {
   title: "AI Math Tutor - Socratic Learning Assistant",
@@ -48,6 +49,7 @@ export default function RootLayout({
       <body>
         <ServiceWorkerRegistration />
         <MobileOptimizer />
+        <OrchestratorInit />
         <ErrorBoundary>
           {children}
         </ErrorBoundary>
