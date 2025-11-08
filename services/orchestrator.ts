@@ -11,6 +11,7 @@ import { updateStreakData, getStreakData } from "./supabaseDataService";
 import { generateConversationSummary, saveConversationSummary } from "./conversationMemory";
 import { checkGoalsForProblem } from "./goalSystem";
 import { getSubjectRecommendations } from "./recommendationSystem";
+import { generateBeatMySkillChallenge } from "./challengeGenerator";
 import type { Message } from "@/types";
 
 /**
@@ -81,12 +82,22 @@ export async function onProblemCompleted(
     // 4. Check and update goals (Week 2) - IMPLEMENTED
     await checkGoalsForProblem(userId, problemData.problemType, profileId);
 
-    // 5. Update conversation summary (Week 2)
+    // 5. Auto-generate "Beat My Skill" challenge (Week 3) - IMPLEMENTED
+    const challenge = await generateBeatMySkillChallenge(userId, problemData);
+    if (challenge) {
+      logger.info("Auto-challenge generated after problem completion", { 
+        userId, 
+        challengeId: challenge.id,
+        shareCode: challenge.share_code
+      });
+    }
+
+    // 6. Update conversation summary (Week 2)
     // TODO: Pass messages array from problem completion event
     // Will be implemented when session management is integrated
 
-    // 6. TODO: Generate challenge (Week 3)
-    // 7. TODO: Create share link (Week 3)
+    // 7. TODO: Create additional share links (Week 3 - advanced)
+    // The challenge above already has a share_code for viral sharing
 
     logger.info("Problem completion orchestrated successfully", { userId });
   } catch (error) {
