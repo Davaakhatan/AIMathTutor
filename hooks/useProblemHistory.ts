@@ -53,12 +53,22 @@ export function useProblemHistory() {
       return;
     }
 
-    // For logged-in users: ALWAYS load from database (source of truth)
+    // For logged-in users: Support both OFFLINE and ONLINE modes
+    // STEP 1: Show cached data immediately (OFFLINE support - instant UI)
+    try {
+      const cachedData = JSON.parse(localStorage.getItem("aitutor-problem-history") || "[]");
+      if (isMounted) {
+        setProblems(cachedData);
+        setIsLoading(false); // Show cached data immediately (works offline)
+      }
+    } catch (error) {
+      // Ignore cache errors, will load from database
+    }
+
+    // STEP 2: Sync from database in background (ONLINE support - source of truth)
     // This ensures data is consistent across all devices and sessions
-    const loadFromDatabase = async () => {
+    const syncFromDatabase = async () => {
       try {
-        setIsLoading(true);
-        
         // Load from database (source of truth - works across all devices)
         const dbProblems = await getProblems(user.id, 100, activeProfile?.id || null);
         
@@ -82,32 +92,20 @@ export function useProblemHistory() {
         });
 
         // Update state with database data (source of truth)
+        // This will overwrite cached data with the real database data
         setProblems(savedProblems);
         
-        // Update localStorage as cache ONLY (for performance, not for persistence)
-        // This cache is device-specific and can be cleared - database is what matters
+        // Update localStorage cache (for offline support and performance)
         localStorage.setItem("aitutor-problem-history", JSON.stringify(savedProblems));
       } catch (error) {
         logger.error("Error loading problem history from database", { error });
-        // Fallback to localStorage cache if database fails (offline mode)
-        try {
-          const cachedData = JSON.parse(localStorage.getItem("aitutor-problem-history") || "[]");
-          if (isMounted) {
-            setProblems(cachedData);
-          }
-        } catch (e) {
-          if (isMounted) {
-            setProblems([]);
-          }
-        }
-      } finally {
-        if (isMounted) {
-          setIsLoading(false);
-        }
+        // If database fails (offline), keep cached data (already shown in STEP 1)
+        // This provides offline support - user can still see their cached history
       }
     };
     
-    loadFromDatabase();
+    // Sync from database in background (non-blocking)
+    syncFromDatabase();
     
     return () => {
       isMounted = false;
