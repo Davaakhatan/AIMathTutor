@@ -17,10 +17,12 @@ export async function getSupabaseClient() {
     throw new Error('Supabase client can only be used on the client side');
   }
 
+  // ALWAYS return existing client if available (don't recreate)
   if (supabase) {
     return supabase;
   }
 
+  // Only create once
   if (!supabasePromise) {
     supabasePromise = import('@supabase/supabase-js').then(({ createClient }) => {
       if (!supabaseUrl || !supabaseAnonKey) {
@@ -32,6 +34,19 @@ export async function getSupabaseClient() {
           autoRefreshToken: true,
           persistSession: true,
           detectSessionInUrl: true,
+        },
+        global: {
+          headers: {
+            // Add timeout headers
+            'X-Client-Timeout': '5000',
+          },
+        },
+        db: {
+          schema: 'public',
+        },
+        // Add query timeout
+        realtime: {
+          timeout: 5000,
         },
       });
 
