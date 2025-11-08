@@ -42,6 +42,9 @@ export function getSupabaseServer() {
 
   logger.info("Supabase server client initialized", {
     hasServiceKey: !!supabaseServiceKey,
+    usingServiceRole: !!supabaseServiceKey,
+    usingAnonKey: !supabaseServiceKey,
+    keyPreview: supabaseKey ? `${supabaseKey.substring(0, 20)}...` : 'none',
     url: supabaseUrl,
   });
 

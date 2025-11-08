@@ -14,6 +14,7 @@ import {
   setActiveStudentProfile as setActiveProfile 
 } from "@/services/studentProfileService";
 import { loadUserData } from "@/services/supabaseDataService";
+import { checkAndAwardDailyLoginXP } from "@/services/dailyLoginService";
 
 interface AuthContextType {
   user: User | null;
@@ -491,6 +492,23 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
                 isLoadingProfilesRef.current = false;
                 await loadProfiles(session.user.id, true);
                 logger.info("Profiles loaded successfully on SIGNED_IN");
+                
+                // Check and award daily login XP (after profiles are loaded)
+                // Get active profile ID for student users
+                const activeProfileId = await getActiveStudentProfile(session.user.id);
+                const dailyReward = await checkAndAwardDailyLoginXP(
+                  session.user.id, 
+                  activeProfileId?.id || null
+                );
+                
+                if (dailyReward.awarded) {
+                  logger.info("Daily login XP awarded", { 
+                    userId: session.user.id,
+                    xp: dailyReward.xp,
+                    message: dailyReward.message
+                  });
+                  // You could show a toast notification here if desired
+                }
               } catch (err) {
                 logger.error("Error loading profiles on sign in", { error: err });
                 // Retry immediately (don't wait)

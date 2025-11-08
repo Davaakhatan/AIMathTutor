@@ -7,6 +7,7 @@
 import { getSupabaseClient } from "@/lib/supabase";
 import { logger } from "@/lib/logger";
 import { getEffectiveProfileId } from "@/services/studentProfileService";
+import { isProfileCached, cacheProfileExists } from "@/lib/profileCache";
 
 // ============================================
 // PROFILE UTILITIES
@@ -18,6 +19,11 @@ import { getEffectiveProfileId } from "@/services/studentProfileService";
  * This function ensures the profiles row exists before queries
  */
 export async function ensureProfileExists(userId: string): Promise<boolean> {
+  // Check cache first - avoid redundant database calls
+  if (isProfileCached(userId)) {
+    return true;
+  }
+
   try {
     const supabase = await getSupabaseClient();
     if (!supabase) {
@@ -40,18 +46,35 @@ export async function ensureProfileExists(userId: string): Promise<boolean> {
 
     if (!data) {
       // Profile doesn't exist, create it
-      logger.info("Creating missing profile for user", { userId });
+      // Try to get role from user metadata first
+      let userRole: "student" | "parent" | "teacher" | "admin" = "student";
+      try {
+        const { data: { user } } = await supabase.auth.getUser();
+        if (user?.user_metadata?.role) {
+          const metadataRole = user.user_metadata.role;
+          if (["student", "parent", "teacher", "admin"].includes(metadataRole)) {
+            userRole = metadataRole as any;
+            logger.debug("Using role from user metadata", { userId, role: userRole });
+          }
+        }
+      } catch (e) {
+        // If we can't get user metadata, default to student
+        logger.debug("Could not get user metadata, defaulting to student", { userId });
+      }
+      
+      logger.info("Creating missing profile for user", { userId, role: userRole });
       const { error: insertError } = await supabase
         .from("profiles")
         .insert({
           id: userId,
-          role: "student", // Default role
+          role: userRole,
         } as any);
 
       if (insertError) {
         // If duplicate key error, profile was created between check and insert (race condition)
         if (insertError.code === "23505") {
           logger.debug("Profile already exists (race condition)", { userId });
+          cacheProfileExists(userId); // Cache it
           return true;
         }
         logger.error("Error creating profile", { error: insertError.message, userId });
@@ -61,6 +84,8 @@ export async function ensureProfileExists(userId: string): Promise<boolean> {
       logger.info("Profile created successfully", { userId });
     }
 
+    // Cache the result to avoid redundant checks
+    cacheProfileExists(userId);
     return true;
   } catch (error) {
     logger.error("Exception in ensureProfileExists", { error, userId });
@@ -90,9 +115,9 @@ export async function getXPData(userId: string, profileId?: string | null): Prom
     const profileExistsPromise = ensureProfileExists(userId);
     const profileTimeout = new Promise<boolean>((resolve) => {
       setTimeout(() => {
-        logger.warn("ensureProfileExists timeout - continuing anyway", { userId });
+        logger.debug("ensureProfileExists timeout - continuing anyway", { userId });
         resolve(false);
-      }, 2000); // 2 second timeout
+      }, 5000); // 5 second timeout (increased from 2s)
     });
     await Promise.race([profileExistsPromise, profileTimeout]);
     
@@ -118,28 +143,28 @@ export async function getXPData(userId: string, profileId?: string | null): Prom
       query = query.eq("user_id", userId).is("student_profile_id", null);
     }
     
-    const { data, error } = await query.single();
+    const { data, error } = await query;
 
     if (error) {
-      if (error.code === "PGRST116") {
-        // No XP data yet - create default
-        return await createDefaultXPData(userId, effectiveProfileId);
-      }
-      // Handle 406 Not Acceptable (RLS policy issue)
-      if (error.code === "PGRST301" || error.message?.includes("406")) {
-        logger.warn("RLS policy issue fetching XP data, trying to create default", { userId, profileId: effectiveProfileId });
-        return await createDefaultXPData(userId, effectiveProfileId);
-      }
       logger.error("Error fetching XP data", { error: error.message, userId, profileId: effectiveProfileId });
-      return null;
+      return await createDefaultXPData(userId, effectiveProfileId);
     }
+    
+    // If no data (empty array), create default
+    if (!data || data.length === 0) {
+      logger.info("No XP data found, creating default", { userId, profileId: effectiveProfileId });
+      return await createDefaultXPData(userId, effectiveProfileId);
+    }
+    
+    // Get first row
+    const xpRow = data[0];
 
     return {
-      total_xp: data.total_xp || 0,
-      level: data.level || 1,
-      xp_to_next_level: data.xp_to_next_level || 100,
-      xp_history: (data.xp_history as any) || [],
-      recent_gains: (data.recent_gains as any) || [],
+      total_xp: xpRow.total_xp || 0,
+      level: xpRow.level || 1,
+      xp_to_next_level: xpRow.xp_to_next_level || 100,
+      xp_history: (xpRow.xp_history as any) || [],
+      recent_gains: (xpRow.recent_gains as any) || [],
     };
   } catch (error) {
     logger.error("Error in getXPData", { error, userId });
@@ -175,9 +200,11 @@ async function createDefaultXPData(userId: string, profileId?: string | null): P
       checkQuery = checkQuery.eq("user_id", userId).is("student_profile_id", null);
     }
     
-    const { data: existing } = await checkQuery.single();
-    if (existing) {
-      // Data already exists, return it
+    const { data: existingData, error: checkError } = await checkQuery;
+    
+    // If data exists, return it
+    if (existingData && existingData.length > 0) {
+      const existing = existingData[0];
       return {
         total_xp: existing.total_xp || 0,
         level: existing.level || 1,
@@ -188,6 +215,7 @@ async function createDefaultXPData(userId: string, profileId?: string | null): P
     }
     
     const defaultData: any = {
+      user_id: userId, // ALWAYS include user_id (required by RLS policies)
       total_xp: 0,
       level: 1,
       xp_to_next_level: 100,
@@ -196,11 +224,11 @@ async function createDefaultXPData(userId: string, profileId?: string | null): P
     };
     
     if (effectiveProfileId) {
-      // For profile: only include profile_id, not user_id (to avoid unique constraint)
+      // For profile: include BOTH user_id and profile_id
       defaultData.student_profile_id = effectiveProfileId;
     } else {
-      // For user: include user_id, no profile_id
-      defaultData.user_id = userId;
+      // For user: include user_id, profile_id is null
+      defaultData.student_profile_id = null;
     }
 
     const { data, error } = await supabase
@@ -210,6 +238,21 @@ async function createDefaultXPData(userId: string, profileId?: string | null): P
       .single();
 
     if (error) {
+      // If duplicate key error (race condition), fetch and return existing data
+      if (error.code === "23505") {
+        logger.debug("XP data created by another request (race condition), fetching existing", { userId });
+        const { data: raceData } = await checkQuery;
+        if (raceData && raceData.length > 0) {
+          const existing = raceData[0];
+          return {
+            total_xp: existing.total_xp || 0,
+            level: existing.level || 1,
+            xp_to_next_level: existing.xp_to_next_level || 100,
+            xp_history: (existing.xp_history as any) || [],
+            recent_gains: (existing.recent_gains as any) || [],
+          };
+        }
+      }
       logger.error("Error creating default XP data", { error: error.message, userId });
       return defaultData;
     }
@@ -258,23 +301,27 @@ export async function updateXPData(userId: string, xpData: Partial<XPData>, prof
     // Use profile ID if provided, otherwise use null (don't call getEffectiveProfileId - it hangs!)
     const effectiveProfileId = profileId !== undefined ? profileId : null;
     
+    // Filter out any fields that don't exist in the database schema
+    const { recent_gains, ...dbFields } = xpData;
+    
     const updateData: any = {
-      user_id: userId,
-      ...xpData,
+      ...dbFields,
       updated_at: new Date().toISOString(),
     };
     
     if (effectiveProfileId) {
       updateData.student_profile_id = effectiveProfileId;
+      updateData.user_id = null; // Profile-level: user_id must be null
+    } else {
+      updateData.user_id = userId;
+      updateData.student_profile_id = null; // User-level: profile_id must be null
     }
     
-    // Determine conflict resolution based on whether we have a profile
-    const conflictColumn = effectiveProfileId ? "student_profile_id" : "user_id";
-    
+    // Use the composite unique constraint: (user_id, student_profile_id)
     const { error } = await supabase
       .from("xp_data")
       .upsert(updateData, {
-        onConflict: conflictColumn,
+        onConflict: "user_id,student_profile_id",
       });
 
     if (error) {
@@ -309,9 +356,9 @@ export async function getStreakData(userId: string, profileId?: string | null): 
     const profileExistsPromise = ensureProfileExists(userId);
     const profileTimeout = new Promise<boolean>((resolve) => {
       setTimeout(() => {
-        logger.warn("ensureProfileExists timeout - continuing anyway", { userId });
+        logger.debug("ensureProfileExists timeout - continuing anyway", { userId });
         resolve(false);
-      }, 2000);
+      }, 5000); // Increased timeout
     });
     await Promise.race([profileExistsPromise, profileTimeout]);
     
@@ -334,25 +381,26 @@ export async function getStreakData(userId: string, profileId?: string | null): 
       query = query.eq("user_id", userId).is("student_profile_id", null);
     }
     
-    const { data, error } = await query.single();
+    const { data, error } = await query;
 
     if (error) {
-      if (error.code === "PGRST116") {
-        return await createDefaultStreakData(userId, effectiveProfileId);
-      }
-      // Handle 406 Not Acceptable (RLS policy issue)
-      if (error.code === "PGRST301" || error.message?.includes("406")) {
-        logger.warn("RLS policy issue fetching streak data, trying to create default", { userId, profileId: effectiveProfileId });
-        return await createDefaultStreakData(userId, effectiveProfileId);
-      }
       logger.error("Error fetching streak data", { error: error.message, userId, profileId: effectiveProfileId });
-      return null;
+      return await createDefaultStreakData(userId, effectiveProfileId);
     }
+    
+    // If no data (empty array), create default
+    if (!data || data.length === 0) {
+      logger.info("No streak data found, creating default", { userId, profileId: effectiveProfileId });
+      return await createDefaultStreakData(userId, effectiveProfileId);
+    }
+    
+    // Get first row
+    const streakRow = data[0];
 
     return {
-      current_streak: data.current_streak || 0,
-      longest_streak: data.longest_streak || 0,
-      last_study_date: data.last_study_date || null,
+      current_streak: streakRow.current_streak || 0,
+      longest_streak: streakRow.longest_streak || 0,
+      last_study_date: streakRow.last_study_date || null,
     };
   } catch (error) {
     logger.error("Error in getStreakData", { error, userId });
@@ -375,9 +423,11 @@ async function createDefaultStreakData(userId: string, profileId?: string | null
       checkQuery = checkQuery.eq("user_id", userId).is("student_profile_id", null);
     }
     
-    const { data: existing } = await checkQuery.single();
-    if (existing) {
-      // Data already exists, return it
+    const { data: existingData, error: checkError } = await checkQuery;
+    
+    // If data exists, return it
+    if (existingData && existingData.length > 0) {
+      const existing = existingData[0];
       return {
         current_streak: existing.current_streak || 0,
         longest_streak: existing.longest_streak || 0,
@@ -386,17 +436,18 @@ async function createDefaultStreakData(userId: string, profileId?: string | null
     }
     
     const defaultData: any = {
+      user_id: userId, // ALWAYS include user_id (required by RLS policies)
       current_streak: 0,
       longest_streak: 0,
       last_study_date: null,
     };
     
     if (profileId) {
-      // For profile: only include profile_id, not user_id (to avoid unique constraint)
+      // For profile: include BOTH user_id and profile_id
       defaultData.student_profile_id = profileId;
     } else {
-      // For user: include user_id, no profile_id
-      defaultData.user_id = userId;
+      // For user: include user_id, profile_id is null
+      defaultData.student_profile_id = null;
     }
 
     const { data, error } = await supabase
@@ -406,6 +457,19 @@ async function createDefaultStreakData(userId: string, profileId?: string | null
       .single();
 
     if (error) {
+      // If duplicate key error (race condition), fetch and return existing data
+      if (error.code === "23505") {
+        logger.debug("Streak data created by another request (race condition), fetching existing", { userId });
+        const { data: raceData } = await checkQuery;
+        if (raceData && raceData.length > 0) {
+          const existing = raceData[0];
+          return {
+            current_streak: existing.current_streak || 0,
+            longest_streak: existing.longest_streak || 0,
+            last_study_date: existing.last_study_date || null,
+          };
+        }
+      }
       logger.error("Error creating default streak data", { error: error.message, userId });
       return defaultData;
     }
@@ -451,21 +515,23 @@ export async function updateStreakData(userId: string, streakData: Partial<Strea
     const effectiveProfileId = profileId !== undefined ? profileId : null;
     
     const updateData: any = {
-      user_id: userId,
       ...streakData,
       updated_at: new Date().toISOString(),
     };
     
     if (effectiveProfileId) {
       updateData.student_profile_id = effectiveProfileId;
+      updateData.user_id = null; // Profile-level: user_id must be null
+    } else {
+      updateData.user_id = userId;
+      updateData.student_profile_id = null; // User-level: profile_id must be null
     }
     
-    const conflictColumn = effectiveProfileId ? "student_profile_id" : "user_id";
-    
+    // Use the composite unique constraint: (user_id, student_profile_id)
     const { error } = await supabase
       .from("streaks")
       .upsert(updateData, {
-        onConflict: conflictColumn,
+        onConflict: "user_id,student_profile_id",
       });
 
     if (error) {
@@ -1063,9 +1129,9 @@ export async function getStudySessions(userId: string, limit = 100, profileId?: 
       query = query.eq("user_id", userId).is("student_profile_id", null);
     }
     
-    // Use created_at if start_time doesn't exist, fallback to id for ordering
+    // Use started_at for ordering study sessions
     const { data, error } = await query
-      .order("created_at", { ascending: false })
+      .order("started_at", { ascending: false })
       .limit(limit);
 
     if (error) {
@@ -1114,10 +1180,11 @@ export async function saveStudySession(userId: string, session: StudySession, pr
     
     const insertData: any = {
       user_id: userId,
-      // Use created_at if start_time column doesn't exist
-      created_at: session.start_time,
+      started_at: session.start_time || new Date().toISOString(),
+      start_time: session.start_time || new Date().toISOString(),
       end_time: session.end_time,
       duration: session.duration,
+      duration_seconds: session.duration,
       problems_solved: session.problems_solved,
       xp_earned: session.xp_earned,
     };

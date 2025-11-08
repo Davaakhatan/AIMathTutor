@@ -689,6 +689,80 @@ async function handleStreamingResponse(
                 problemType: session.problem.type,
               });
               
+              // CRITICAL FIX: Save Problem of the Day completion immediately
+              // Don't wait for component event listener - it might be unmounted!
+              const checkAndSaveDailyProblem = async () => {
+                try {
+                  const today = new Date().toISOString().split("T")[0]; // YYYY-MM-DD
+                  const problemText = session.problem.text;
+                  
+                  console.log("📅 Checking if solved problem matches Problem of the Day...", {
+                    today,
+                    problemTextPreview: problemText.substring(0, 50),
+                    userId,
+                  });
+                  
+                  // Use environment variables for API URL (server-side fetch)
+                  const baseUrl = process.env.NEXT_PUBLIC_SITE_URL || process.env.VERCEL_URL 
+                    ? `https://${process.env.VERCEL_URL}` 
+                    : "http://localhost:3002";
+                  
+                  // Check if today's daily problem matches the solved problem
+                  const checkResponse = await fetch(`${baseUrl}/api/daily-problem?action=getProblem&date=${today}`, {
+                    method: "GET",
+                    headers: { "Content-Type": "application/json" },
+                  });
+                  
+                  if (checkResponse.ok) {
+                    const dailyData = await checkResponse.json();
+                    const dailyProblemText = dailyData?.problem?.problem?.text || "";
+                    
+                    console.log("📅 Daily problem fetched", {
+                      hasDailyProblem: !!dailyProblemText,
+                      dailyTextPreview: dailyProblemText.substring(0, 50),
+                      solvedTextPreview: problemText.substring(0, 50),
+                      match: dailyProblemText === problemText,
+                    });
+                    
+                    if (dailyProblemText && dailyProblemText === problemText) {
+                      console.log("✅ MATCH! Saving Problem of the Day completion...");
+                      
+                      // Save the completion
+                      const saveResponse = await fetch(`${baseUrl}/api/daily-problem`, {
+                        method: "POST",
+                        headers: { "Content-Type": "application/json" },
+                        body: JSON.stringify({
+                          action: "markSolved",
+                          date: today,
+                          userId,
+                          profileId: profileId || null,
+                          problemText: problemText,
+                        }),
+                      });
+                      
+                      if (saveResponse.ok) {
+                        console.log("✅ Problem of the Day completion saved successfully!");
+                        logger.info("Problem of the Day auto-saved on completion", { userId, date: today });
+                      } else {
+                        const errorData = await saveResponse.json();
+                        console.error("❌ Failed to save Problem of the Day completion:", errorData);
+                        logger.error("Failed to auto-save Problem of the Day", { error: errorData, userId, date: today });
+                      }
+                    } else {
+                      console.log("ℹ️ Solved problem doesn't match today's Problem of the Day");
+                    }
+                  }
+                } catch (error) {
+                  console.error("❌ Error checking/saving Problem of the Day:", error);
+                  logger.error("Error in checkAndSaveDailyProblem", { error });
+                }
+              };
+              
+              // Run async but don't block the response
+              checkAndSaveDailyProblem().catch(err => {
+                console.error("Unhandled error in checkAndSaveDailyProblem:", err);
+              });
+              
               // Emit problem_completed event
               eventBus.emit({
                 type: "problem_completed",

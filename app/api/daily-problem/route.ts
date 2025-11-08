@@ -160,33 +160,30 @@ export async function GET(request: NextRequest) {
     try {
       const supabase = getSupabaseServer();
       
-      // CRITICAL: Build query with STRICT user_id filtering
-      // This ensures we only check completion for the specific user
-      let query = supabase
-        .from("daily_problems_completion")
-        .select("id, problem_text, user_id, student_profile_id")
-        .eq("user_id", userId) // CRITICAL: Filter by user_id FIRST
-        .eq("problem_date", date);
-
-      if (profileId && profileId !== "null") {
-        query = query.eq("student_profile_id", profileId);
-      } else {
-        query = query.is("student_profile_id", null);
-      }
-      
-      logger.debug("Completion query filters", { 
-        userId, 
-        profileId: profileId && profileId !== "null" ? profileId : null,
-        date 
+      logger.debug("Supabase client obtained", { 
+        hasClient: !!supabase,
+        envHasServiceKey: !!process.env.SUPABASE_SERVICE_ROLE_KEY,
+        envHasAnonKey: !!process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY
       });
+      
+      // Simplified query - just check if a record exists
+      // Use count() for faster performance than selecting all fields
+      const query = supabase
+        .from("daily_problems_completion")
+        .select("id, problem_text, user_id", { count: 'exact', head: false })
+        .eq("problem_date", date)
+        .eq("user_id", userId)
+        .limit(1);
+      
+      logger.debug("Running simplified completion query", { date, userId });
 
-      // Add timeout wrapper
+      // Execute query with shorter timeout
       const queryPromise = query.maybeSingle();
       const timeoutPromise = new Promise<{ data: any; error: any }>((resolve) => {
         setTimeout(() => {
           logger.warn("Completion check query timeout", { date, userId });
           resolve({ data: null, error: { message: "Query timeout", code: "TIMEOUT" } });
-        }, 3000);
+        }, 2000); // Short 2s timeout
       });
 
       const result = await Promise.race([queryPromise, timeoutPromise]);
@@ -194,11 +191,13 @@ export async function GET(request: NextRequest) {
 
       if (error) {
         if (error.code === "TIMEOUT") {
-          logger.warn("Completion check timed out", { date, userId });
-          return NextResponse.json({ success: false, isSolved: false, timeout: true });
+          logger.warn("Completion check timed out - treating as not solved", { date, userId });
+          // On timeout, assume not solved and let user proceed
+          return NextResponse.json({ success: true, isSolved: false, timeout: true });
         }
         logger.error("Error checking completion", { error: error.message, errorCode: error.code, date, userId });
-        return NextResponse.json({ success: false, isSolved: false });
+        // On error, assume not solved and let user proceed
+        return NextResponse.json({ success: true, isSolved: false });
       }
 
       const isSolved = !!data;
@@ -212,7 +211,7 @@ export async function GET(request: NextRequest) {
           dataUserId,
           date 
         });
-        return NextResponse.json({ success: false, isSolved: false, error: "User mismatch" });
+        return NextResponse.json({ success: true, isSolved: false, error: "User mismatch" });
       }
       
       logger.debug("Completion check result", { 
@@ -221,12 +220,14 @@ export async function GET(request: NextRequest) {
         isSolved, 
         hasData: !!data, 
         hasProblemText: !!problemText,
+        problemTextPreview: problemText ? problemText.substring(0, 50) : "none",
         dataUserId: dataUserId || "none"
       });
       return NextResponse.json({ success: true, isSolved, problemText });
     } catch (err) {
       logger.error("Exception in completion check", { error: err, date, userId });
-      return NextResponse.json({ success: false, isSolved: false });
+      // On exception, assume not solved and let user proceed
+      return NextResponse.json({ success: true, isSolved: false });
     }
   } catch (error) {
     logger.error("Error in GET completion check", { error });

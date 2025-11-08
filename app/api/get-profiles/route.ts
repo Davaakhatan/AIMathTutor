@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getSupabaseServer } from "@/lib/supabase-server";
+import { getSupabaseAdmin } from "@/lib/supabase-admin";
 import { logger } from "@/lib/logger";
 
 /**
@@ -42,11 +43,30 @@ export async function POST(request: NextRequest) {
     if (!typedProfile) {
       console.log("[API] User profile not found, creating one...", { userId });
       try {
+        // Try to get role from user metadata
+        let userRole: "student" | "parent" | "teacher" | "admin" = "student";
+        try {
+          const supabaseAdmin = getSupabaseAdmin();
+          if (supabaseAdmin) {
+            const { data: { user } } = await supabaseAdmin.auth.admin.getUserById(userId);
+            if (user?.user_metadata?.role) {
+              const metadataRole = user.user_metadata.role;
+              if (["student", "parent", "teacher", "admin"].includes(metadataRole)) {
+                userRole = metadataRole as any;
+                console.log("[API] Using role from user metadata", { userId, role: userRole });
+              }
+            }
+          }
+        } catch (e) {
+          // If we can't get user metadata, default to student
+          console.log("[API] Could not get user metadata, defaulting to student", { userId });
+        }
+        
         const { data: newProfile, error: createError } = await supabase
           .from("profiles")
           .insert({
             id: userId,
-            role: "student", // Default to student
+            role: userRole,
           } as any)
           .select()
           .single();
@@ -124,6 +144,28 @@ export async function POST(request: NextRequest) {
 
       studentProfiles = (data as StudentProfile[]) || [];
       console.log("[API] Found student profiles", { count: studentProfiles.length, profileIds: studentProfiles.map(p => p.id) });
+      
+      // AUTO-CREATE student profile if none exists
+      if (studentProfiles.length === 0) {
+        console.log("[API] No student profile found, creating default student profile", { userId });
+        const defaultName = typedProfile.full_name || "Student";
+        const { data: newProfile, error: createError } = await supabase
+          .from("student_profiles")
+          .insert({
+            owner_id: userId,
+            name: defaultName,
+            grade_level: null,
+          })
+          .select()
+          .single();
+
+        if (createError) {
+          console.error("[API] Error creating default student profile:", createError.message);
+        } else if (newProfile) {
+          studentProfiles = [newProfile as StudentProfile];
+          console.log("[API] Created default student profile", { profileId: newProfile.id, name: defaultName });
+        }
+      }
     } else {
       // Parents/Teachers get linked profiles via profile_relationships
       const { data: relationships, error: relError } = await supabase

@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getSupabaseServer } from "@/lib/supabase-server";
+import { getSupabaseAdmin } from "@/lib/supabase-admin";
 import { logger } from "@/lib/logger";
 
 /**
@@ -42,11 +43,30 @@ export async function POST(request: NextRequest) {
     // If profile doesn't exist, create it
     if (!userProfile) {
       console.log("[API] User profile not found, creating one...", { userId });
+      // Try to get role from user metadata
+      let userRole: "student" | "parent" | "teacher" | "admin" = "student";
+      try {
+        const supabaseAdmin = getSupabaseAdmin();
+        if (supabaseAdmin) {
+          const { data: { user } } = await supabaseAdmin.auth.admin.getUserById(userId);
+          if (user?.user_metadata?.role) {
+            const metadataRole = user.user_metadata.role;
+            if (["student", "parent", "teacher", "admin"].includes(metadataRole)) {
+              userRole = metadataRole as any;
+              console.log("[API] Using role from user metadata", { userId, role: userRole });
+            }
+          }
+        }
+      } catch (e) {
+        // If we can't get user metadata, default to student
+        console.log("[API] Could not get user metadata, defaulting to student", { userId });
+      }
+      
       const { error: createProfileError } = await supabase
         .from("profiles")
         .insert({
           id: userId,
-          role: "student", // Default to student
+          role: userRole,
         } as any);
 
       if (createProfileError) {

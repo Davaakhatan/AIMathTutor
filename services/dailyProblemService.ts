@@ -106,17 +106,8 @@ export async function markDailyProblemSolved(
   try {
     logger.debug("markDailyProblemSolved called", { userId, problemDate, profileId, problemTextLength: problemText.length });
     
-    // CRITICAL: Ensure profile exists (even though daily_problems_completion references auth.users, we need profiles for consistency)
-    const { ensureProfileExists } = await import("@/services/supabaseDataService");
-    const profileExistsPromise = ensureProfileExists(userId);
-    const profileTimeout = new Promise<boolean>((resolve) => {
-      setTimeout(() => {
-        logger.warn("ensureProfileExists timeout - continuing anyway", { userId });
-        resolve(false);
-      }, 2000);
-    });
-    await Promise.race([profileExistsPromise, profileTimeout]);
-    
+    // Profile existence is guaranteed by ensure_all_users_have_profiles migration
+    // No need to call ensureProfileExists from client-side code here
     const supabase = await getSupabaseClient();
     if (!supabase) {
       logger.warn("Supabase client not available, cannot save to database");

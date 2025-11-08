@@ -44,24 +44,51 @@ export default function ProblemOfTheDay({
   try {
     const cached = localStorage.getItem(cacheKey);
     if (cached) {
-      initialProblem = JSON.parse(cached);
-      console.log("[ProblemOfTheDay] Using cached problem (immediate load)");
-      
-      // Check guest completion status immediately
-      const localData = localStorage.getItem("aitutor-daily-problem");
-      if (localData) {
-        const localProblem = JSON.parse(localData);
-        if (localProblem.date === today && localProblem.solved) {
-          initialIsSolved = true;
-          if (initialProblem) {
-            initialProblem.solved = true;
-            initialProblem.solvedAt = localProblem.solvedAt;
+      const parsed = JSON.parse(cached);
+      // Validate cached data structure
+      if (parsed && parsed.problem && parsed.problem.text && parsed.date === today) {
+        initialProblem = parsed;
+        console.log("[ProblemOfTheDay] Using cached problem (immediate load)", {
+          hasProblem: !!parsed.problem,
+          hasText: !!parsed.problem.text,
+          date: parsed.date,
+        });
+        
+        // Check guest completion status immediately
+        const localData = localStorage.getItem("aitutor-daily-problem");
+        if (localData) {
+          const localProblem = JSON.parse(localData);
+          if (localProblem.date === today && localProblem.solved) {
+            initialIsSolved = true;
+            if (initialProblem) {
+              initialProblem.solved = true;
+              initialProblem.solvedAt = localProblem.solvedAt;
+            }
           }
+        }
+      } else {
+        console.warn("[ProblemOfTheDay] Cached problem invalid, will reload", {
+          hasParsed: !!parsed,
+          hasProblem: parsed?.problem,
+          hasText: parsed?.problem?.text,
+          dateMatch: parsed?.date === today,
+        });
+        // Clear invalid cache
+        try {
+          localStorage.removeItem(cacheKey);
+        } catch (e) {
+          // Ignore
         }
       }
     }
   } catch (e) {
     console.error("[ProblemOfTheDay] Cache read failed:", e);
+    // Clear corrupted cache
+    try {
+      localStorage.removeItem(cacheKey);
+    } catch (clearError) {
+      // Ignore
+    }
   }
 
   const [dailyProblem, setDailyProblem] = useState<DailyProblem | null>(initialProblem);
@@ -75,6 +102,20 @@ export default function ProblemOfTheDay({
   useEffect(() => {
     setIsMounted(true);
   }, []);
+  
+  // Debug logging and auto-reload if problem is missing - MUST be before any early returns
+  useEffect(() => {
+    if (isMounted && !isLoading && !dailyProblem) {
+      console.warn("[ProblemOfTheDay] No daily problem available, triggering reload", {
+        isMounted,
+        isLoading,
+        showCard,
+        initialProblem: !!initialProblem,
+      });
+      // Trigger reload from database
+      setIsLoading(true);
+    }
+  }, [isMounted, isLoading, dailyProblem, showCard]);
 
   // Load daily problem - sync from database if needed (only if no cache)
   useEffect(() => {
@@ -293,9 +334,9 @@ export default function ProblemOfTheDay({
           }),
           new Promise<Response>((resolve) => {
             timeoutId = setTimeout(() => {
-              console.warn("[ProblemOfTheDay] API completion check timeout after 2 seconds");
+              console.warn("[ProblemOfTheDay] API completion check timeout after 5 seconds");
               resolve(new Response(JSON.stringify({ success: false, isSolved: false }), { status: 200 }));
-            }, 2000);
+            }, 5000); // Increased from 2s to 5s
           }),
         ]);
 
@@ -303,6 +344,14 @@ export default function ProblemOfTheDay({
         const solved = data.success && data.isSolved === true;
         const savedProblemText = data.problemText || null;
         const currentProblemText = dailyProblem.problem.text;
+        
+        console.log("[ProblemOfTheDay] Completion check response", {
+          solved,
+          hasSavedText: !!savedProblemText,
+          hasCurrentText: !!currentProblemText,
+          savedPreview: savedProblemText ? savedProblemText.substring(0, 30) : "none",
+          currentPreview: currentProblemText ? currentProblemText.substring(0, 30) : "none"
+        });
         
         // CRITICAL: Only mark as solved if the problem text matches!
         // This prevents showing "completed" for a different problem on the same date
@@ -316,12 +365,30 @@ export default function ProblemOfTheDay({
             solved: true,
             solvedAt: new Date().toISOString(),
           } : prev);
+          
+          // Update cache
+          try {
+            const cacheKey = `daily-problem-${today}`;
+            const updated = {
+              ...dailyProblem,
+              solved: true,
+              solvedAt: new Date().toISOString(),
+            };
+            localStorage.setItem(cacheKey, JSON.stringify(updated));
+          } catch (e) {
+            // Ignore cache errors
+          }
         } else if (solved && !problemMatches) {
           console.log("[ProblemOfTheDay] ⚠️ Completion found but problem text doesn't match - ignoring", {
             saved: savedProblemText?.substring(0, 50),
             current: currentProblemText?.substring(0, 50),
           });
-          // Don't change state if already set from cache
+          // Explicitly set as NOT solved
+          setIsSolved(false);
+        } else {
+          // No completion found
+          console.log("[ProblemOfTheDay] ❌ No completion found");
+          setIsSolved(false);
         }
       } catch (err) {
         console.error("[ProblemOfTheDay] Error checking completion:", err);
@@ -331,15 +398,15 @@ export default function ProblemOfTheDay({
       }
     };
 
-    // Check once after a short delay (to avoid race with initial load)
-    timeoutId = setTimeout(() => {
-      checkCompletion();
-    }, 500);
+    // Check IMMEDIATELY, no delay
+    checkCompletion();
 
     return () => {
       if (timeoutId) clearTimeout(timeoutId);
     };
-  }, [user?.id, activeProfile?.id, dailyProblem?.date, dailyProblem?.problem?.text, isMounted]); // Remove isSolved from deps to prevent re-runs
+    // Only re-check when user or profile changes, NOT when dailyProblem changes
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [user?.id, activeProfile?.id, isMounted]);
 
   // Reset card visibility when problem changes (new day)
   useEffect(() => {
@@ -722,13 +789,23 @@ export default function ProblemOfTheDay({
   };
 
   const handleStartProblem = () => {
-    if (dailyProblem && !isGenerating && !isSolved) {
+    console.log("[ProblemOfTheDay] Start button clicked!", {
+      hasProblem: !!dailyProblem,
+      isGenerating,
+      isSolved,
+      isLoading,
+      canStart: dailyProblem && !isGenerating && !isSolved && !isLoading
+    });
+    
+    if (dailyProblem && !isGenerating && !isSolved && !isLoading) {
       // Store the problem text in session storage for real-time detection
       if (typeof window !== "undefined") {
         sessionStorage.setItem("aitutor-current-problem-text", dailyProblem.problem.text);
       }
       onProblemSelected(dailyProblem.problem);
       setShowCard(false);
+    } else {
+      console.warn("[ProblemOfTheDay] Cannot start - conditions not met");
     }
   };
 
@@ -749,7 +826,17 @@ export default function ProblemOfTheDay({
     );
   }
 
-  if (!showCard || !dailyProblem) {
+  if (!dailyProblem) {
+    return null;
+  }
+
+  if (!showCard) {
+    return null;
+  }
+
+  // Validate problem structure before rendering
+  if (!dailyProblem.problem || !dailyProblem.problem.text) {
+    console.error("[ProblemOfTheDay] Invalid problem structure", dailyProblem);
     return null;
   }
 
@@ -768,31 +855,47 @@ export default function ProblemOfTheDay({
   };
 
   return (
-    <div className="bg-gradient-to-br from-blue-50 to-indigo-50 dark:from-blue-900/20 dark:to-indigo-900/20 border-2 border-blue-200 dark:border-blue-700 rounded-lg p-4 sm:p-6 mb-4 sm:mb-6 shadow-lg transition-colors">
-      <div className="flex items-start justify-between gap-4 mb-4">
+    <div className="relative bg-gradient-to-br from-blue-50 via-indigo-50 to-purple-50 dark:from-blue-950/40 dark:via-indigo-950/40 dark:to-purple-950/40 border-2 border-blue-200/60 dark:border-blue-700/40 rounded-2xl p-5 sm:p-6 mb-4 sm:mb-6 shadow-xl hover:shadow-2xl transition-all duration-300 overflow-hidden group">
+      {/* Animated background gradient */}
+      <div className="absolute inset-0 bg-gradient-to-r from-blue-400/5 via-purple-400/5 to-pink-400/5 dark:from-blue-400/10 dark:via-purple-400/10 dark:to-pink-400/10 opacity-0 group-hover:opacity-100 transition-opacity duration-500" />
+      
+      {/* Sparkle effect on solved */}
+      {isSolved && (
+        <div className="absolute top-0 right-0 w-32 h-32 bg-gradient-to-br from-green-400/20 to-emerald-400/20 dark:from-green-400/30 dark:to-emerald-400/30 rounded-full blur-3xl animate-pulse" />
+      )}
+
+      <div className="relative flex items-start justify-between gap-4 mb-5">
         <div className="flex-1">
-          <div className="flex items-center gap-3 mb-2">
-            <div className="w-10 h-10 bg-blue-500 dark:bg-blue-600 rounded-full flex items-center justify-center flex-shrink-0">
-              <span className="text-white text-lg font-bold">📅</span>
+          <div className="flex items-center gap-3 mb-3">
+            {/* Improved icon with gradient */}
+            <div className="relative w-12 h-12 bg-gradient-to-br from-blue-500 to-indigo-600 dark:from-blue-600 dark:to-indigo-700 rounded-xl flex items-center justify-center flex-shrink-0 shadow-lg transform transition-transform group-hover:scale-110 group-hover:rotate-3 duration-300">
+              <span className="text-white text-2xl">📅</span>
+              {isSolved && (
+                <div className="absolute -top-1 -right-1 w-5 h-5 bg-green-500 rounded-full flex items-center justify-center shadow-md animate-bounce">
+                  <svg className="w-3 h-3 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M5 13l4 4L19 7" />
+                  </svg>
+                </div>
+              )}
             </div>
+            
             <div className="min-w-0 flex-1">
-              <div className="flex items-center gap-2">
-                <h3 className="text-base sm:text-lg font-semibold text-gray-900 dark:text-gray-100 transition-colors">
+              <div className="flex items-center gap-2 flex-wrap">
+                <h3 className="text-lg sm:text-xl font-bold bg-gradient-to-r from-blue-600 to-indigo-600 dark:from-blue-400 dark:to-indigo-400 bg-clip-text text-transparent">
                   Problem of the Day
                 </h3>
                 {isSolved && (
-                  <span className="px-2 py-0.5 bg-green-100 dark:bg-green-900/30 text-green-700 dark:text-green-300 rounded text-xs font-medium flex items-center gap-1">
-                    <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+                  <span className="px-2.5 py-1 bg-gradient-to-r from-green-100 to-emerald-100 dark:from-green-900/40 dark:to-emerald-900/40 text-green-700 dark:text-green-300 rounded-lg text-xs font-semibold flex items-center gap-1.5 shadow-sm border border-green-200/50 dark:border-green-700/50 animate-in fade-in slide-in-from-top-2">
+                    <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M5 13l4 4L19 7" />
                     </svg>
-                    Solved
+                    Solved!
                   </span>
                 )}
               </div>
-              <p className="text-xs text-gray-500 dark:text-gray-400 transition-colors line-clamp-1">
+              <p className="text-xs sm:text-sm text-gray-600 dark:text-gray-400 transition-colors line-clamp-1 font-medium mt-0.5">
                 {new Date().toLocaleDateString("en-US", { 
                   weekday: "long", 
-                  year: "numeric", 
                   month: "long", 
                   day: "numeric" 
                 })}
@@ -800,60 +903,71 @@ export default function ProblemOfTheDay({
             </div>
           </div>
           
-          <div className="flex items-center gap-2 mb-3">
-            <span className={`px-2.5 py-1 rounded-md border text-xs font-medium transition-colors ${difficultyColors[dailyProblem.difficulty]}`}>
+          {/* Enhanced badges */}
+          <div className="flex items-center gap-2 mb-4 flex-wrap">
+            <span className={`px-3 py-1.5 rounded-lg border-2 text-xs font-semibold transition-all hover:scale-105 shadow-sm ${difficultyColors[dailyProblem.difficulty]}`}>
               {difficultyIcons[dailyProblem.difficulty]} {dailyProblem.difficulty.charAt(0).toUpperCase() + dailyProblem.difficulty.slice(1)}
             </span>
-            <span className="px-2.5 py-1 bg-gray-100 dark:bg-gray-800 text-gray-700 dark:text-gray-300 rounded-md border border-gray-200 dark:border-gray-700 text-xs font-medium transition-colors">
+            <span className="px-3 py-1.5 bg-gradient-to-r from-gray-100 to-gray-200 dark:from-gray-800 dark:to-gray-700 text-gray-700 dark:text-gray-300 rounded-lg border-2 border-gray-300/50 dark:border-gray-600/50 text-xs font-semibold transition-all hover:scale-105 shadow-sm">
               {dailyProblem.topic}
             </span>
           </div>
 
-          <p className="text-sm sm:text-base text-gray-900 dark:text-gray-100 font-medium mb-3 transition-colors break-words">
-            {dailyProblem.problem.text}
-          </p>
+          {/* Problem text with better typography */}
+          <div className="bg-white/60 dark:bg-gray-900/30 backdrop-blur-sm rounded-xl p-4 border-2 border-gray-200/50 dark:border-gray-700/50 shadow-inner">
+            <p className="text-sm sm:text-base text-gray-900 dark:text-gray-100 font-medium leading-relaxed break-words">
+              {dailyProblem.problem.text}
+            </p>
+          </div>
         </div>
 
+        {/* Enhanced close button */}
         <button
           onClick={() => setShowCard(false)}
-          className="text-gray-400 dark:text-gray-500 hover:text-gray-600 dark:hover:text-gray-300 transition-colors p-1"
+          className="relative text-gray-400 dark:text-gray-500 hover:text-gray-600 dark:hover:text-gray-300 transition-all p-2 rounded-lg hover:bg-gray-200/50 dark:hover:bg-gray-700/50 group/close"
           aria-label="Close Problem of the Day"
           title="Close"
         >
-          <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path
-              strokeLinecap="round"
-              strokeLinejoin="round"
-              strokeWidth={2}
-              d="M6 18L18 6M6 6l12 12"
-            />
+          <svg className="w-5 h-5 transition-transform group-hover/close:rotate-90 duration-300" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
           </svg>
         </button>
       </div>
 
-      <div className="flex items-center justify-between">
-        <div className="text-xs text-gray-600 dark:text-gray-400 transition-colors">
-            {isGenerating ? (
-              <span className="flex items-center gap-2">
-                <span className="w-3 h-3 border-2 border-blue-600 dark:border-blue-400 border-t-transparent rounded-full animate-spin inline-block" />
-                Generating today&apos;s challenge...
-              </span>
-            ) : (
-              "A new challenge every day!"
-            )}
+      {/* Enhanced footer */}
+      <div className="relative flex items-center justify-between gap-4 pt-4 border-t-2 border-gray-200/50 dark:border-gray-700/50">
+        <div className="text-xs sm:text-sm text-gray-600 dark:text-gray-400 transition-colors font-medium">
+          {isGenerating ? (
+            <span className="flex items-center gap-2 animate-pulse">
+              <span className="w-3 h-3 border-2 border-blue-600 dark:border-blue-400 border-t-transparent rounded-full animate-spin inline-block" />
+              Generating today&apos;s challenge...
+            </span>
+          ) : (
+            <span className="flex items-center gap-1.5">
+              <span className="text-base">✨</span>
+              A new challenge every day!
+            </span>
+          )}
         </div>
+        
+        {/* Enhanced button with gradient */}
         <button
           onClick={handleStartProblem}
           disabled={isGenerating || isSolved || isLoading}
-          className={`px-4 py-2.5 sm:py-2 rounded-lg active:scale-95 disabled:cursor-not-allowed transition-all font-medium text-sm flex items-center gap-2 min-h-[44px] touch-device:min-h-[48px] ${
+          className={`relative px-5 py-3 rounded-xl active:scale-95 disabled:cursor-not-allowed transition-all duration-300 font-semibold text-sm flex items-center gap-2.5 min-h-[44px] touch-device:min-h-[48px] shadow-lg hover:shadow-xl overflow-hidden group/btn ${
             isSolved
-              ? "bg-green-600 dark:bg-green-700 text-white cursor-default"
+              ? "bg-gradient-to-r from-green-500 to-emerald-600 dark:from-green-600 dark:to-emerald-700 text-white cursor-default"
               : isGenerating || isLoading
-              ? "bg-blue-300 dark:bg-blue-800 text-white"
-              : "bg-blue-600 dark:bg-blue-700 text-white hover:bg-blue-700 dark:hover:bg-blue-600"
+              ? "bg-gradient-to-r from-blue-400 to-indigo-400 dark:from-blue-800 dark:to-indigo-800 text-white"
+              : "bg-gradient-to-r from-blue-600 to-indigo-600 dark:from-blue-700 dark:to-indigo-700 text-white hover:from-blue-700 hover:to-indigo-700 dark:hover:from-blue-600 dark:hover:to-indigo-600"
           }`}
           aria-label={isSolved ? "Problem of the Day Completed" : isLoading ? "Loading..." : "Start Problem of the Day"}
         >
+          {/* Button shine effect */}
+          {!isSolved && !isGenerating && !isLoading && (
+            <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/20 to-transparent -translate-x-full group-hover/btn:translate-x-full transition-transform duration-1000" />
+          )}
+          
           {isGenerating ? (
             <>
               <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
@@ -866,21 +980,17 @@ export default function ProblemOfTheDay({
             </>
           ) : isSolved ? (
             <>
-              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+              <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M5 13l4 4L19 7" />
               </svg>
               <span>Completed</span>
+              <span className="text-lg">🎉</span>
             </>
           ) : (
             <>
               <span>Start Challenge</span>
-              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                  strokeWidth={2}
-                  d="M13 7l5 5m0 0l-5 5m5-5H6"
-                />
+              <svg className="w-4 h-4 transition-transform group-hover/btn:translate-x-1 duration-300" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M13 7l5 5m0 0l-5 5m5-5H6" />
               </svg>
             </>
           )}

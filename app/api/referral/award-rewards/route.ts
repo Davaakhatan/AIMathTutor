@@ -64,32 +64,38 @@ export async function POST(request: NextRequest) {
     type XPData = { total_xp: number } | null;
 
     // Award XP to referee (new user)
+    // Query for personal XP (not linked to student profile)
     try {
-      const { data: refereeXP, error: refereeXPError } = await supabase
+      const { data: refereeXPData, error: refereeXPError } = await supabase
         .from("xp_data")
         .select("total_xp")
         .eq("user_id", typedReferral.referee_id)
-        .single();
+        .is("student_profile_id", null); // Personal XP, not profile-specific
 
+      const refereeXP = refereeXPData && refereeXPData.length > 0 ? refereeXPData[0] : null;
       const typedRefereeXP = refereeXP as XPData;
 
       if (!refereeXPError && typedRefereeXP) {
+        // Update existing XP
         await (supabase
           .from("xp_data") as any)
           .update({
             total_xp: (typedRefereeXP.total_xp || 0) + REFEREE_REWARD_XP,
             updated_at: new Date().toISOString(),
           })
-          .eq("user_id", typedReferral.referee_id);
+          .eq("user_id", typedReferral.referee_id)
+          .is("student_profile_id", null);
       } else {
         // Create XP record if it doesn't exist
         await (supabase
           .from("xp_data") as any)
           .insert({
             user_id: typedReferral.referee_id,
+            student_profile_id: null, // Personal XP
             total_xp: REFEREE_REWARD_XP,
             level: 1,
-            problems_solved: 0,
+            xp_to_next_level: 100 - REFEREE_REWARD_XP,
+            xp_history: [{ date: new Date().toISOString().split('T')[0], xp: REFEREE_REWARD_XP, reason: "Referral Bonus" }],
             created_at: new Date().toISOString(),
             updated_at: new Date().toISOString(),
           });
@@ -99,32 +105,38 @@ export async function POST(request: NextRequest) {
     }
 
     // Award XP to referrer
+    // Query for personal XP (not linked to student profile)
     try {
-      const { data: referrerXP, error: referrerXPError } = await supabase
+      const { data: referrerXPData, error: referrerXPError } = await supabase
         .from("xp_data")
         .select("total_xp")
         .eq("user_id", typedReferral.referrer_id)
-        .single();
+        .is("student_profile_id", null); // Personal XP, not profile-specific
 
+      const referrerXP = referrerXPData && referrerXPData.length > 0 ? referrerXPData[0] : null;
       const typedReferrerXP = referrerXP as XPData;
 
       if (!referrerXPError && typedReferrerXP) {
+        // Update existing XP
         await (supabase
           .from("xp_data") as any)
           .update({
             total_xp: (typedReferrerXP.total_xp || 0) + REFERRER_REWARD_XP,
             updated_at: new Date().toISOString(),
           })
-          .eq("user_id", typedReferral.referrer_id);
+          .eq("user_id", typedReferral.referrer_id)
+          .is("student_profile_id", null);
       } else {
         // Create XP record if it doesn't exist
         await (supabase
           .from("xp_data") as any)
           .insert({
             user_id: typedReferral.referrer_id,
+            student_profile_id: null, // Personal XP
             total_xp: REFERRER_REWARD_XP,
             level: 1,
-            problems_solved: 0,
+            xp_to_next_level: 100 - REFERRER_REWARD_XP,
+            xp_history: [{ date: new Date().toISOString().split('T')[0], xp: REFERRER_REWARD_XP, reason: "Referral Bonus" }],
             created_at: new Date().toISOString(),
             updated_at: new Date().toISOString(),
           });
