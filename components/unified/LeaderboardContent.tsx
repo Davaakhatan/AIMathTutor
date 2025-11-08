@@ -83,7 +83,7 @@ export default function LeaderboardContent({
   }
 
   return (
-    <div className="flex-1 overflow-y-auto p-6 space-y-6">
+    <div className="flex-1 overflow-y-auto p-4 space-y-4 max-h-[600px]">
       {/* User's Rank Card */}
       {userRank && userEntry && (
         <div 
@@ -153,7 +153,7 @@ export default function LeaderboardContent({
           </span>
         </div>
         
-        <div className="space-y-3">
+        <div className="space-y-2 max-h-[400px] overflow-y-auto">
           {topPlayers.length === 0 ? (
             <div className="text-center py-12 px-4">
               <div className="w-16 h-16 bg-gray-100 dark:bg-gray-800 rounded-full flex items-center justify-center mx-auto mb-3">
@@ -174,15 +174,15 @@ export default function LeaderboardContent({
               return (
                 <div
                   key={`${player.userId}-${index}`}
-                  className={`relative overflow-hidden rounded-xl p-4 border shadow-sm transition-all duration-200 hover:shadow-md ${
+                  className={`relative overflow-hidden rounded-lg p-3 border shadow-sm transition-all duration-200 hover:shadow-md ${
                     isCurrentUser
                       ? "bg-gradient-to-r from-indigo-50 to-purple-50 dark:from-indigo-900/20 dark:to-purple-900/20 border-indigo-300 dark:border-indigo-600"
                       : "bg-white dark:bg-gray-800 border-gray-200 dark:border-gray-700"
                   }`}
                 >
-                  <div className="flex items-center gap-4">
+                  <div className="flex items-center gap-3">
                     {/* Position Badge */}
-                    <div className={`w-10 h-10 rounded-lg flex items-center justify-center font-bold text-lg ${
+                    <div className={`w-8 h-8 rounded-lg flex items-center justify-center font-bold text-sm ${
                       position === 1 ? "bg-gradient-to-br from-yellow-400 to-yellow-600 text-white shadow-md" :
                       position === 2 ? "bg-gradient-to-br from-gray-300 to-gray-500 text-white shadow-md" :
                       position === 3 ? "bg-gradient-to-br from-orange-400 to-orange-600 text-white shadow-md" :
@@ -193,7 +193,7 @@ export default function LeaderboardContent({
                     
                     {/* Rank Badge */}
                     <div 
-                      className="w-10 h-10 rounded-lg flex items-center justify-center font-bold text-white text-sm shadow-sm"
+                      className="w-8 h-8 rounded-lg flex items-center justify-center font-bold text-white text-xs shadow-sm"
                       style={{ 
                         background: `linear-gradient(135deg, ${player.rankColor}, ${player.rankColor}cc)`,
                       }}
