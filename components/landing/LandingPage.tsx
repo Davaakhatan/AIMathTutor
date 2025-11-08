@@ -104,74 +104,19 @@ export default function LandingPage({ onGetStarted }: LandingPageProps) {
           </div>
         </div>
 
-        {/* Features Section */}
+        {/* Complete Ecosystem Showcase */}
         <div className="mt-32">
           <div className="text-center mb-16">
             <h2 className="text-3xl sm:text-4xl font-bold text-gray-900 dark:text-gray-100 mb-4">
-              How it works
+              Complete Learning Ecosystem
             </h2>
             <p className="text-lg text-gray-600 dark:text-gray-400">
-              Everything you need to master math
+              Three powerful systems working together automatically
             </p>
           </div>
 
-          <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-8 max-w-6xl mx-auto">
-            {/* Feature 1 */}
-            <div className="group bg-gradient-to-br from-white to-indigo-50 dark:from-gray-800 dark:to-indigo-950/20 border-2 border-indigo-100 dark:border-indigo-900 rounded-2xl p-6 shadow-xl hover:shadow-2xl hover:scale-105 transition-all duration-300">
-              <div className="w-14 h-14 bg-gradient-to-br from-indigo-500 to-purple-600 rounded-xl flex items-center justify-center mb-5 shadow-lg group-hover:scale-110 transition-transform">
-                <svg className="w-8 h-8 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8.228 9c.549-1.165 2.03-2 3.772-2 2.21 0 4 1.343 4 3 0 1.4-1.278 2.575-3.006 2.907-.542.104-.994.54-.994 1.093m0 3h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
-                </svg>
-              </div>
-              <h3 className="text-lg font-bold text-gray-900 dark:text-gray-100 mb-3">
-                Socratic Method
-              </h3>
-              <p className="text-sm text-gray-600 dark:text-gray-400 leading-relaxed">
-                Learn by discovering solutions through guided questions, not memorizing answers
-              </p>
-            </div>
-
-            {/* Feature 2 */}
-            <div className="group bg-gradient-to-br from-white to-purple-50 dark:from-gray-800 dark:to-purple-950/20 border-2 border-purple-100 dark:border-purple-900 rounded-2xl p-6 shadow-xl hover:shadow-2xl hover:scale-105 transition-all duration-300">
-              <div className="w-14 h-14 bg-gradient-to-br from-purple-500 to-pink-600 rounded-xl flex items-center justify-center mb-5 shadow-lg group-hover:scale-110 transition-transform">
-                <svg className="w-8 h-8 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9.663 17h4.673M12 3v1m6.364 1.636l-.707.707M21 12h-1M4 12H3m3.343-5.657l-.707-.707m2.828 9.9a5 5 0 117.072 0l-.548.547A3.374 3.374 0 0014 18.469V19a2 2 0 11-4 0v-.531c0-.895-.356-1.754-.988-2.386l-.548-.547z" />
-                </svg>
-              </div>
-              <h3 className="text-lg font-bold text-gray-900 dark:text-gray-100 mb-3">
-                AI-Powered
-              </h3>
-              <p className="text-sm text-gray-600 dark:text-gray-400 leading-relaxed">
-                Powered by GPT-4 for personalized, adaptive learning that adjusts to your level
-              </p>
-            </div>
-
-            {/* Feature 3 */}
-            <div className="group bg-gradient-to-br from-white to-green-50 dark:from-gray-800 dark:to-green-950/20 border-2 border-green-100 dark:border-green-900 rounded-2xl p-6 shadow-xl hover:shadow-2xl hover:scale-105 transition-all duration-300">
-              <div className="w-14 h-14 bg-gradient-to-br from-green-500 to-emerald-600 rounded-xl flex items-center justify-center mb-5 shadow-lg group-hover:scale-110 transition-transform">
-                <svg className="w-8 h-8 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4M7.835 4.697a3.42 3.42 0 001.946-.806 3.42 3.42 0 014.438 0 3.42 3.42 0 001.946.806 3.42 3.42 0 013.138 3.138 3.42 3.42 0 00.806 1.946 3.42 3.42 0 010 4.438 3.42 3.42 0 00-.806 1.946 3.42 3.42 0 01-3.138 3.138 3.42 3.42 0 00-1.946.806 3.42 3.42 0 01-4.438 0 3.42 3.42 0 00-1.946-.806 3.42 3.42 0 01-3.138-3.138 3.42 3.42 0 00-.806-1.946 3.42 3.42 0 010-4.438 3.42 3.42 0 00.806-1.946 3.42 3.42 0 013.138-3.138z" />
-                </svg>
-              </div>
-              <h3 className="text-lg font-bold text-gray-900 dark:text-gray-100 mb-3">
-                Track Progress
-              </h3>
-              <p className="text-sm text-gray-600 dark:text-gray-400 leading-relaxed">
-                Monitor your learning journey with XP, achievements, and detailed analytics
-              </p>
-            </div>
-          </div>
-
-          {/* Complete Ecosystem Showcase */}
-          <div className="mt-24 bg-gradient-to-br from-indigo-50 to-purple-50 dark:from-indigo-950/20 dark:to-purple-950/20 rounded-3xl p-12 border-2 border-indigo-100 dark:border-indigo-900">
-            <div className="text-center mb-12">
-              <h3 className="text-2xl font-bold text-gray-900 dark:text-gray-100 mb-3">
-                Complete Learning Ecosystem
-              </h3>
-              <p className="text-gray-600 dark:text-gray-400">
-                Three powerful systems working together
-              </p>
-            </div>
+          {/* Ecosystem Showcase */}
+          <div className="bg-gradient-to-br from-indigo-50 to-purple-50 dark:from-indigo-950/20 dark:to-purple-950/20 rounded-3xl p-12 border-2 border-indigo-100 dark:border-indigo-900">
 
             <div className="grid md:grid-cols-3 gap-8">
               {/* System 1: Tutoring */}
