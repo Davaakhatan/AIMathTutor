@@ -167,7 +167,16 @@ export default function SuggestionsContent({ onSelectProblem }: SuggestionsConte
   };
 
   return (
-    <div className="flex-1 overflow-y-auto p-4">
+    <div className="flex-1 overflow-y-auto p-6 max-h-[700px]">
+      {/* Header */}
+      <div className="text-center mb-6">
+        <h2 className="text-2xl font-bold bg-gradient-to-r from-green-600 to-emerald-600 dark:from-green-400 dark:to-emerald-400 bg-clip-text text-transparent">
+          Smart Suggestions
+        </h2>
+        <p className="text-sm text-gray-600 dark:text-gray-400 mt-1">
+          Personalized recommendations based on your progress
+        </p>
+      </div>
       {/* Adaptive Problem Suggestions based on concept mastery */}
       <AdaptiveProblemSuggestions
         onSelectProblem={handleAdaptiveProblemSelect}
