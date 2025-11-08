@@ -84,13 +84,16 @@ export default function ConceptHighlightedRenderer({
       }
       
       // Add formatted text
+      // CRITICAL: Render italic/bold text directly WITHOUT MathRenderer
+      // MathRenderer was causing numbers inside italic text to render in upright font
+      // If the formatted text needs LaTeX, it should be in proper LaTeX delimiters ($...$)
       const FormattedText = match.type === 'bold' ? (
-        <strong key={`bold-${idx}`}>
-          <MathRenderer content={match.content} />
+        <strong key={`bold-${idx}`} className="font-semibold">
+          {match.content}
         </strong>
       ) : (
-        <em key={`italic-${idx}`}>
-          <MathRenderer content={match.content} />
+        <em key={`italic-${idx}`} className="italic">
+          {match.content}
         </em>
       );
       parts.push(FormattedText);

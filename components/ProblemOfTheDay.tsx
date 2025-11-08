@@ -354,15 +354,52 @@ export default function ProblemOfTheDay({
 
   // Listen for problem solved events and save to database
   useEffect(() => {
-    if (!isMounted || !dailyProblem) return; // Remove !user check - guest users can solve too
+    if (!isMounted || !dailyProblem) return;
 
     const handleProblemSolved = async (event?: Event) => {
       const today = getTodayDate();
       
-      // Only save if it's today's problem
+      console.log("[ProblemOfTheDay] Event received! Checking if should save...", {
+        dateMatch: dailyProblem.date === today,
+        hasText: !!dailyProblem.problem.text,
+        alreadySolved: isSolved,
+        dailyProblemText: dailyProblem.problem.text?.substring(0, 50),
+      });
+      
+      // Only save if it's today's problem and not already solved
       if (dailyProblem.date !== today || !dailyProblem.problem.text || isSolved) {
+        console.log("[ProblemOfTheDay] Skipping save:", {
+          dateMatch: dailyProblem.date === today,
+          hasText: !!dailyProblem.problem.text,
+          alreadySolved: isSolved,
+        });
         return;
       }
+
+      // CRITICAL: Verify the solved problem is actually the Problem of the Day
+      // Check event detail first (if available), then sessionStorage, then allow if both are empty
+      const eventDetail = (event as CustomEvent)?.detail;
+      const solvedProblemText = eventDetail?.problemText || sessionStorage.getItem("aitutor-current-problem-text") || "";
+      const dailyProblemText = dailyProblem.problem.text;
+      
+      // If we have a problem text from the event or sessionStorage, it must match the daily problem
+      // If both are empty, we'll still save (user might have navigated differently, but this is risky)
+      if (solvedProblemText && solvedProblemText.trim() !== "" && solvedProblemText !== dailyProblemText) {
+        console.log("[ProblemOfTheDay] ⚠️ Solved problem doesn't match daily problem - ignoring", {
+          solved: solvedProblemText.substring(0, 50),
+          daily: dailyProblemText.substring(0, 50),
+          source: eventDetail?.problemText ? "event" : "sessionStorage",
+        });
+        return;
+      }
+      
+      // If we don't have a problem text to verify, log a warning but still save
+      // (This might be a false positive, but better to save than miss a completion)
+      if (!solvedProblemText || solvedProblemText.trim() === "") {
+        console.log("[ProblemOfTheDay] ⚠️ No problem text to verify - saving anyway (might be false positive)");
+      }
+      
+      console.log("[ProblemOfTheDay] ✅ Problem matches! Saving completion...");
 
       // Update UI IMMEDIATELY (optimistic update)
       const solvedAt = new Date().toISOString();
@@ -456,7 +493,7 @@ export default function ProblemOfTheDay({
       window.removeEventListener("problemSolved", handleProblemSolvedWrapper);
       window.removeEventListener("problem_completed", handleProblemSolvedWrapper);
     };
-  }, [isMounted, dailyProblem, user, activeProfile?.id]);
+  }, [isMounted, dailyProblem, user, activeProfile?.id, isSolved]); // Include isSolved to prevent saving if already solved
 
   const generateDailyProblem = async () => {
     setIsGenerating(true);

@@ -358,9 +358,15 @@ function HomeContentInternal() {
       useEffect(() => {
         const handleProblemSolved = () => {
           setProblemsSolvedToday((prev) => prev + 1);
-          window.dispatchEvent(new CustomEvent("problemSolved"));
+          // Dispatch event with problem text so Problem of the Day can verify it matches
+          const problemText = currentProblem?.text || "";
+          window.dispatchEvent(new CustomEvent("problemSolved", {
+            detail: { problemText }
+          }));
           // Also dispatch event for ProblemProgress component
-          window.dispatchEvent(new CustomEvent("problem_completed"));
+          window.dispatchEvent(new CustomEvent("problem_completed", {
+            detail: { problemText }
+          }));
         };
 
         // Use the smart completion detector instead of hardcoded phrases

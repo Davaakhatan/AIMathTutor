@@ -17,10 +17,14 @@ export default function MathRenderer({
   const normalizedContent = normalizeProblemText(content);
   
   // Enhanced regex to detect LaTeX math (handles various formats)
-  const mathRegex = /\$\$[\s\S]*?\$\$|\\\[[\s\S]*?\\\]|\\\([\s\S]*?\\\)|\$[^$\n]+?\$|\\begin\{[\s\S]*?\\end\{/g;
+  // IMPORTANT: Don't match single numbers or simple text as math
+  // Only match actual LaTeX delimiters: $$, \[ \], \( \), $...$, or \begin...\end
+  const mathRegex = /\$\$[\s\S]*?\$\$|\\\[[\s\S]*?\\\]|\\\([\s\S]*?\\\)|\$[^$\n]{2,}?\$|\\begin\{[\s\S]*?\\end\{/g;
   
-  // Check if content has math
-  const hasMath = mathRegex.test(normalizedContent);
+  // Check if content has math (but not just a single number or simple word)
+  const hasMath = mathRegex.test(normalizedContent) && 
+                  !/^\s*\d+\s*$/.test(normalizedContent.trim()) && // Don't treat single numbers as math
+                  !/^\s*[a-zA-Z]+\s*$/.test(normalizedContent.trim()); // Don't treat single words as math
 
   if (!hasMath) {
     // No math, just render as text with line breaks
