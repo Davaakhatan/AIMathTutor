@@ -102,7 +102,7 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    logger.info("Challenge saved successfully", { challengeId: data.id, userId: user.id });
+    logger.info("Challenge saved successfully", { challengeId: (data as any).id, userId: user.id });
     return NextResponse.json({ success: true, challenge: data });
   } catch (error) {
     logger.error("Error in POST /api/challenges/save", { error });
