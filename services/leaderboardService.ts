@@ -88,11 +88,12 @@ export async function getGlobalLeaderboard(
     const userIds = xpResult.data.map((entry: any) => entry.user_id);
 
     // Fetch problems count (this is often the slowest query, so do it separately)
+    // Note: problems table doesn't have 'status' column, use 'solved_at IS NOT NULL' instead
     const { data: problemsData, error: problemsError } = await supabase
       .from("problems")
       .select("user_id")
       .in("user_id", userIds)
-      .eq("status", "solved")
+      .not("solved_at", "is", null)
       .is("student_profile_id", null);
 
     if (problemsError) {
@@ -221,7 +222,7 @@ export async function getLeaderboardData(
             .from("problems")
             .select("id", { count: "exact", head: true })
             .eq("user_id", userId)
-            .eq("status", "solved")
+            .not("solved_at", "is", null)
             .is("student_profile_id", null);
 
           const rank = getRankForLevel(xpData.level);

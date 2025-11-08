@@ -125,12 +125,20 @@ export async function getXPData(userId: string, profileId?: string | null): Prom
       recordId: xpRow.id
     });
 
+    // Convert xp_history to recent_gains format (for UI display)
+    const xpHistory = (xpRow.xp_history as any) || [];
+    const recentGains = xpHistory.map((entry: any) => ({
+      xp: entry.xp || 0,
+      reason: entry.reason || "XP gained",
+      timestamp: entry.date ? new Date(entry.date).getTime() : Date.now()
+    }));
+
     return {
       total_xp: xpRow.total_xp || 0,
       level: xpRow.level || 1,
       xp_to_next_level: xpRow.xp_to_next_level || 100,
-      xp_history: (xpRow.xp_history as any) || [],
-      recent_gains: (xpRow.recent_gains as any) || [],
+      xp_history: xpHistory,
+      recent_gains: recentGains,
     };
   } catch (error) {
     logger.error("Error in getXPData", { error, userId });
