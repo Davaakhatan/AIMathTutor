@@ -155,7 +155,7 @@ export default function AchievementsContent() {
             <div className="w-1 h-6 rounded-full bg-gradient-to-b from-purple-500 to-pink-500"></div>
             <h4 className="text-lg font-semibold text-gray-900 dark:text-gray-100">Unlocked ({unlocked.length})</h4>
           </div>
-          <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-3">
+          <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
             {unlocked.length === 0 ? (
               <div className="col-span-full bg-gradient-to-br from-white to-gray-50 dark:from-gray-800 dark:to-gray-900 border-2 border-dashed border-gray-300 dark:border-gray-700 rounded-2xl p-8 text-center">
                 <div className="w-16 h-16 mx-auto mb-3 bg-gray-200 dark:bg-gray-700 rounded-full flex items-center justify-center">
@@ -213,7 +213,7 @@ export default function AchievementsContent() {
             <div className="w-1 h-6 rounded-full bg-gradient-to-b from-gray-400 to-gray-500"></div>
             <h4 className="text-lg font-semibold text-gray-900 dark:text-gray-100">Locked ({locked.length})</h4>
           </div>
-          <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-3">
+          <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
               {locked.map((achievement) => (
                 <div
                   key={achievement.id}
