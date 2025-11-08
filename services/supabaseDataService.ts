@@ -141,12 +141,19 @@ export async function getXPData(userId: string, profileId?: string | null): Prom
     
     // If no data (empty array), create default
     if (!data || data.length === 0) {
-      logger.info("No XP data found, creating default", { userId, profileId: effectiveProfileId });
+      logger.warn("No XP data found, creating default", { userId, profileId: effectiveProfileId });
       return await createDefaultXPData(userId, effectiveProfileId);
     }
     
     // Get first row
     const xpRow = data[0];
+    
+    logger.info("XP data fetched successfully", { 
+      userId, 
+      profileId: effectiveProfileId,
+      totalXP: xpRow.total_xp,
+      level: xpRow.level
+    });
 
     return {
       total_xp: xpRow.total_xp || 0,
@@ -156,7 +163,7 @@ export async function getXPData(userId: string, profileId?: string | null): Prom
       recent_gains: (xpRow.recent_gains as any) || [],
     };
   } catch (error) {
-    logger.error("Error in getXPData", { error, userId });
+    logger.error("Error in getXPData", { error, userId, profileId });
     return null;
   }
 }
@@ -166,6 +173,8 @@ export async function getXPData(userId: string, profileId?: string | null): Prom
  */
 async function createDefaultXPData(userId: string, profileId?: string | null): Promise<XPData> {
   try {
+    logger.info("Creating default XP data", { userId, profileId });
+    
     const supabase = await getSupabaseClient();
     if (!supabase) {
       logger.warn("Supabase client not available for creating default XP data");
@@ -242,10 +251,11 @@ async function createDefaultXPData(userId: string, profileId?: string | null): P
           };
         }
       }
-      logger.error("Error creating default XP data", { error: error.message, userId });
+      logger.error("Error creating default XP data", { error: error.message, code: error.code, userId, profileId });
       return defaultData;
     }
 
+    logger.info("Default XP data created successfully", { userId, profileId, totalXP: 0 });
     return {
       total_xp: data.total_xp || 0,
       level: data.level || 1,
@@ -254,7 +264,7 @@ async function createDefaultXPData(userId: string, profileId?: string | null): P
       recent_gains: (data.recent_gains as any) || [],
     };
   } catch (error) {
-    logger.error("Error creating default XP data", { error, userId });
+    logger.error("Exception in createDefaultXPData", { error, userId, profileId });
     return {
       total_xp: 0,
       level: 1,
