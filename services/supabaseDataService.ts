@@ -70,7 +70,9 @@ export async function getXPData(userId: string, profileId?: string | null): Prom
       query = query.eq("user_id", userId).is("student_profile_id", null);
     }
     
+    logger.info("Executing XP query", { userId, profileId: effectiveProfileId });
     const { data, error } = await query;
+    logger.info("XP query completed", { userId, profileId: effectiveProfileId, rowCount: data?.length, hasError: !!error });
 
     if (error) {
       logger.error("Error fetching XP data", { error: error.message, userId, profileId: effectiveProfileId });
