@@ -191,7 +191,17 @@ export default function DashboardContent({ onDifficultyChange }: DashboardConten
   }
 
   return (
-    <div className="p-4 space-y-4 pb-6">
+    <div className="p-4 space-y-4 pb-6 max-h-[700px] overflow-y-auto">
+      {/* Header */}
+      <div className="text-center mb-4">
+        <h2 className="text-2xl font-bold bg-gradient-to-r from-blue-600 to-cyan-600 dark:from-blue-400 dark:to-cyan-400 bg-clip-text text-transparent">
+          Learning Dashboard
+        </h2>
+        <p className="text-sm text-gray-600 dark:text-gray-400 mt-1">
+          Your complete learning analytics
+        </p>
+      </div>
+      
       {/* Overview Stats */}
       <div className="grid grid-cols-2 gap-3">
         <div className="p-3 bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-700 rounded-lg transition-colors">
