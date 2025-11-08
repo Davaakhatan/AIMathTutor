@@ -10,6 +10,7 @@ import { updateXPData, getXPData } from "./supabaseDataService";
 import { updateStreakData, getStreakData } from "./supabaseDataService";
 import { generateConversationSummary, saveConversationSummary } from "./conversationMemory";
 import { checkGoalsForProblem } from "./goalSystem";
+import { getSubjectRecommendations } from "./recommendationSystem";
 import type { Message } from "@/types";
 
 /**
@@ -147,11 +148,18 @@ export async function onGoalCompleted(
       profileId: goalData.profileId 
     });
 
-    // TODO: Recommend related subjects (Week 2)
-    // TODO: Generate share card (Week 3)
-    // TODO: Create practice assignment (Week 2)
+    // 1. Get subject recommendations (Week 2) - IMPLEMENTED
+    const recommendations = await getSubjectRecommendations(userId, goalData.profileId, 3);
+    logger.info("Recommendations generated for goal completion", { 
+      userId, 
+      recommendationCount: recommendations.length,
+      subjects: recommendations.map(r => r.subject)
+    });
 
-    logger.info("Goal completion orchestrated successfully", { userId });
+    // 2. TODO: Generate share card (Week 3)
+    // 3. TODO: Create practice assignment (advanced feature)
+
+    logger.info("Goal completion orchestrated successfully", { userId, recommendations: recommendations.length });
   } catch (error) {
     logger.error("Error orchestrating goal completion", { error, userId });
   }
