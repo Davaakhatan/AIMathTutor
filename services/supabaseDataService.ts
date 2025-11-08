@@ -496,6 +496,42 @@ export async function updateProblem(userId: string, problemId: string, updates: 
   }
 }
 
+/**
+ * Delete problem from Supabase
+ */
+export async function deleteProblem(userId: string, problemId: string, profileId?: string | null): Promise<boolean> {
+  try {
+    const supabase = await getSupabaseClient();
+    const effectiveProfileId = profileId !== undefined 
+      ? profileId 
+      : await getEffectiveProfileId();
+    
+    let query = supabase
+      .from("problems")
+      .delete()
+      .eq("id", problemId)
+      .eq("user_id", userId);
+    
+    if (effectiveProfileId) {
+      query = query.eq("student_profile_id", effectiveProfileId);
+    } else {
+      query = query.is("student_profile_id", null);
+    }
+
+    const { error } = await query;
+
+    if (error) {
+      logger.error("Error deleting problem", { error: error.message, userId, problemId });
+      return false;
+    }
+
+    return true;
+  } catch (error) {
+    logger.error("Error in deleteProblem", { error, userId, problemId });
+    return false;
+  }
+}
+
 // ============================================
 // ACHIEVEMENTS
 // ============================================

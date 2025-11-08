@@ -209,11 +209,10 @@ export default function BookmarkedProblems({ onSelectProblem }: BookmarkedProble
             <button
               onClick={() => {
                 if (confirm("Are you sure you want to remove all bookmarks?")) {
-                  // Clear bookmarks by unbookmarking all
+                  // Clear bookmarks by unbookmarking all (database sync handled by hook)
                   bookmarks.forEach(b => {
                     if (b.id) toggleBookmark(b.id, false);
                   });
-                  localStorage.setItem("aitutor-bookmarks", JSON.stringify([]));
                 }
               }}
               className="text-xs text-red-600 hover:text-red-700 transition-colors"
