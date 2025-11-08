@@ -3,6 +3,7 @@
 import { useState, useEffect } from "react";
 import { ProblemType, ParsedProblem } from "@/types";
 import { useLocalStorage } from "@/hooks/useLocalStorage";
+import { useProblemHistory } from "@/hooks/useProblemHistory";
 import AdaptiveProblemSuggestions from "../AdaptiveProblemSuggestions";
 
 interface SavedProblem {
@@ -29,7 +30,7 @@ const typeLabels: Record<string, string> = {
  * Suggestions Content - Problem suggestions based on learning history
  */
 export default function SuggestionsContent({ onSelectProblem }: SuggestionsContentProps) {
-  const [savedProblems] = useLocalStorage<SavedProblem[]>("aitutor-problem-history", []);
+  const { problems: savedProblems } = useProblemHistory();
   const [suggestions, setSuggestions] = useState<ProblemType[]>([]);
   const [isGenerating, setIsGenerating] = useState(false);
 

@@ -5,6 +5,7 @@ import { useAuth } from "@/contexts/AuthContext";
 import { usePanel } from "@/contexts/PanelContext";
 import AchievementsContent from "./AchievementsContent";
 import LeaderboardContent from "./LeaderboardContent";
+import XPContent from "./XPContent";
 
 interface GamificationHubProps {
   currentXP: number;
@@ -13,6 +14,7 @@ interface GamificationHubProps {
   currentStreak: number;
   isGuestMode?: boolean;
   onSignUpClick?: () => void;
+  onXPDataChange?: (data: { totalXP: number; level: number; problemsSolved: number }) => void;
 }
 
 /**
@@ -25,11 +27,12 @@ export default function GamificationHub({
   currentStreak,
   isGuestMode,
   onSignUpClick,
+  onXPDataChange,
 }: GamificationHubProps) {
   const { user } = useAuth();
   const { activePanel, setActivePanel, isAnyPanelOpen } = usePanel();
   const [isOpen, setIsOpen] = useState(false);
-  const [activeTab, setActiveTab] = useState<"achievements" | "leaderboard">("achievements");
+  const [activeTab, setActiveTab] = useState<"xp" | "achievements" | "leaderboard">("xp");
   const panelRef = useRef<HTMLDivElement>(null);
   
   // Calculate vertical position - stack below UserMenu (logged in) or AuthButton (guest mode)
@@ -113,6 +116,16 @@ export default function GamificationHub({
       <div className="flex items-center justify-between p-4 border-b border-gray-200 dark:border-gray-700">
         <div className="flex gap-1 bg-gray-100 dark:bg-gray-800 rounded-lg p-1 flex-1">
           <button
+            onClick={() => setActiveTab("xp")}
+            className={`flex-1 px-3 py-1.5 text-xs font-medium rounded-md transition-colors ${
+              activeTab === "xp"
+                ? "bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100 shadow-sm"
+                : "text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-gray-100"
+            }`}
+          >
+            XP & Level
+          </button>
+          <button
             onClick={() => setActiveTab("achievements")}
             className={`flex-1 px-3 py-1.5 text-xs font-medium rounded-md transition-colors ${
               activeTab === "achievements"
@@ -146,6 +159,7 @@ export default function GamificationHub({
 
       {/* Tab Content */}
       <div className="flex-1 overflow-hidden">
+        {activeTab === "xp" && <XPContent onXPDataChange={onXPDataChange} />}
         {activeTab === "achievements" && <AchievementsContent />}
         {activeTab === "leaderboard" && (
           <LeaderboardContent

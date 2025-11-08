@@ -237,25 +237,56 @@ export async function checkGoalProgress(
     const completedGoals: LearningGoal[] = [];
 
     for (const goal of activeGoals) {
+      // Improved matching logic - check multiple ways
+      const goalSubjectLower = goal.target_subject.toLowerCase().trim();
+      const problemTypeLower = problemType.toLowerCase().trim();
+      const subjectLower = subject?.toLowerCase().trim() || "";
+      
+      // Normalize common variations
+      const normalizeSubject = (s: string) => {
+        return s
+          .replace(/\s+/g, " ")
+          .replace(/[^a-z0-9\s]/g, "")
+          .trim();
+      };
+      
+      const normalizedGoal = normalizeSubject(goalSubjectLower);
+      const normalizedProblem = normalizeSubject(problemTypeLower);
+      const normalizedSubject = subjectLower ? normalizeSubject(subjectLower) : "";
+      
       // Check if this problem type/subject matches the goal
       const matchesGoal =
-        goal.target_subject.toLowerCase().includes(problemType.toLowerCase()) ||
-        problemType.toLowerCase().includes(goal.target_subject.toLowerCase()) ||
-        (subject && goal.target_subject.toLowerCase().includes(subject.toLowerCase()));
+        // Direct match
+        normalizedGoal === normalizedProblem ||
+        normalizedGoal === normalizedSubject ||
+        // Contains match (more flexible)
+        normalizedGoal.includes(normalizedProblem) ||
+        normalizedProblem.includes(normalizedGoal) ||
+        normalizedGoal.includes(normalizedSubject) ||
+        normalizedSubject.includes(normalizedGoal) ||
+        // Check common subject aliases
+        (normalizedGoal.includes("algebra") && (normalizedProblem.includes("algebra") || normalizedSubject.includes("algebra"))) ||
+        (normalizedGoal.includes("geometry") && (normalizedProblem.includes("geometry") || normalizedSubject.includes("geometry"))) ||
+        (normalizedGoal.includes("calculus") && (normalizedProblem.includes("calculus") || normalizedSubject.includes("calculus"))) ||
+        (normalizedGoal.includes("trig") && (normalizedProblem.includes("trig") || normalizedSubject.includes("trig")));
 
       if (matchesGoal) {
         // Simple progress update: increment by 5% per problem (can be made smarter)
         const newProgress = Math.min(100, goal.progress + 5);
 
+        // Auto-complete goal if progress reaches 100%
+        const shouldComplete = newProgress >= 100;
+
         const updatedGoal = await updateGoal(userId, goal.id, {
           progress: newProgress,
+          status: shouldComplete ? "completed" : undefined,
         });
 
         if (updatedGoal) {
           updatedGoals.push(updatedGoal);
 
           // If goal is now complete, add to completed goals
-          if (updatedGoal.status === "completed") {
+          if (updatedGoal.status === "completed" || shouldComplete) {
             completedGoals.push(updatedGoal);
           }
         }

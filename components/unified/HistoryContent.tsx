@@ -3,15 +3,18 @@
 import { useState, useEffect } from "react";
 import { ParsedProblem, ProblemType } from "@/types";
 import { useLocalStorage } from "@/hooks/useLocalStorage";
+import { useProblemHistory } from "@/hooks/useProblemHistory";
 
 interface SavedProblem extends ParsedProblem {
   savedAt: number;
   id: string;
+  isBookmarked?: boolean;
 }
 
 interface BookmarkedProblem extends ParsedProblem {
   bookmarkedAt: number;
   id: string;
+  isBookmarked?: boolean;
 }
 
 interface HistoryContentProps {
@@ -26,8 +29,13 @@ type ViewMode = "all" | "bookmarked";
  * History Content - Problem history and bookmarks
  */
 export default function HistoryContent({ onSelectProblem }: HistoryContentProps) {
-  const [savedProblems, setSavedProblems] = useLocalStorage<SavedProblem[]>("aitutor-problem-history", []);
-  const [bookmarks, setBookmarks] = useLocalStorage<BookmarkedProblem[]>("aitutor-bookmarks", []);
+  const { problems: savedProblems, toggleBookmark } = useProblemHistory();
+  
+  // Get bookmarks from problems (filtered by isBookmarked flag)
+  const bookmarks = savedProblems.filter(p => p.isBookmarked).map(p => ({
+    ...p,
+    bookmarkedAt: p.savedAt || Date.now(),
+  }));
   const [filter, setFilter] = useState<string>("");
   const [sortBy, setSortBy] = useState<SortOption>("recent");
   const [filterType, setFilterType] = useState<FilterType>("all");
@@ -39,15 +47,12 @@ export default function HistoryContent({ onSelectProblem }: HistoryContentProps)
     setIsMounted(true);
   }, []);
 
-  // Combine saved problems and bookmarks, mark which are bookmarked
-  const allProblems = [
-    ...savedProblems.map(p => ({ ...p, isBookmarked: bookmarks.some(b => b.text === p.text) })),
-    ...bookmarks.filter(b => !savedProblems.some(p => p.text === b.text)).map(b => ({ 
-      ...b, 
-      savedAt: b.bookmarkedAt,
-      isBookmarked: true 
-    }))
-  ];
+  // All problems from history (bookmarks are already included with isBookmarked flag)
+  const allProblems = savedProblems.map(p => ({
+    ...p,
+    savedAt: p.savedAt || Date.now(),
+    isBookmarked: p.isBookmarked || false,
+  }));
 
   const filteredProblems = allProblems
     .filter((p) => {
@@ -77,26 +82,21 @@ export default function HistoryContent({ onSelectProblem }: HistoryContentProps)
     });
 
   const handleDelete = (id: string) => {
-    setSavedProblems((prev) => prev.filter((p) => p.id !== id));
-    // Also remove from bookmarks if bookmarked
-    setBookmarks((prev) => prev.filter((b) => b.id !== id));
+    // Note: Deleting from history - this would need to be implemented in the hook
+    // For now, just update localStorage (hook will handle DB sync when implemented)
+    try {
+      const history = JSON.parse(localStorage.getItem("aitutor-problem-history") || "[]");
+      const updated = history.filter((p: any) => p.id !== id);
+      localStorage.setItem("aitutor-problem-history", JSON.stringify(updated));
+    } catch (error) {
+      console.error("Error deleting problem from history", error);
+    }
   };
 
   const handleToggleBookmark = (problem: SavedProblem | BookmarkedProblem, e: React.MouseEvent) => {
     e.stopPropagation();
-    const isBookmarked = bookmarks.some(b => b.text === problem.text);
-    
-    if (isBookmarked) {
-      // Remove bookmark
-      setBookmarks((prev) => prev.filter((b) => b.text !== problem.text));
-    } else {
-      // Add bookmark
-      const newBookmark: BookmarkedProblem = {
-        ...problem,
-        id: problem.id || Date.now().toString(),
-        bookmarkedAt: Date.now(),
-      };
-      setBookmarks((prev) => [newBookmark, ...prev]);
+    if (problem.id) {
+      toggleBookmark(problem.id, !problem.isBookmarked);
     }
   };
 
@@ -197,10 +197,20 @@ export default function HistoryContent({ onSelectProblem }: HistoryContentProps)
                       ? "Clear all bookmarks?" 
                       : "Clear all problem history?";
                     if (confirm(message)) {
-                      if (viewMode === "bookmarked") {
-                        setBookmarks([]);
-                      } else {
-                        setSavedProblems([]);
+                      try {
+                        if (viewMode === "bookmarked") {
+                          // Clear bookmarks by unbookmarking all
+                          savedProblems.filter(p => p.isBookmarked).forEach(p => {
+                            if (p.id) toggleBookmark(p.id, false);
+                          });
+                          localStorage.setItem("aitutor-bookmarks", JSON.stringify([]));
+                        } else {
+                          // Clear all history
+                          localStorage.setItem("aitutor-problem-history", JSON.stringify([]));
+                          localStorage.setItem("aitutor-bookmarks", JSON.stringify([]));
+                        }
+                      } catch (error) {
+                        console.error("Error clearing history/bookmarks", error);
                       }
                     }
                   }}

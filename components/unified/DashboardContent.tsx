@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from "react";
 import { useLocalStorage } from "@/hooks/useLocalStorage";
+import { useProblemHistory } from "@/hooks/useProblemHistory";
 import { ProblemType } from "@/types";
 import { getAllConcepts, getConceptsByCategory, getConceptsNeedingPractice, ConceptTrackingData } from "@/services/conceptTracker";
 import ProgressVisualization from "../ProgressVisualization";
@@ -59,7 +60,7 @@ interface DashboardContentProps {
 }
 
 export default function DashboardContent({ onDifficultyChange }: DashboardContentProps = {}) {
-  const [savedProblems] = useLocalStorage<SavedProblem[]>("aitutor-problem-history", []);
+  const { problems: savedProblems } = useProblemHistory();
   const [xpData] = useLocalStorage<XPData>("aitutor-xp", { totalXP: 0, level: 1, xpHistory: [] });
   const [streakData] = useLocalStorage<StreakData>("aitutor-streak", { currentStreak: 0, longestStreak: 0, lastStudyDate: 0 });
   const [conceptData] = useLocalStorage<ConceptTrackingData>("aitutor-concepts", { concepts: {}, lastUpdated: Date.now() });
@@ -90,15 +91,15 @@ export default function DashboardContent({ onDifficultyChange }: DashboardConten
       return !isNaN(testDate.getTime());
     });
     
-    const sortedProblems = [...validProblems].sort((a, b) => a.savedAt - b.savedAt);
+    const sortedProblems = [...validProblems].sort((a, b) => (a.savedAt || 0) - (b.savedAt || 0));
 
     sortedProblems.forEach((problem) => {
       // Count by type
       const type = problem.type || "UNKNOWN";
       problemsByType[type] = (problemsByType[type] || 0) + 1;
 
-      // Count by difficulty
-      const difficulty = problem.difficulty || "medium";
+      // Count by difficulty (if available)
+      const difficulty = (problem as any).difficulty || "medium";
       problemsByDifficulty[difficulty] = (problemsByDifficulty[difficulty] || 0) + 1;
 
       // Daily activity - validate date before using
@@ -124,8 +125,8 @@ export default function DashboardContent({ onDifficultyChange }: DashboardConten
 
       // Estimate time (rough estimate: 5 minutes per problem)
       totalTime += 5;
-      totalExchanges += problem.exchanges || 5;
-      totalHints += problem.hintsUsed || 0;
+      totalExchanges += (problem as any).exchanges || 5;
+      totalHints += (problem as any).hintsUsed || 0;
       problemsSolved++;
     });
 
@@ -143,8 +144,8 @@ export default function DashboardContent({ onDifficultyChange }: DashboardConten
     
     let improvementTrend: "improving" | "stable" | "declining" = "stable";
     if (recentProblems.length > 0 && olderProblems.length > 0) {
-      const recentAvgHints = recentProblems.reduce((sum, p) => sum + (p.hintsUsed || 0), 0) / recentProblems.length;
-      const olderAvgHints = olderProblems.reduce((sum, p) => sum + (p.hintsUsed || 0), 0) / olderProblems.length;
+      const recentAvgHints = recentProblems.reduce((sum, p) => sum + ((p as any).hintsUsed || 0), 0) / recentProblems.length;
+      const olderAvgHints = olderProblems.reduce((sum, p) => sum + ((p as any).hintsUsed || 0), 0) / olderProblems.length;
       
       if (recentAvgHints < olderAvgHints * 0.8) improvementTrend = "improving";
       else if (recentAvgHints > olderAvgHints * 1.2) improvementTrend = "declining";

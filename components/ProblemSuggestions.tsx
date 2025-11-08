@@ -3,6 +3,7 @@
 import { useState, useEffect, useRef } from "react";
 import { ParsedProblem, ProblemType } from "@/types";
 import { useLocalStorage } from "@/hooks/useLocalStorage";
+import { useProblemHistory } from "@/hooks/useProblemHistory";
 
 interface SavedProblem {
   id: string;
@@ -30,7 +31,7 @@ const typeLabels: Record<string, string> = {
  */
 export default function ProblemSuggestions({ onSelectProblem }: ProblemSuggestionsProps) {
   const [isOpen, setIsOpen] = useState(false);
-  const [savedProblems] = useLocalStorage<SavedProblem[]>("aitutor-problem-history", []);
+  const { problems: savedProblems } = useProblemHistory();
   const [suggestions, setSuggestions] = useState<ProblemType[]>([]);
   const [isGenerating, setIsGenerating] = useState(false);
   const panelRef = useRef<HTMLDivElement>(null);

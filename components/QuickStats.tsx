@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from "react";
 import { useLocalStorage } from "@/hooks/useLocalStorage";
+import { useProblemHistory } from "@/hooks/useProblemHistory";
 
 interface QuickStatsProps {
   compact?: boolean;
@@ -14,7 +15,7 @@ export default function QuickStats({ compact = false }: QuickStatsProps) {
   const [isExpanded, setIsExpanded] = useState(false);
   const [xpData] = useLocalStorage<any>("aitutor-xp", { totalXP: 0, level: 1 });
   const [streakData] = useLocalStorage<any>("aitutor-streak", { currentStreak: 0, longestStreak: 0 });
-  const [savedProblems] = useLocalStorage<any[]>("aitutor-problem-history", []);
+  const { problems: savedProblems } = useProblemHistory();
 
   const stats = {
     level: xpData.level || 1,

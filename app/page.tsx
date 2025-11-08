@@ -174,7 +174,8 @@ function HomeContentInternal() {
   };
 
   const handleProblemParsed = async (problem: ParsedProblem) => {
-    // Auto-save to history
+    // Auto-save to history (will sync to database via useProblemHistory hook)
+    // For now, keep localStorage for immediate UI update, but the hook will handle DB sync
     try {
       const history = JSON.parse(localStorage.getItem("aitutor-problem-history") || "[]");
       const newProblem = {
@@ -184,6 +185,25 @@ function HomeContentInternal() {
       };
       const updatedHistory = [newProblem, ...history.filter((p: any) => p.text !== problem.text)].slice(0, 20);
       localStorage.setItem("aitutor-problem-history", JSON.stringify(updatedHistory));
+      
+      // Also save to database if authenticated (via service)
+      if (user && activeProfile) {
+        try {
+          const { saveProblem } = await import("@/services/supabaseDataService");
+          await saveProblem(user.id, {
+            text: problem.text,
+            type: problem.type || "unknown",
+            image_url: problem.imageUrl,
+            parsed_data: problem,
+            is_bookmarked: false,
+            is_generated: false,
+            source: "user_input",
+          }, activeProfile.id);
+        } catch (error) {
+          console.error("Error saving problem to database:", error);
+          // Continue - localStorage is fallback
+        }
+      }
       
       // Dispatch event for StudyStreak tracking
       window.dispatchEvent(new CustomEvent("problemStarted"));
@@ -683,21 +703,9 @@ function HomeContentInternal() {
             }}
           />
 
-          {/* Unified Settings Menu (Settings + Notifications + XP) */}
+          {/* Unified Settings Menu (Settings + Notifications) */}
           <SettingsMenu 
             key={`settings-menu-${activeProfile?.id || 'none'}`}
-            onXPDataChange={(data) => {
-              setXPData((prev) => {
-                if (
-                  prev.totalXP !== data.totalXP ||
-                  prev.level !== data.level ||
-                  prev.problemsSolved !== data.problemsSolved
-                ) {
-                  return data;
-                }
-                return prev;
-              });
-            }}
             isGuestMode={isGuestMode && !user}
             onSignUpClick={() => {
               setAuthModalMode("signup");
@@ -765,6 +773,23 @@ function HomeContentInternal() {
             onSignUpClick={() => {
               setAuthModalMode("signup");
               setAuthModalOpen(true);
+            }}
+            onXPDataChange={(data) => {
+              setXPData((prev) => {
+                if (
+                  prev.totalXP !== data.totalXP ||
+                  prev.level !== data.level ||
+                  prev.problemsSolved !== data.problemsSolved
+                ) {
+                  return {
+                    ...prev,
+                    totalXP: data.totalXP,
+                    level: data.level,
+                    problemsSolved: data.problemsSolved,
+                  };
+                }
+                return prev;
+              });
             }}
           />
 

@@ -2,6 +2,7 @@
 
 import { useState, useEffect, useRef } from "react";
 import { useLocalStorage } from "@/hooks/useLocalStorage";
+import { useProblemHistory } from "@/hooks/useProblemHistory";
 import { useAuth } from "@/contexts/AuthContext";
 import { usePanel } from "@/contexts/PanelContext";
 import { ParsedProblem } from "@/types";
@@ -27,8 +28,8 @@ export default function ToolsMenu({ onSelectProblem, isGuestMode }: ToolsMenuPro
   const [activeTab, setActiveTab] = useState<"search" | "history" | "tips" | "formulas">("search");
   const panelRef = useRef<HTMLDivElement>(null);
   const [query, setQuery] = useState("");
-  const [savedProblems] = useLocalStorage<SavedProblem[]>("aitutor-problem-history", []);
-  const [bookmarks] = useLocalStorage<SavedProblem[]>("aitutor-bookmarks", []);
+  const { problems: savedProblems } = useProblemHistory();
+  const bookmarks = savedProblems.filter(p => p.isBookmarked);
   const [currentTip, setCurrentTip] = useState(0);
   const [showShortcuts, setShowShortcuts] = useState(false);
   const [selectedCategory, setSelectedCategory] = useState<string>("All");

@@ -1,9 +1,11 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { ParsedProblem } from "@/types";
-import { useLocalStorage } from "@/hooks/useLocalStorage";
 import { useToast } from "@/hooks/useToast";
+import { useAuth } from "@/contexts/AuthContext";
+import { updateProblem } from "@/services/supabaseDataService";
+import { logger } from "@/lib/logger";
 
 interface BookmarkButtonProps {
   problem: ParsedProblem | null;
@@ -18,29 +20,91 @@ interface BookmarkedProblem extends ParsedProblem {
  * Bookmark/favorite a problem for quick access
  */
 export default function BookmarkButton({ problem }: BookmarkButtonProps) {
-  const [bookmarks, setBookmarks] = useLocalStorage<BookmarkedProblem[]>("aitutor-bookmarks", []);
+  const { user, activeProfile } = useAuth();
   const { showToast } = useToast();
+  const [isBookmarked, setIsBookmarked] = useState(false);
+  const [isToggling, setIsToggling] = useState(false);
 
-  if (!problem) return null;
+  // Check if problem is bookmarked (from localStorage for now, will be from DB)
+  useEffect(() => {
+    if (!problem) return;
+    
+    try {
+      const bookmarks = JSON.parse(localStorage.getItem("aitutor-bookmarks") || "[]");
+      const problemHistory = JSON.parse(localStorage.getItem("aitutor-problem-history") || "[]");
+      
+      // Check both bookmarks array and problem history for bookmark flag
+      const isInBookmarks = bookmarks.some((b: any) => b.text === problem.text);
+      const problemInHistory = problemHistory.find((p: any) => p.text === problem.text);
+      const isBookmarkedInHistory = problemInHistory?.isBookmarked || false;
+      
+      setIsBookmarked(isInBookmarks || isBookmarkedInHistory);
+    } catch (error) {
+      logger.error("Error checking bookmark status", { error });
+    }
+  }, [problem]);
 
-  const isBookmarked = bookmarks.some((b) => b.text === problem.text);
+  const handleToggle = async () => {
+    if (!problem || isToggling) return;
 
-  const handleToggle = () => {
-    if (isBookmarked) {
-      // Remove bookmark
-      setBookmarks((prev) => prev.filter((b) => b.text !== problem.text));
-      showToast("Bookmark removed", "info");
-    } else {
-      // Add bookmark
-      const newBookmark: BookmarkedProblem = {
-        ...problem,
-        id: Date.now().toString(),
-        bookmarkedAt: Date.now(),
-      };
-      setBookmarks((prev) => [newBookmark, ...prev]);
-      showToast("Problem bookmarked!", "success");
+    setIsToggling(true);
+    const newBookmarkState = !isBookmarked;
+
+    try {
+      // Update localStorage immediately (optimistic update)
+      const problemHistory = JSON.parse(localStorage.getItem("aitutor-problem-history") || "[]");
+      const updatedHistory = problemHistory.map((p: any) =>
+        p.text === problem.text ? { ...p, isBookmarked: newBookmarkState } : p
+      );
+      localStorage.setItem("aitutor-problem-history", JSON.stringify(updatedHistory));
+
+      // Update bookmarks array
+      const bookmarks = JSON.parse(localStorage.getItem("aitutor-bookmarks") || "[]");
+      if (newBookmarkState) {
+        // Add to bookmarks if not already there
+        if (!bookmarks.some((b: any) => b.text === problem.text)) {
+          const newBookmark: BookmarkedProblem = {
+            ...problem,
+            id: Date.now().toString(),
+            bookmarkedAt: Date.now(),
+          };
+          localStorage.setItem("aitutor-bookmarks", JSON.stringify([newBookmark, ...bookmarks]));
+        }
+      } else {
+        // Remove from bookmarks
+        localStorage.setItem("aitutor-bookmarks", JSON.stringify(bookmarks.filter((b: any) => b.text !== problem.text)));
+      }
+
+      setIsBookmarked(newBookmarkState);
+      showToast(newBookmarkState ? "Problem bookmarked!" : "Bookmark removed", newBookmarkState ? "success" : "info");
+
+      // Update database if authenticated
+      if (user) {
+        try {
+          // Find problem ID in history
+          const problemInHistory = problemHistory.find((p: any) => p.text === problem.text);
+          if (problemInHistory?.id) {
+            await updateProblem(user.id, problemInHistory.id, {
+              is_bookmarked: newBookmarkState,
+            });
+          } else {
+            // Problem not in database yet, but that's okay - it will be saved when problem is solved
+            logger.debug("Problem not found in database for bookmark update", { problemText: problem.text });
+          }
+        } catch (error) {
+          logger.error("Error updating bookmark in database", { error });
+          // Don't revert - localStorage is the fallback
+        }
+      }
+    } catch (error) {
+      logger.error("Error toggling bookmark", { error });
+      showToast("Error updating bookmark", "error");
+    } finally {
+      setIsToggling(false);
     }
   };
+
+  if (!problem) return null;
 
   return (
     <button

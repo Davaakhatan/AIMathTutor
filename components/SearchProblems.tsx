@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from "react";
 import { useLocalStorage } from "@/hooks/useLocalStorage";
+import { useProblemHistory } from "@/hooks/useProblemHistory";
 import { ParsedProblem } from "@/types";
 
 interface SavedProblem extends ParsedProblem {
@@ -19,8 +20,8 @@ interface SearchProblemsProps {
 export default function SearchProblems({ onSelectProblem }: SearchProblemsProps) {
   const [isOpen, setIsOpen] = useState(false);
   const [query, setQuery] = useState("");
-  const [savedProblems] = useLocalStorage<SavedProblem[]>("aitutor-problem-history", []);
-  const [bookmarks] = useLocalStorage<SavedProblem[]>("aitutor-bookmarks", []);
+  const { problems: savedProblems } = useProblemHistory();
+  const bookmarks = savedProblems.filter(p => p.isBookmarked);
 
   const allProblems = [...bookmarks.map((b) => ({ ...b, isBookmarked: true })), ...savedProblems.map((p) => ({ ...p, isBookmarked: false }))];
   

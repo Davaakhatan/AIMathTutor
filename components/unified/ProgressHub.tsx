@@ -2,6 +2,7 @@
 
 import { useState, useEffect, useRef } from "react";
 import { useLocalStorage } from "@/hooks/useLocalStorage";
+import { useProblemHistory } from "@/hooks/useProblemHistory";
 
 interface DailyGoal {
   problems: number;
@@ -54,7 +55,7 @@ export default function ProgressHub({
     longestStreak: 0,
     lastStudyDate: 0,
   });
-  const [savedProblems] = useLocalStorage<any[]>("aitutor-problem-history", []);
+  const { problems: savedProblems } = useProblemHistory();
 
   // Goals
   const [goals, setGoals] = useLocalStorage<DailyGoal>("aitutor-daily-goals", {

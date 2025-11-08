@@ -2,6 +2,7 @@
 
 import { useState, useEffect, useRef } from "react";
 import { useLocalStorage } from "@/hooks/useLocalStorage";
+import { useProblemHistory } from "@/hooks/useProblemHistory";
 import { ParsedProblem, ProblemType } from "@/types";
 
 interface BookmarkedProblem extends ParsedProblem {
@@ -18,7 +19,11 @@ interface BookmarkedProblemsProps {
  */
 export default function BookmarkedProblems({ onSelectProblem }: BookmarkedProblemsProps) {
   const [isOpen, setIsOpen] = useState(false);
-  const [bookmarks, setBookmarks] = useLocalStorage<BookmarkedProblem[]>("aitutor-bookmarks", []);
+  const { problems: savedProblems, toggleBookmark } = useProblemHistory();
+  const bookmarks = savedProblems.filter(p => p.isBookmarked).map(p => ({
+    ...p,
+    bookmarkedAt: p.savedAt || Date.now(),
+  }));
   const [sortBy, setSortBy] = useState<"recent" | "type">("recent");
   const panelRef = useRef<HTMLDivElement>(null);
 
@@ -53,7 +58,9 @@ export default function BookmarkedProblems({ onSelectProblem }: BookmarkedProble
 
   const handleRemoveBookmark = (id: string, e: React.MouseEvent) => {
     e.stopPropagation();
-    setBookmarks((prev) => prev.filter((b) => b.id !== id));
+    if (id) {
+      toggleBookmark(id, false);
+    }
   };
 
   const handleSelectProblem = (problem: BookmarkedProblem) => {
@@ -202,7 +209,11 @@ export default function BookmarkedProblems({ onSelectProblem }: BookmarkedProble
             <button
               onClick={() => {
                 if (confirm("Are you sure you want to remove all bookmarks?")) {
-                  setBookmarks([]);
+                  // Clear bookmarks by unbookmarking all
+                  bookmarks.forEach(b => {
+                    if (b.id) toggleBookmark(b.id, false);
+                  });
+                  localStorage.setItem("aitutor-bookmarks", JSON.stringify([]));
                 }
               }}
               className="text-xs text-red-600 hover:text-red-700 transition-colors"

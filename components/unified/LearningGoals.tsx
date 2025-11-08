@@ -1,7 +1,9 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { useAuth } from "@/contexts/AuthContext";
+import { useToast } from "@/hooks/useToast";
+import Toast from "@/components/Toast";
 import { logger } from "@/lib/logger";
 
 interface LearningGoal {
@@ -28,13 +30,25 @@ interface LearningGoalsProps {
  * Learning Goals Component
  * Allows users to create, view, and track learning goals
  */
+interface SubjectRecommendation {
+  subject: string;
+  reason: string;
+  priority: "high" | "medium" | "low";
+  relatedConcepts?: string[];
+}
+
 export default function LearningGoals({ isGuestMode = false, onSignUpClick }: LearningGoalsProps) {
   const { user, activeProfile } = useAuth();
+  const { toasts, showToast, removeToast } = useToast();
   const [goals, setGoals] = useState<LearningGoal[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [showCreateForm, setShowCreateForm] = useState(false);
   const [isCreating, setIsCreating] = useState(false);
+  const [completedGoalId, setCompletedGoalId] = useState<string | null>(null);
+  const [recommendations, setRecommendations] = useState<SubjectRecommendation[]>([]);
+  const [showRecommendations, setShowRecommendations] = useState(false);
+  const prevGoalsRef = useRef<LearningGoal[]>([]);
 
   // Form state
   const [goalType, setGoalType] = useState<LearningGoal["goal_type"]>("subject_mastery");
@@ -70,12 +84,105 @@ export default function LearningGoals({ isGuestMode = false, onSignUpClick }: Le
         throw new Error(data.error || "Failed to load goals");
       }
 
-      setGoals(data.goals || []);
+      const newGoals = data.goals || [];
+      setGoals(newGoals);
+
+      // Check for newly completed goals
+      const prevGoals = prevGoalsRef.current;
+      const newlyCompleted = newGoals.filter(
+        (g: LearningGoal) =>
+          g.status === "completed" &&
+          !prevGoals.find((pg) => pg.id === g.id && pg.status === "completed")
+      );
+
+      // Show celebration and fetch recommendations for newly completed goals
+      if (newlyCompleted.length > 0) {
+        const completedGoal = newlyCompleted[0];
+        setCompletedGoalId(completedGoal.id);
+        
+        // Show celebration toast
+        showToast(
+          `Goal completed! You've mastered ${completedGoal.target_subject}!`,
+          "success",
+          5000
+        );
+
+        // Fetch recommendations
+        fetchRecommendations(completedGoal);
+      }
+
+      prevGoalsRef.current = newGoals;
     } catch (err) {
       logger.error("Error loading goals", { error: err });
       setError(err instanceof Error ? err.message : "Failed to load goals");
     } finally {
       setLoading(false);
+    }
+  };
+
+  const fetchRecommendations = async (goal: LearningGoal) => {
+    if (!user) return;
+
+    try {
+      const params = new URLSearchParams({
+        userId: user.id,
+        ...(activeProfile?.id && { profileId: activeProfile.id }),
+        subject: goal.target_subject,
+        goalType: goal.goal_type,
+      });
+
+      const response = await fetch(`/api/companion/recommendations?${params}`);
+      const data = await response.json();
+
+      if (response.ok && data.recommendations) {
+        setRecommendations(data.recommendations);
+        setShowRecommendations(true);
+      }
+    } catch (err) {
+      logger.error("Error fetching recommendations", { error: err });
+    }
+  };
+
+  const handleCreateGoalFromRecommendation = async (subject: string) => {
+    if (!user) return;
+
+    try {
+      setIsCreating(true);
+      setError(null);
+
+      const response = await fetch("/api/companion/goals", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          userId: user.id,
+          profileId: activeProfile?.id || null,
+          goal_type: "subject_mastery",
+          target_subject: subject,
+          target_date: null,
+          metadata: {},
+        }),
+      });
+
+      const data = await response.json();
+
+      if (!response.ok) {
+        throw new Error(data.error || "Failed to create goal");
+      }
+
+      // Reload goals
+      await loadGoals();
+
+      // Close recommendations
+      setShowRecommendations(false);
+      setCompletedGoalId(null);
+      setRecommendations([]);
+
+      showToast(`New goal created: Master ${subject}`, "success");
+    } catch (err) {
+      logger.error("Error creating goal from recommendation", { error: err });
+      setError(err instanceof Error ? err.message : "Failed to create goal");
+    } finally {
+      setIsCreating(false);
     }
   };
 
@@ -226,6 +333,81 @@ export default function LearningGoals({ isGuestMode = false, onSignUpClick }: Le
 
   return (
     <div className="p-4 space-y-4">
+      {/* Recommendations Modal */}
+      {showRecommendations && recommendations.length > 0 && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
+          <div className="bg-white dark:bg-gray-900 rounded-lg shadow-xl max-w-md w-full p-6 space-y-4">
+            <div className="flex items-center justify-between">
+              <h3 className="text-lg font-semibold text-gray-900 dark:text-gray-100">
+                What&apos;s Next?
+              </h3>
+              <button
+                onClick={() => {
+                  setShowRecommendations(false);
+                  setCompletedGoalId(null);
+                  setRecommendations([]);
+                }}
+                className="text-gray-400 dark:text-gray-500 hover:text-gray-600 dark:hover:text-gray-300"
+              >
+                <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                </svg>
+              </button>
+            </div>
+            <p className="text-sm text-gray-600 dark:text-gray-400">
+              Great job completing your goal! Here are some subjects to try next:
+            </p>
+            <div className="space-y-2">
+              {recommendations.map((rec, index) => (
+                <button
+                  key={index}
+                  onClick={() => handleCreateGoalFromRecommendation(rec.subject)}
+                  disabled={isCreating}
+                  className="w-full text-left p-3 bg-gray-50 dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors"
+                >
+                  <div className="flex items-start justify-between">
+                    <div className="flex-1">
+                      <p className="text-sm font-medium text-gray-900 dark:text-gray-100">
+                        {rec.subject}
+                      </p>
+                      <p className="text-xs text-gray-600 dark:text-gray-400 mt-1">
+                        {rec.reason}
+                      </p>
+                    </div>
+                    {rec.priority === "high" && (
+                      <span className="ml-2 px-2 py-0.5 bg-blue-100 dark:bg-blue-900/30 text-blue-700 dark:text-blue-300 rounded text-xs font-medium">
+                        Recommended
+                      </span>
+                    )}
+                  </div>
+                </button>
+              ))}
+            </div>
+            <button
+              onClick={() => {
+                setShowRecommendations(false);
+                setCompletedGoalId(null);
+                setRecommendations([]);
+              }}
+              className="w-full px-4 py-2 bg-gray-200 dark:bg-gray-700 text-gray-700 dark:text-gray-300 rounded-lg hover:bg-gray-300 dark:hover:bg-gray-600 transition-colors text-sm font-medium"
+            >
+              Maybe Later
+            </button>
+          </div>
+        </div>
+      )}
+
+      {/* Toast Notifications */}
+      {toasts.map((toast) => (
+        <Toast
+          key={toast.id}
+          message={toast.message}
+          type={toast.type}
+          duration={toast.duration}
+          onClose={() => removeToast(toast.id)}
+        />
+      ))}
+
       {/* Header */}
       <div className="flex items-center justify-between">
         <div>

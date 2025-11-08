@@ -6,12 +6,10 @@ import { useAuth } from "@/contexts/AuthContext";
 import { usePanel } from "@/contexts/PanelContext";
 import SettingsContent from "./SettingsContent";
 import NotificationsContent from "./NotificationsContent";
-import XPContent from "./XPContent";
 import RemindersContent from "./RemindersContent";
 import ProfileManager from "@/components/auth/ProfileManager";
 
 interface SettingsMenuProps {
-  onXPDataChange?: (data: { totalXP: number; level: number; problemsSolved: number }) => void;
   isGuestMode?: boolean;
   onSignUpClick?: () => void;
 }
@@ -19,11 +17,11 @@ interface SettingsMenuProps {
 /**
  * Unified Settings Menu - Combines Settings, Notifications, XP System, and Reminders
  */
-export default function SettingsMenu({ onXPDataChange, isGuestMode, onSignUpClick }: SettingsMenuProps) {
+export default function SettingsMenu({ isGuestMode, onSignUpClick }: SettingsMenuProps) {
   const { user } = useAuth();
   const { activePanel, setActivePanel, isAnyPanelOpen } = usePanel();
   const [isOpen, setIsOpen] = useState(false);
-  const [activeTab, setActiveTab] = useState<"settings" | "notifications" | "xp" | "reminders" | "profiles">("settings");
+  const [activeTab, setActiveTab] = useState<"settings" | "notifications" | "reminders" | "profiles">("settings");
   const panelRef = useRef<HTMLDivElement>(null);
   const [isMounted, setIsMounted] = useState(false);
   const [xpData] = useLocalStorage<any>("aitutor-xp", { totalXP: 0, level: 1, problemsSolved: 0 });
@@ -76,16 +74,6 @@ export default function SettingsMenu({ onXPDataChange, isGuestMode, onSignUpClic
   // Adjust z-index: buttons behind panel when another panel is open
   const buttonZIndex = isAnyPanelOpen && activePanel !== "settings" ? 20 : 60;
 
-  // Handle XP data change
-  useEffect(() => {
-    if (onXPDataChange && xpData) {
-      onXPDataChange({
-        totalXP: xpData.totalXP || 0,
-        level: xpData.level || 1,
-        problemsSolved: xpData.problemsSolved || 0,
-      });
-    }
-  }, [xpData, onXPDataChange]);
 
   if (!isOpen) {
     return (
@@ -163,17 +151,6 @@ export default function SettingsMenu({ onXPDataChange, isGuestMode, onSignUpClic
             )}
           </button>
           <button
-            onClick={() => setActiveTab("xp")}
-            className={`flex-1 px-2 py-1.5 text-xs font-medium rounded-md transition-colors leading-tight ${
-              activeTab === "xp"
-                ? "bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100 shadow-sm"
-                : "text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-gray-100"
-            }`}
-          >
-            <span className="block">XP &</span>
-            <span className="block">Level</span>
-          </button>
-          <button
             onClick={() => setActiveTab("reminders")}
             className={`flex-1 px-2 py-1.5 text-xs font-medium rounded-md transition-colors ${
               activeTab === "reminders"
@@ -211,7 +188,6 @@ export default function SettingsMenu({ onXPDataChange, isGuestMode, onSignUpClic
       <div className="flex-1 overflow-y-auto min-h-0" style={{ WebkitOverflowScrolling: 'touch' }}>
         {activeTab === "settings" && <SettingsContent />}
         {activeTab === "notifications" && <NotificationsContent />}
-        {activeTab === "xp" && <XPContent onXPDataChange={onXPDataChange} />}
         {activeTab === "reminders" && <RemindersContent />}
         {activeTab === "profiles" && user && (
           <div className="p-4 pb-6">

@@ -2,6 +2,8 @@
 
 import { useState, useEffect } from "react";
 import { useLocalStorage } from "@/hooks/useLocalStorage";
+import { useAchievements } from "@/hooks/useAchievements";
+import { useProblemHistory } from "@/hooks/useProblemHistory";
 import { useAuth } from "@/contexts/AuthContext";
 import { ALL_ACHIEVEMENTS, checkAchievements, type Achievement } from "@/services/achievementService";
 import ShareCard from "@/components/ShareCard";
@@ -14,11 +16,11 @@ const allAchievements = ALL_ACHIEVEMENTS;
  */
 export default function AchievementsContent() {
   const { user } = useAuth();
-  const [unlockedAchievements, setUnlockedAchievements] = useLocalStorage<string[]>("aitutor-achievements", []);
+  const { unlockedAchievements, unlockAchievement } = useAchievements();
   const [newAchievement, setNewAchievement] = useState<Achievement | null>(null);
   const [xpData] = useLocalStorage<any>("aitutor-xp", { totalXP: 0, level: 1, problemsSolved: 0 });
   const [streakData] = useLocalStorage<any>("aitutor-streak", { currentStreak: 0 });
-  const [problemHistory] = useLocalStorage<any[]>("aitutor-problem-history", []);
+  const { problems: problemHistory } = useProblemHistory();
 
   // Check achievements periodically based on stats
   useEffect(() => {
@@ -49,8 +51,7 @@ export default function AchievementsContent() {
       newlyUnlocked.forEach(achievementId => {
         const achievement = allAchievements.find(a => a.id === achievementId);
         if (achievement && !unlockedAchievements.includes(achievementId)) {
-          const updated = [...unlockedAchievements, achievementId];
-          setUnlockedAchievements(updated);
+          unlockAchievement(achievementId);
           setNewAchievement(achievement);
           setTimeout(() => setNewAchievement(null), 5000);
           // Dispatch event
@@ -63,7 +64,7 @@ export default function AchievementsContent() {
         }
       });
     }
-  }, [problemHistory.length, streakData?.currentStreak, unlockedAchievements, setUnlockedAchievements]);
+  }, [problemHistory.length, streakData?.currentStreak, unlockedAchievements, unlockAchievement]);
 
   // Listen for achievement events (from other components)
   useEffect(() => {
@@ -74,7 +75,7 @@ export default function AchievementsContent() {
       const achievement = allAchievements.find(a => a.id === achievementId);
       
       if (achievement && !unlockedAchievements.includes(achievementId)) {
-        setUnlockedAchievements([...unlockedAchievements, achievementId]);
+        unlockAchievement(achievementId);
         setNewAchievement(achievement);
         setTimeout(() => setNewAchievement(null), 5000);
       }
@@ -82,7 +83,7 @@ export default function AchievementsContent() {
 
     window.addEventListener("achievementUnlocked", handleAchievementUnlocked as EventListener);
     return () => window.removeEventListener("achievementUnlocked", handleAchievementUnlocked as EventListener);
-  }, [unlockedAchievements, setUnlockedAchievements]);
+  }, [unlockedAchievements, unlockAchievement]);
 
   const unlocked = allAchievements.filter(a => unlockedAchievements.includes(a.id));
   const locked = allAchievements.filter(a => !unlockedAchievements.includes(a.id));

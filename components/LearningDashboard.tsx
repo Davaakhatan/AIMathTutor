@@ -2,6 +2,7 @@
 
 import { useState, useEffect, useRef } from "react";
 import { useLocalStorage } from "@/hooks/useLocalStorage";
+import { useProblemHistory } from "@/hooks/useProblemHistory";
 import { ProblemType } from "@/types";
 
 interface ProblemStats {
@@ -49,7 +50,7 @@ interface StreakData {
 
 export default function LearningDashboard() {
   const [isOpen, setIsOpen] = useState(false);
-  const [savedProblems] = useLocalStorage<SavedProblem[]>("aitutor-problem-history", []);
+  const { problems: savedProblems } = useProblemHistory();
   const [xpData] = useLocalStorage<XPData>("aitutor-xp", { totalXP: 0, level: 1, xpHistory: [] });
   const [streakData] = useLocalStorage<StreakData>("aitutor-streak", { currentStreak: 0, longestStreak: 0, lastStudyDate: 0 });
   const [stats, setStats] = useState<ProblemStats | null>(null);
@@ -87,7 +88,7 @@ export default function LearningDashboard() {
     let problemsSolved = 0;
 
     // Sort by date to calculate trends
-    const sortedProblems = [...savedProblems].sort((a, b) => a.savedAt - b.savedAt);
+    const sortedProblems = [...savedProblems].sort((a, b) => (a.savedAt || 0) - (b.savedAt || 0));
 
     sortedProblems.forEach((problem) => {
       // Count by type
@@ -99,7 +100,7 @@ export default function LearningDashboard() {
       problemsByDifficulty[difficulty] = (problemsByDifficulty[difficulty] || 0) + 1;
 
       // Daily activity
-      const date = new Date(problem.savedAt);
+      const date = new Date(problem.savedAt || Date.now());
       const dateKey = date.toISOString().split("T")[0];
       dailyActivity[dateKey] = (dailyActivity[dateKey] || 0) + 1;
 

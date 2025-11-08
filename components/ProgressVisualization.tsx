@@ -2,6 +2,7 @@
 
 import { useState, useMemo } from "react";
 import { useLocalStorage } from "@/hooks/useLocalStorage";
+import { useProblemHistory } from "@/hooks/useProblemHistory";
 import { ProblemType } from "@/types";
 import {
   getAllConcepts,
@@ -32,7 +33,7 @@ export default function ProgressVisualization({
     concepts: {},
     lastUpdated: Date.now(),
   });
-  const [savedProblems] = useLocalStorage<SavedProblem[]>("aitutor-problem-history", []);
+  const { problems: savedProblems } = useProblemHistory();
   const [activeView, setActiveView] = useState<"skill-tree" | "heatmap" | "timeline">(
     view === "all" ? "skill-tree" : view
   );
@@ -46,7 +47,7 @@ export default function ProgressVisualization({
       return !isNaN(testDate.getTime());
     });
     
-    const problems = [...validProblems].sort((a, b) => a.savedAt - b.savedAt);
+    const problems = [...validProblems].sort((a, b) => (a.savedAt || 0) - (b.savedAt || 0));
     const timeline: Array<{ date: string; count: number; concepts: string[] }> = [];
 
     problems.forEach((problem) => {
