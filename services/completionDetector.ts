@@ -121,6 +121,27 @@ export function detectProblemCompletion(
   let confidence: "low" | "medium" | "high" = "low";
   if (score >= 80 && studentProvidedAnswer.found) confidence = "high";
   else if (score >= 60 && studentProvidedAnswer.found) confidence = "medium";
+  else if (score >= 70) confidence = "high"; // High score even without explicit answer pattern
+
+  // Debug logging in development
+  if (process.env.NODE_ENV === "development" && messages.length > 0) {
+    const lastTutorMsg = tutorMessages[tutorMessages.length - 1]?.content || "";
+    const lastUserMsg = userMessages[userMessages.length - 1]?.content || "";
+    
+    if (!isCompleted && score >= 40) {
+      // Log when we're close but not quite there
+      console.log("🔍 Completion detection close but not complete:", {
+        score,
+        isCompleted,
+        confidence,
+        studentAnswerFound: studentProvidedAnswer.found,
+        studentAnswer: studentProvidedAnswer.answer,
+        reasons: reasons.slice(0, 3), // First 3 reasons
+        lastTutorMsg: lastTutorMsg.substring(0, 80),
+        lastUserMsg: lastUserMsg.substring(0, 30),
+      });
+    }
+  }
 
   return {
     score: Math.min(100, score),
@@ -138,12 +159,15 @@ function checkStudentProvidedAnswer(
   problem: ParsedProblem
 ): { found: boolean; answer?: string } {
   // Look for numerical answers or explicit answer statements
-  for (const msg of userMessages.reverse()) {
+  // Check the last 3 user messages (most recent first)
+  const recentMessages = userMessages.slice(-3).reverse();
+  
+  for (const msg of recentMessages) {
     const content = msg.content.toLowerCase().trim();
     
-    // Pattern 1: Just a number (e.g., "7", "27", "x = 7")
+    // Pattern 1: Just a number (e.g., "7", "27", "24")
     // Match standalone numbers or variable assignments
-    const standaloneNumber = /^[-]?\d+\.?\d*$/; // Just a number like "27" or "-5"
+    const standaloneNumber = /^[-]?\d+\.?\d*$/; // Just a number like "27" or "-5" or "24"
     if (standaloneNumber.test(content)) {
       return { found: true, answer: content };
     }
@@ -168,6 +192,21 @@ function checkStudentProvidedAnswer(
     if (gotMatch) {
       return { found: true, answer: gotMatch[1] };
     }
+    
+    // Pattern 4: Extract any number from the message (fallback)
+    // This catches cases where the number is part of a longer message
+    const numberMatch = content.match(/\b(\d+)\b/);
+    if (numberMatch && numberMatch[1]) {
+      // Only use this if the message is short (likely just the answer)
+      // or if it contains answer-related words
+      if (content.length < 20 || 
+          content.includes("answer") || 
+          content.includes("solution") ||
+          content.includes("got") ||
+          content.includes("think")) {
+        return { found: true, answer: numberMatch[1] };
+      }
+    }
   }
 
   return { found: false };
@@ -186,14 +225,19 @@ function checkAIConfirmation(
     const content = msg.content.toLowerCase();
 
     // Strong confirmations (30 points)
+    // Check for variations of "solved it" - including "solved it correctly", "really solved it", etc.
     if (
       content.includes("you've solved it") ||
       content.includes("you solved it") ||
+      content.includes("solved it correctly") ||
+      content.includes("really solved it") ||
+      content.includes("already solved") ||
       content.includes("problem is solved") ||
       content.includes("you've completed") ||
       content.includes("congratulations on completing") ||
       content.includes("congratulations! you solved") ||
-      (content.includes("congratulations") && content.includes("completing"))
+      (content.includes("congratulations") && content.includes("completing")) ||
+      (content.includes("reached the solution") && content.includes("correct"))
     ) {
       points += 30;
       reasons.push("AI explicitly confirmed problem is solved");
@@ -228,10 +272,11 @@ function checkAIConfirmation(
         content.includes("correct") ||
         content.includes("right") ||
         content.includes("found") ||
-        content.includes("answer")
+        content.includes("answer") ||
+        content.includes("solution")
       ) {
         // Upgrade to medium confirmation if combined with solving
-        if (content.includes("solving") || content.includes("solved")) {
+        if (content.includes("solving") || content.includes("solved") || content.includes("solution")) {
           points += 20;
           reasons.push("AI praised with solving confirmation");
         } else {
@@ -276,6 +321,11 @@ function checkCompletionPhrases(
       "you got it right",
       "well done on solving the problem",
       "great job on solving",
+      "you've solved it correctly",
+      "you've really solved it",
+      "you've already reached the solution",
+      "reached the solution",
+      "already solved",
     ];
 
   for (const phrase of highValuePhrases) {
