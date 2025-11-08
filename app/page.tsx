@@ -12,6 +12,7 @@ import AutoSave from "@/components/AutoSave";
 import ProblemStats from "@/components/ProblemStats";
 import SkipLink from "@/components/SkipLink";
 import OfflineIndicator from "@/components/OfflineIndicator";
+import SyncingIndicator from "@/components/SyncingIndicator";
 import PWAInstaller from "@/components/PWAInstaller";
 import AuthButton from "@/components/auth/AuthButton";
 import AuthModal from "@/components/auth/AuthModal";
@@ -432,6 +433,7 @@ function HomeContentInternal() {
       <div suppressHydrationWarning>
         <SkipLink />
         <OfflineIndicator />
+        <SyncingIndicator />
         <PWAInstaller />
         <LandingPage
           onGetStarted={() => {
