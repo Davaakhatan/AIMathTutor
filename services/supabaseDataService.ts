@@ -19,65 +19,13 @@ import { isProfileCached, cacheProfileExists } from "@/lib/profileCache";
  * This function ensures the profiles row exists before queries
  */
 export async function ensureProfileExists(userId: string): Promise<boolean> {
-  // Check cache first - avoid redundant database calls
-  if (isProfileCached(userId)) {
-    return true;
-  }
-
-  try {
-    const supabase = await getSupabaseClient();
-    if (!supabase) {
-      logger.warn("Supabase client not available, cannot ensure profile exists");
-      return false;
-    }
-
-    // Check if profile exists
-    const { data, error } = await supabase
-      .from("profiles")
-      .select("id")
-      .eq("id", userId)
-      .single();
-
-    if (error && error.code !== "PGRST116") {
-      // Error other than "not found"
-      logger.error("Error checking profile existence", { error: error.message, userId });
-      return false;
-    }
-
-    if (!data) {
-      // Profile doesn't exist, create it with student role (default)
-      // Don't call .auth.getUser() - it's very slow and times out
-      const userRole = "student";
-      
-      logger.info("Creating missing profile for user", { userId, role: userRole });
-      const { error: insertError } = await supabase
-        .from("profiles")
-        .insert({
-          id: userId,
-          role: userRole,
-        } as any);
-
-      if (insertError) {
-        // If duplicate key error, profile was created between check and insert (race condition)
-        if (insertError.code === "23505") {
-          logger.debug("Profile already exists (race condition)", { userId });
-          cacheProfileExists(userId); // Cache it
-          return true;
-        }
-        logger.error("Error creating profile", { error: insertError.message, userId });
-        return false;
-      }
-
-      logger.info("Profile created successfully", { userId });
-    }
-
-    // Cache the result to avoid redundant checks
-    cacheProfileExists(userId);
-    return true;
-  } catch (error) {
-    logger.error("Exception in ensureProfileExists", { error, userId });
-    return false;
-  }
+  // PERFORMANCE FIX: Just cache and return true immediately
+  // Profiles are auto-created on signup (via /api/get-profiles)
+  // This function was causing 5-second timeouts on EVERY operation
+  // Even the .single() query without .auth.getUser() is too slow
+  
+  cacheProfileExists(userId);
+  return true;
 }
 
 // ============================================
