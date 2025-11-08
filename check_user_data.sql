@@ -24,14 +24,14 @@ WHERE user_id = '1ca456bd-f506-48d9-9834-4a3227e0038f';
 SELECT 'streaks' as table_name, * FROM streaks 
 WHERE user_id = '1ca456bd-f506-48d9-9834-4a3227e0038f';
 
--- Check problems solved
+-- Check problems solved (check if solved_at is not null)
 SELECT 'problems (solved)' as table_name, COUNT(*) as count FROM problems 
 WHERE user_id = '1ca456bd-f506-48d9-9834-4a3227e0038f' 
-AND status = 'solved';
+AND solved_at IS NOT NULL;
 
 -- Check daily problems completion
 SELECT 'daily_problems_completion' as table_name, * FROM daily_problems_completion 
 WHERE user_id = '1ca456bd-f506-48d9-9834-4a3227e0038f'
-ORDER BY completed_at DESC
+ORDER BY created_at DESC
 LIMIT 5;
 

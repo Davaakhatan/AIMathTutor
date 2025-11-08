@@ -143,8 +143,39 @@ export async function getXPData(userId: string, profileId?: string | null): Prom
       return await createDefaultXPData(userId, effectiveProfileId);
     }
     
-    // Get first row
-    const xpRow = data[0];
+    // CRITICAL: Check for duplicates and warn
+    if (data.length > 1) {
+      logger.error("DUPLICATE XP RECORDS FOUND! This should not happen!", { 
+        userId, 
+        profileId: effectiveProfileId,
+        duplicateCount: data.length,
+        recordIds: data.map((r: any) => r.id)
+      });
+      console.error("🚨 DUPLICATE XP RECORDS:", {
+        count: data.length,
+        records: data.map((r: any) => ({
+          id: r.id,
+          totalXP: r.total_xp,
+          level: r.level,
+          updated_at: r.updated_at
+        }))
+      });
+    }
+    
+    // Get the LATEST row (highest updated_at) to avoid showing stale data
+    const xpRow = data.sort((a: any, b: any) => {
+      const dateA = new Date(a.updated_at || a.created_at);
+      const dateB = new Date(b.updated_at || b.created_at);
+      return dateB.getTime() - dateA.getTime();
+    })[0];
+    
+    logger.info("XP data loaded", { 
+      userId, 
+      profileId: effectiveProfileId,
+      totalXP: xpRow.total_xp,
+      level: xpRow.level,
+      recordId: xpRow.id
+    });
 
     return {
       total_xp: xpRow.total_xp || 0,
