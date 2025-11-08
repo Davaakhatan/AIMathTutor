@@ -22,7 +22,7 @@ export function useXPData() {
     recentGains: [],
   });
 
-  // Load XP data - Database-first pattern with localStorage fallback
+  // Load XP data - Show localStorage immediately, then sync from database
   useEffect(() => {
     let isMounted = true;
     
@@ -40,13 +40,30 @@ export function useXPData() {
       return;
     }
 
-    // For logged-in users: Database-first pattern
+    // STEP 1: Show localStorage data IMMEDIATELY (no loading state)
+    const localData = {
+      total_xp: localXPData.totalXP || 0,
+      level: localXPData.level || 1,
+      xp_to_next_level: localXPData.xpToNextLevel || 100,
+      xp_history: localXPData.xpHistory || [],
+      recent_gains: localXPData.recentGains || [],
+    };
+    setXPData(localData);
+    setIsLoading(false); // Show data immediately
+    
+    // STEP 2: Sync from database in background (with timeout)
     const loadFromDatabase = async () => {
-      setIsLoading(true);
-      
       try {
-        // STEP 1: Load from database (source of truth)
-        const data = await getXPData(user.id, activeProfile?.id || null);
+        // Add timeout to prevent hanging
+        const timeoutPromise = new Promise<XPData | null>((resolve) => {
+          setTimeout(() => {
+            logger.warn("getXPData timeout - using localStorage data", { userId: user.id });
+            resolve(null);
+          }, 5000); // 5 second timeout
+        });
+        
+        const dataPromise = getXPData(user.id, activeProfile?.id || null);
+        const data = await Promise.race([dataPromise, timeoutPromise]);
         
         if (!isMounted) return;
         
@@ -59,10 +76,10 @@ export function useXPData() {
             recent_gains: data.recent_gains || [],
           };
           
-          // STEP 2: Update state with database data
+          // Update state with database data (only if different)
           setXPData(dbData);
           
-          // STEP 3: Cache to localStorage
+          // Cache to localStorage
           setLocalXPData({
             totalXP: data.total_xp,
             level: data.level,
@@ -70,34 +87,11 @@ export function useXPData() {
             xpHistory: data.xp_history || [],
             recentGains: data.recent_gains || [],
           });
-        } else {
-          // No data in database, use localStorage defaults
-          const localData = {
-            total_xp: localXPData.totalXP || 0,
-            level: localXPData.level || 1,
-            xp_to_next_level: localXPData.xpToNextLevel || 100,
-            xp_history: localXPData.xpHistory || [],
-            recent_gains: localXPData.recentGains || [],
-          };
-          setXPData(localData);
         }
-        
-        setIsLoading(false);
+        // If timeout or no data, keep localStorage data (already shown)
       } catch (error) {
         logger.error("Error loading XP data from database", { error });
-        
-        // STEP 4: Fallback to localStorage if database fails (offline mode)
-        if (isMounted) {
-          const localData = {
-            total_xp: localXPData.totalXP || 0,
-            level: localXPData.level || 1,
-            xp_to_next_level: localXPData.xpToNextLevel || 100,
-            xp_history: localXPData.xpHistory || [],
-            recent_gains: localXPData.recentGains || [],
-          };
-          setXPData(localData);
-          setIsLoading(false);
-        }
+        // Keep localStorage data (already shown)
       }
     };
     

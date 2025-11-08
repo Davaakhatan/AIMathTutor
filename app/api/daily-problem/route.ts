@@ -160,11 +160,12 @@ export async function GET(request: NextRequest) {
     try {
       const supabase = getSupabaseServer();
       
-      // Build query with timeout protection - also get problem_text to verify it matches
+      // CRITICAL: Build query with STRICT user_id filtering
+      // This ensures we only check completion for the specific user
       let query = supabase
         .from("daily_problems_completion")
-        .select("id, problem_text")
-        .eq("user_id", userId)
+        .select("id, problem_text, user_id, student_profile_id")
+        .eq("user_id", userId) // CRITICAL: Filter by user_id FIRST
         .eq("problem_date", date);
 
       if (profileId && profileId !== "null") {
@@ -172,6 +173,12 @@ export async function GET(request: NextRequest) {
       } else {
         query = query.is("student_profile_id", null);
       }
+      
+      logger.debug("Completion query filters", { 
+        userId, 
+        profileId: profileId && profileId !== "null" ? profileId : null,
+        date 
+      });
 
       // Add timeout wrapper
       const queryPromise = query.maybeSingle();
@@ -196,7 +203,26 @@ export async function GET(request: NextRequest) {
 
       const isSolved = !!data;
       const problemText = data?.problem_text || null;
-      logger.debug("Completion check result", { date, userId, isSolved, hasData: !!data, hasProblemText: !!problemText });
+      
+      // CRITICAL: Verify the data belongs to the correct user
+      const dataUserId = (data as any)?.user_id;
+      if (data && dataUserId !== userId) {
+        logger.error("CRITICAL: Completion data belongs to different user!", { 
+          requestedUserId: userId, 
+          dataUserId,
+          date 
+        });
+        return NextResponse.json({ success: false, isSolved: false, error: "User mismatch" });
+      }
+      
+      logger.debug("Completion check result", { 
+        date, 
+        userId, 
+        isSolved, 
+        hasData: !!data, 
+        hasProblemText: !!problemText,
+        dataUserId: dataUserId || "none"
+      });
       return NextResponse.json({ success: true, isSolved, problemText });
     } catch (err) {
       logger.error("Exception in completion check", { error: err, date, userId });
