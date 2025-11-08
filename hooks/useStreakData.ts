@@ -17,7 +17,7 @@ interface StreakDataLocal {
  * Falls back to localStorage for guest users
  */
 export function useStreakData() {
-  const { user, activeProfile } = useAuth();
+  const { user, activeProfile, userRole } = useAuth();
   const [streakData, setStreakData] = useState<StreakData | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [localStreakData, setLocalStreakData] = useLocalStorage<StreakDataLocal>("aitutor-streak", {
@@ -49,10 +49,17 @@ export function useStreakData() {
       setIsLoading(true);
       
       try {
-        logger.info("Loading streak data from database", { userId: user.id, profileId: activeProfile?.id });
+        // CRITICAL: For student users, ALWAYS use user-level streaks (profileId = null)
+        const profileIdToUse = (userRole === "student") ? null : (activeProfile?.id || null);
+        
+        logger.info("Loading streak data from database", { 
+          userId: user.id, 
+          profileId: profileIdToUse,
+          userRole 
+        });
         
         // STEP 1: Load from database (source of truth)
-        const data = await getStreakData(user.id, activeProfile?.id || null);
+        const data = await getStreakData(user.id, profileIdToUse);
         
         if (!isMounted) return;
         
@@ -113,7 +120,7 @@ export function useStreakData() {
       isMounted = false;
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [user?.id, activeProfile?.id]); // Only depend on IDs, not full objects
+  }, [user?.id, userRole]); // Depend on user ID and role (not profile for students)
 
   // Update streak data
   const updateStreak = useCallback(
@@ -136,7 +143,9 @@ export function useStreakData() {
       // Save to database if logged in
       if (user) {
         try {
-          await updateStreakData(user.id, updatedData, activeProfile?.id || null);
+          // CRITICAL: For student users, ALWAYS use user-level streaks (profileId = null)
+          const profileIdToUse = (userRole === "student") ? null : (activeProfile?.id || null);
+          await updateStreakData(user.id, updatedData, profileIdToUse);
         } catch (error) {
           logger.error("Error updating streak data in database", { error });
           // Revert on error

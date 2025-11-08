@@ -11,7 +11,7 @@ import { logger } from "@/lib/logger";
  * Falls back to localStorage for guest users
  */
 export function useXPData() {
-  const { user, activeProfile } = useAuth();
+  const { user, activeProfile, userRole } = useAuth();
   const [xpData, setXPData] = useState<XPData | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [localXPData, setLocalXPData] = useLocalStorage<any>("aitutor-xp", {
@@ -44,9 +44,19 @@ export function useXPData() {
     const loadFromDatabase = async () => {
       try {
         setIsLoading(true);
-        logger.info("Loading XP data from database", { userId: user.id, profileId: activeProfile?.id });
         
-        const data = await getXPData(user.id, activeProfile?.id || null);
+        // CRITICAL: For student users, ALWAYS use user-level XP (profileId = null)
+        // Profile-level XP is only for parents/teachers viewing their children
+        const profileIdToUse = (userRole === "student") ? null : (activeProfile?.id || null);
+        
+        logger.info("Loading XP data from database", { 
+          userId: user.id, 
+          profileId: profileIdToUse,
+          userRole,
+          reason: userRole === "student" ? "Student - using user-level XP" : "Parent/Teacher - using profile-level XP"
+        });
+        
+        const data = await getXPData(user.id, profileIdToUse);
         
         if (!isMounted) return;
         
@@ -95,7 +105,7 @@ export function useXPData() {
       isMounted = false;
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [user?.id, activeProfile?.id]); // Only depend on IDs, not full objects
+  }, [user?.id, userRole]); // Depend on user ID and role (not profile for students)
 
   // Update XP data
   const updateXP = useCallback(
@@ -118,7 +128,9 @@ export function useXPData() {
       // Save to database if logged in
       if (user) {
         try {
-          await updateXPData(user.id, updatedData, activeProfile?.id || null);
+          // CRITICAL: For student users, ALWAYS use user-level XP (profileId = null)
+          const profileIdToUse = (userRole === "student") ? null : (activeProfile?.id || null);
+          await updateXPData(user.id, updatedData, profileIdToUse);
         } catch (error) {
           logger.error("Error updating XP data in database", { error });
           // Revert on error
