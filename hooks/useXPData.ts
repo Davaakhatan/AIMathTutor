@@ -22,60 +22,86 @@ export function useXPData() {
     recentGains: [],
   });
 
-  // Load XP data - show localStorage immediately, then sync from database
+  // Load XP data - Database-first pattern with localStorage fallback
   useEffect(() => {
     let isMounted = true;
     
-    // STEP 1: Load from localStorage IMMEDIATELY (no loading state)
-    // This ensures the UI shows data right away
-    const localData = {
-      total_xp: localXPData.totalXP || 0,
-      level: localXPData.level || 1,
-      xp_to_next_level: localXPData.xpToNextLevel || 100,
-      xp_history: localXPData.xpHistory || [],
-      recent_gains: localXPData.recentGains || [],
+    if (!user) {
+      // Guest mode - use localStorage only
+      const localData = {
+        total_xp: localXPData.totalXP || 0,
+        level: localXPData.level || 1,
+        xp_to_next_level: localXPData.xpToNextLevel || 100,
+        xp_history: localXPData.xpHistory || [],
+        recent_gains: localXPData.recentGains || [],
+      };
+      setXPData(localData);
+      setIsLoading(false);
+      return;
+    }
+
+    // For logged-in users: Database-first pattern
+    const loadFromDatabase = async () => {
+      setIsLoading(true);
+      
+      try {
+        // STEP 1: Load from database (source of truth)
+        const data = await getXPData(user.id, activeProfile?.id || null);
+        
+        if (!isMounted) return;
+        
+        if (data) {
+          const dbData = {
+            total_xp: data.total_xp,
+            level: data.level,
+            xp_to_next_level: data.xp_to_next_level,
+            xp_history: data.xp_history || [],
+            recent_gains: data.recent_gains || [],
+          };
+          
+          // STEP 2: Update state with database data
+          setXPData(dbData);
+          
+          // STEP 3: Cache to localStorage
+          setLocalXPData({
+            totalXP: data.total_xp,
+            level: data.level,
+            xpToNextLevel: data.xp_to_next_level,
+            xpHistory: data.xp_history || [],
+            recentGains: data.recent_gains || [],
+          });
+        } else {
+          // No data in database, use localStorage defaults
+          const localData = {
+            total_xp: localXPData.totalXP || 0,
+            level: localXPData.level || 1,
+            xp_to_next_level: localXPData.xpToNextLevel || 100,
+            xp_history: localXPData.xpHistory || [],
+            recent_gains: localXPData.recentGains || [],
+          };
+          setXPData(localData);
+        }
+        
+        setIsLoading(false);
+      } catch (error) {
+        logger.error("Error loading XP data from database", { error });
+        
+        // STEP 4: Fallback to localStorage if database fails (offline mode)
+        if (isMounted) {
+          const localData = {
+            total_xp: localXPData.totalXP || 0,
+            level: localXPData.level || 1,
+            xp_to_next_level: localXPData.xpToNextLevel || 100,
+            xp_history: localXPData.xpHistory || [],
+            recent_gains: localXPData.recentGains || [],
+          };
+          setXPData(localData);
+          setIsLoading(false);
+        }
+      }
     };
     
-    setXPData(localData);
-    setIsLoading(false); // Show data immediately
-    
-    // STEP 2: Sync from database in background (only for logged-in users)
-    if (user) {
-      const syncFromDatabase = async () => {
-        try {
-          const data = await getXPData(user.id, activeProfile?.id || null);
-          
-          if (isMounted && data) {
-            // Only update if database has different/newer data
-            const dbData = {
-              total_xp: data.total_xp,
-              level: data.level,
-              xp_to_next_level: data.xp_to_next_level,
-              xp_history: data.xp_history || [],
-              recent_gains: data.recent_gains || [],
-            };
-            
-            // Update state with database data
-            setXPData(dbData);
-            
-            // Also sync to localStorage as cache
-            setLocalXPData({
-              totalXP: data.total_xp,
-              level: data.level,
-              xpToNextLevel: data.xp_to_next_level,
-              xpHistory: data.xp_history || [],
-              recentGains: data.recent_gains || [],
-            });
-          }
-        } catch (error) {
-          logger.error("Error syncing XP data from database", { error });
-          // Don't update state on error - keep localStorage data
-        }
-      };
-      
-      // Sync in background (don't block UI)
-      syncFromDatabase();
-    }
+    loadFromDatabase();
     
     return () => {
       isMounted = false;

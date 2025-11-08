@@ -33,10 +33,7 @@ export function useChallengeHistory() {
   const [isSyncing, setIsSyncing] = useState(false);
 
   // Load from database on mount or when user/profile changes
-  // BEST PRACTICE: Database is ALWAYS the source of truth for logged-in users
-  // localStorage is ONLY used for:
-  // 1. Guest users (no database access)
-  // 2. Performance cache (optional, doesn't affect data persistence)
+  // ✅ CORRECT PATTERN: Database-first with localStorage fallback
   useEffect(() => {
     let isMounted = true;
     
@@ -58,23 +55,12 @@ export function useChallengeHistory() {
       return;
     }
 
-    // For logged-in users: Support both OFFLINE and ONLINE modes
-    // STEP 1: Show cached data immediately (OFFLINE support - instant UI)
-    try {
-      const cachedData = JSON.parse(localStorage.getItem("aitutor-challenge-history") || "[]");
-      if (isMounted) {
-        setChallenges(cachedData);
-        setIsLoading(false); // Show cached data immediately (works offline)
-      }
-    } catch (error) {
-      // Ignore cache errors, will load from database
-    }
-
-    // STEP 2: Sync from database in background (ONLINE support - source of truth)
-    // This ensures data is consistent across all devices and sessions
-    const syncFromDatabase = async () => {
+    // For logged-in users: Database-first pattern
+    const loadFromDatabase = async () => {
+      setIsLoading(true);
+      
       try {
-        // Load from database (source of truth - works across all devices)
+        // STEP 1: Load from database (source of truth)
         const dbChallenges = await getChallenges(user.id, 100, activeProfile?.id || null);
         
         if (!isMounted) return;
@@ -95,30 +81,39 @@ export function useChallengeHistory() {
           timeSpent: c.time_spent || 0,
         }));
 
-        // Update state with database data (source of truth)
-        // This will overwrite cached data with the real database data
+        // STEP 2: Update state with database data (source of truth)
         setChallenges(savedChallenges);
         
-        // Update localStorage cache (for offline support and performance)
+        // STEP 3: Cache to localStorage (for offline support)
         localStorage.setItem("aitutor-challenge-history", JSON.stringify(savedChallenges));
+        
+        setIsLoading(false);
       } catch (error) {
         logger.error("Error loading challenge history from database", { error });
-        // If database fails (offline), keep cached data (already shown in STEP 1)
-        // This provides offline support - user can still see their cached challenges
+        
+        // STEP 4: Fallback to localStorage if database fails (offline mode)
+        if (isMounted) {
+          try {
+            const cachedData = JSON.parse(localStorage.getItem("aitutor-challenge-history") || "[]");
+            setChallenges(cachedData);
+          } catch (cacheError) {
+            logger.error("Error loading from localStorage fallback", { cacheError });
+            setChallenges([]);
+          }
+          setIsLoading(false);
+        }
       }
     };
     
-    // Sync from database in background (non-blocking)
-    syncFromDatabase();
+    loadFromDatabase();
     
     return () => {
       isMounted = false;
     };
   }, [user?.id, activeProfile?.id]); // Only depend on IDs, not full objects
 
-  // Add challenge to history (saves to both localStorage and database)
+  // Add challenge to history (optimistic update with revert on error)
   const addChallenge = useCallback(async (challenge: ChallengeData) => {
-    // Update local state immediately (optimistic update)
     const newChallenge: SavedChallenge = {
       id: Date.now().toString(),
       challenge_text: challenge.challenge_text,
@@ -134,26 +129,30 @@ export function useChallengeHistory() {
       timeSpent: challenge.time_spent || 0,
     };
 
+    // STEP 1: Optimistic update (immediate UI)
+    const previousChallenges = challenges;
     setChallenges((prev) => {
       const updated = [newChallenge, ...prev].slice(0, 100);
-      // Also update localStorage
+      // Update localStorage cache
       localStorage.setItem("aitutor-challenge-history", JSON.stringify(updated));
       return updated;
     });
 
-    // Save to database if authenticated (in background)
+    // STEP 2: Save to database (in background)
     if (user) {
       try {
         setIsSyncing(true);
         await saveChallenge(user.id, challenge, activeProfile?.id || null);
+        setIsSyncing(false);
       } catch (error) {
         logger.error("Error saving challenge to database", { error });
-        // Don't revert - localStorage is the fallback
-      } finally {
+        // STEP 3: Revert on error
+        setChallenges(previousChallenges);
+        localStorage.setItem("aitutor-challenge-history", JSON.stringify(previousChallenges));
         setIsSyncing(false);
       }
     }
-  }, [user?.id, activeProfile?.id]);
+  }, [user?.id, activeProfile?.id, challenges]);
 
   // Update challenge (e.g., mark as completed)
   const updateChallengeStatus = useCallback(async (challengeId: string, updates: Partial<ChallengeData>) => {

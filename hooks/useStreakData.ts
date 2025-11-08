@@ -26,50 +26,78 @@ export function useStreakData() {
     lastStudyDate: null,
   });
 
-  // Load streak data - show localStorage immediately, then sync from database
+  // Load streak data - Database-first pattern with localStorage fallback
   useEffect(() => {
     let isMounted = true;
     
-    // STEP 1: Load from localStorage IMMEDIATELY (no loading state)
-    const localData = {
-      current_streak: localStreakData.currentStreak || 0,
-      longest_streak: localStreakData.longestStreak || 0,
-      last_study_date: localStreakData.lastStudyDate
-        ? new Date(localStreakData.lastStudyDate).toISOString().split("T")[0]
-        : null,
+    if (!user) {
+      // Guest mode - use localStorage only
+      const localData = {
+        current_streak: localStreakData.currentStreak || 0,
+        longest_streak: localStreakData.longestStreak || 0,
+        last_study_date: localStreakData.lastStudyDate
+          ? new Date(localStreakData.lastStudyDate).toISOString().split("T")[0]
+          : null,
+      };
+      setStreakData(localData);
+      setIsLoading(false);
+      return;
+    }
+
+    // For logged-in users: Database-first pattern
+    const loadFromDatabase = async () => {
+      setIsLoading(true);
+      
+      try {
+        // STEP 1: Load from database (source of truth)
+        const data = await getStreakData(user.id, activeProfile?.id || null);
+        
+        if (!isMounted) return;
+        
+        if (data) {
+          // STEP 2: Update state with database data
+          setStreakData(data);
+          
+          // STEP 3: Cache to localStorage
+          setLocalStreakData({
+            currentStreak: data.current_streak || 0,
+            longestStreak: data.longest_streak || 0,
+            lastStudyDate: data.last_study_date
+              ? new Date(data.last_study_date).getTime()
+              : null,
+          });
+        } else {
+          // No data in database, use localStorage defaults
+          const localData = {
+            current_streak: localStreakData.currentStreak || 0,
+            longest_streak: localStreakData.longestStreak || 0,
+            last_study_date: localStreakData.lastStudyDate
+              ? new Date(localStreakData.lastStudyDate).toISOString().split("T")[0]
+              : null,
+          };
+          setStreakData(localData);
+        }
+        
+        setIsLoading(false);
+      } catch (error) {
+        logger.error("Error loading streak data from database", { error });
+        
+        // STEP 4: Fallback to localStorage if database fails (offline mode)
+        if (isMounted) {
+          const localData = {
+            current_streak: localStreakData.currentStreak || 0,
+            longest_streak: localStreakData.longestStreak || 0,
+            last_study_date: localStreakData.lastStudyDate
+              ? new Date(localStreakData.lastStudyDate).toISOString().split("T")[0]
+              : null,
+          };
+          setStreakData(localData);
+          setIsLoading(false);
+        }
+      }
     };
     
-    setStreakData(localData);
-    setIsLoading(false); // Show data immediately
-    
-    // STEP 2: Sync from database in background (only for logged-in users)
-    if (user) {
-      const syncFromDatabase = async () => {
-        try {
-          const data = await getStreakData(user.id, activeProfile?.id || null);
-          
-          if (isMounted && data) {
-            // Update state with database data
-            setStreakData(data);
-            
-            // Also sync to localStorage as cache
-            setLocalStreakData({
-              currentStreak: data.current_streak || 0,
-              longestStreak: data.longest_streak || 0,
-              lastStudyDate: data.last_study_date
-                ? new Date(data.last_study_date).getTime()
-                : null,
-            });
-          }
-        } catch (error) {
-          logger.error("Error syncing streak data from database", { error });
-          // Don't update state on error - keep localStorage data
-        }
-      };
-      
-      // Sync in background (don't block UI)
-      syncFromDatabase();
-    }
+    loadFromDatabase();
     
     return () => {
       isMounted = false;

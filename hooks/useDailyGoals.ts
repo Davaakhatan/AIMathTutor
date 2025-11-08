@@ -26,61 +26,95 @@ export function useDailyGoals() {
     date: new Date().toISOString().split("T")[0],
   });
 
-  // Load daily goals - show localStorage immediately, then sync from database
+  // Load daily goals - Database-first pattern with localStorage fallback
   useEffect(() => {
     let isMounted = true;
     
-    // STEP 1: Load from localStorage IMMEDIATELY (no loading state)
-    const currentLocalGoal = JSON.parse(
-      localStorage.getItem("aitutor-daily-goals") || 
-      JSON.stringify({ problems: 5, time: 30, date: new Date().toISOString().split("T")[0] })
-    );
-    
-    const localGoals: DailyGoal[] = [
-      {
-        date: currentLocalGoal.date,
-        problems_goal: currentLocalGoal.problems,
-        time_goal: currentLocalGoal.time,
-        problems_completed: 0,
-        time_completed: 0,
-      },
-    ];
-    
-    setGoals(localGoals);
-    setIsLoading(false); // Show data immediately
-    
-    // STEP 2: Sync from database in background (only for logged-in users)
-    if (user) {
-      const syncFromDatabase = async () => {
-        try {
-          const data = await getDailyGoals(user.id, 30, activeProfile?.id || null);
-          
-          if (isMounted) {
-            if (data && data.length > 0) {
-              setGoals(data);
-              // Sync latest goal to localStorage as cache (only if different)
-              const latest = data[0];
-              if (latest.problems_goal !== currentLocalGoal.problems || 
-                  latest.time_goal !== currentLocalGoal.time ||
-                  latest.date !== currentLocalGoal.date) {
-                setLocalGoal({
-                  problems: latest.problems_goal || 5,
-                  time: latest.time_goal || 30,
-                  date: latest.date,
-                });
-              }
-            }
-            // If no data in DB, keep localStorage data (already set above)
-          }
-        } catch (error) {
-          logger.error("Error syncing daily goals from database", { error });
-          // Don't update state on error - keep localStorage data
-        }
-      };
-      
-      // Sync in background (don't block UI)
-      syncFromDatabase();
+    if (!user) {
+      // Guest mode - use localStorage only
+      const currentLocalGoal = JSON.parse(
+        localStorage.getItem("aitutor-daily-goals") || 
+        JSON.stringify({ problems: 5, time: 30, date: new Date().toISOString().split("T")[0] })
+      );
+      const localGoals: DailyGoal[] = [
+        {
+          date: currentLocalGoal.date,
+          problems_goal: currentLocalGoal.problems,
+          time_goal: currentLocalGoal.time,
+          problems_completed: 0,
+          time_completed: 0,
+        },
+      ];
+      setGoals(localGoals);
+      setIsLoading(false);
+      return;
     }
+
+    // For logged-in users: Database-first pattern
+    const loadFromDatabase = async () => {
+      setIsLoading(true);
+      
+      try {
+        // STEP 1: Load from database (source of truth)
+        const data = await getDailyGoals(user.id, 30, activeProfile?.id || null);
+        
+        if (!isMounted) return;
+        
+        if (data && data.length > 0) {
+          // STEP 2: Update state with database data
+          setGoals(data);
+          
+          // STEP 3: Cache latest goal to localStorage
+          const latest = data[0];
+          setLocalGoal({
+            problems: latest.problems_goal || 5,
+            time: latest.time_goal || 30,
+            date: latest.date,
+          });
+        } else {
+          // No data in database, use localStorage defaults
+          const currentLocalGoal = JSON.parse(
+            localStorage.getItem("aitutor-daily-goals") || 
+            JSON.stringify({ problems: 5, time: 30, date: new Date().toISOString().split("T")[0] })
+          );
+          const localGoals: DailyGoal[] = [
+            {
+              date: currentLocalGoal.date,
+              problems_goal: currentLocalGoal.problems,
+              time_goal: currentLocalGoal.time,
+              problems_completed: 0,
+              time_completed: 0,
+            },
+          ];
+          setGoals(localGoals);
+        }
+        
+        setIsLoading(false);
+      } catch (error) {
+        logger.error("Error loading daily goals from database", { error });
+        
+        // STEP 4: Fallback to localStorage if database fails (offline mode)
+        if (isMounted) {
+          const currentLocalGoal = JSON.parse(
+            localStorage.getItem("aitutor-daily-goals") || 
+            JSON.stringify({ problems: 5, time: 30, date: new Date().toISOString().split("T")[0] })
+          );
+          const localGoals: DailyGoal[] = [
+            {
+              date: currentLocalGoal.date,
+              problems_goal: currentLocalGoal.problems,
+              time_goal: currentLocalGoal.time,
+              problems_completed: 0,
+              time_completed: 0,
+            },
+          ];
+          setGoals(localGoals);
+          setIsLoading(false);
+        }
+      }
+    };
+    
+    loadFromDatabase();
     
     return () => {
       isMounted = false;
@@ -110,9 +144,11 @@ export function useDailyGoals() {
     };
   }, [goals, today]); // Don't depend on localGoal to avoid loops
 
-  // Update daily goal
+  // Update daily goal (optimistic update with revert on error)
   const updateGoal = useCallback(
     async (goal: DailyGoal) => {
+      // STEP 1: Optimistic update (immediate UI)
+      const previousGoals = goals;
       const updatedGoals = [...goals];
       const index = updatedGoals.findIndex((g) => g.date === goal.date);
       if (index >= 0) {
@@ -122,21 +158,30 @@ export function useDailyGoals() {
       }
       setGoals(updatedGoals);
 
-      // Update localStorage
+      // Update localStorage cache
       setLocalGoal({
         problems: goal.problems_goal,
         time: goal.time_goal,
         date: goal.date,
       });
 
-      // Save to database if logged in
+      // STEP 2: Save to database (in background)
       if (user) {
         try {
           await saveDailyGoal(user.id, goal, activeProfile?.id || null);
         } catch (error) {
           logger.error("Error updating daily goal in database", { error });
-          // Revert on error
-          setGoals(goals);
+          // STEP 3: Revert on error
+          setGoals(previousGoals);
+          // Revert localStorage too
+          const previousGoal = previousGoals.find((g) => g.date === goal.date);
+          if (previousGoal) {
+            setLocalGoal({
+              problems: previousGoal.problems_goal,
+              time: previousGoal.time_goal,
+              date: previousGoal.date,
+            });
+          }
         }
       }
     },

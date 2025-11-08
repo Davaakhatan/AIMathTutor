@@ -9,6 +9,66 @@ import { logger } from "@/lib/logger";
 import { getEffectiveProfileId } from "@/services/studentProfileService";
 
 // ============================================
+// PROFILE UTILITIES
+// ============================================
+
+/**
+ * Ensure profiles row exists for user
+ * CRITICAL: Many tables reference public.profiles(id), not auth.users(id)
+ * This function ensures the profiles row exists before queries
+ */
+export async function ensureProfileExists(userId: string): Promise<boolean> {
+  try {
+    const supabase = await getSupabaseClient();
+    if (!supabase) {
+      logger.warn("Supabase client not available, cannot ensure profile exists");
+      return false;
+    }
+
+    // Check if profile exists
+    const { data, error } = await supabase
+      .from("profiles")
+      .select("id")
+      .eq("id", userId)
+      .single();
+
+    if (error && error.code !== "PGRST116") {
+      // Error other than "not found"
+      logger.error("Error checking profile existence", { error: error.message, userId });
+      return false;
+    }
+
+    if (!data) {
+      // Profile doesn't exist, create it
+      logger.info("Creating missing profile for user", { userId });
+      const { error: insertError } = await supabase
+        .from("profiles")
+        .insert({
+          id: userId,
+          role: "student", // Default role
+        } as any);
+
+      if (insertError) {
+        // If duplicate key error, profile was created between check and insert (race condition)
+        if (insertError.code === "23505") {
+          logger.debug("Profile already exists (race condition)", { userId });
+          return true;
+        }
+        logger.error("Error creating profile", { error: insertError.message, userId });
+        return false;
+      }
+
+      logger.info("Profile created successfully", { userId });
+    }
+
+    return true;
+  } catch (error) {
+    logger.error("Exception in ensureProfileExists", { error, userId });
+    return false;
+  }
+}
+
+// ============================================
 // XP DATA
 // ============================================
 
@@ -25,6 +85,9 @@ export interface XPData {
  */
 export async function getXPData(userId: string, profileId?: string | null): Promise<XPData | null> {
   try {
+    // CRITICAL: Ensure profile exists before querying (foreign keys point to profiles.id)
+    await ensureProfileExists(userId);
+    
     const supabase = await getSupabaseClient();
     
     // Use profile ID if provided, otherwise get from active profile
@@ -154,6 +217,9 @@ async function createDefaultXPData(userId: string, profileId?: string | null): P
  */
 export async function updateXPData(userId: string, xpData: Partial<XPData>, profileId?: string | null): Promise<boolean> {
   try {
+    // CRITICAL: Ensure profile exists before updating (foreign keys point to profiles.id)
+    await ensureProfileExists(userId);
+    
     const supabase = await getSupabaseClient();
     const effectiveProfileId = profileId !== undefined 
       ? profileId 
@@ -205,6 +271,9 @@ export interface StreakData {
  */
 export async function getStreakData(userId: string, profileId?: string | null): Promise<StreakData | null> {
   try {
+    // CRITICAL: Ensure profile exists before querying (foreign keys point to profiles.id)
+    await ensureProfileExists(userId);
+    
     const supabase = await getSupabaseClient();
     const effectiveProfileId = profileId !== undefined 
       ? profileId 
@@ -316,6 +385,9 @@ async function createDefaultStreakData(userId: string, profileId?: string | null
  */
 export async function updateStreakData(userId: string, streakData: Partial<StreakData>, profileId?: string | null): Promise<boolean> {
   try {
+    // CRITICAL: Ensure profile exists before updating (foreign keys point to profiles.id)
+    await ensureProfileExists(userId);
+    
     const supabase = await getSupabaseClient();
     const effectiveProfileId = profileId !== undefined 
       ? profileId 
@@ -376,6 +448,9 @@ export interface ProblemData {
  */
 export async function getProblems(userId: string, limit = 100, profileId?: string | null): Promise<ProblemData[]> {
   try {
+    // CRITICAL: Ensure profile exists before querying (foreign keys point to profiles.id)
+    await ensureProfileExists(userId);
+    
     const supabase = await getSupabaseClient();
     const effectiveProfileId = profileId !== undefined 
       ? profileId 
@@ -426,6 +501,9 @@ export async function getProblems(userId: string, limit = 100, profileId?: strin
  */
 export async function saveProblem(userId: string, problem: ProblemData, profileId?: string | null): Promise<string | null> {
   try {
+    // CRITICAL: Ensure profile exists before saving (foreign keys point to profiles.id)
+    await ensureProfileExists(userId);
+    
     const supabase = await getSupabaseClient();
     const effectiveProfileId = profileId !== undefined 
       ? profileId 
@@ -474,6 +552,9 @@ export async function saveProblem(userId: string, problem: ProblemData, profileI
  */
 export async function updateProblem(userId: string, problemId: string, updates: Partial<ProblemData>): Promise<boolean> {
   try {
+    // CRITICAL: Ensure profile exists before updating (foreign keys point to profiles.id)
+    await ensureProfileExists(userId);
+    
     const supabase = await getSupabaseClient();
     const { error } = await supabase
       .from("problems")
@@ -501,6 +582,9 @@ export async function updateProblem(userId: string, problemId: string, updates: 
  */
 export async function deleteProblem(userId: string, problemId: string, profileId?: string | null): Promise<boolean> {
   try {
+    // CRITICAL: Ensure profile exists before deleting (foreign keys point to profiles.id)
+    await ensureProfileExists(userId);
+    
     const supabase = await getSupabaseClient();
     const effectiveProfileId = profileId !== undefined 
       ? profileId 
@@ -697,6 +781,9 @@ export interface AchievementData {
  */
 export async function getAchievements(userId: string, profileId?: string | null): Promise<AchievementData[]> {
   try {
+    // CRITICAL: Ensure profile exists before querying (foreign keys point to profiles.id)
+    await ensureProfileExists(userId);
+    
     const supabase = await getSupabaseClient();
     const effectiveProfileId = profileId !== undefined 
       ? profileId 
@@ -738,6 +825,9 @@ export async function getAchievements(userId: string, profileId?: string | null)
  */
 export async function unlockAchievement(userId: string, achievement: AchievementData, profileId?: string | null): Promise<boolean> {
   try {
+    // CRITICAL: Ensure profile exists before saving (foreign keys point to profiles.id)
+    await ensureProfileExists(userId);
+    
     const supabase = await getSupabaseClient();
     const effectiveProfileId = profileId !== undefined 
       ? profileId 
@@ -808,6 +898,9 @@ export interface StudySession {
  */
 export async function getStudySessions(userId: string, limit = 100, profileId?: string | null): Promise<StudySession[]> {
   try {
+    // CRITICAL: Ensure profile exists before querying (foreign keys point to profiles.id)
+    await ensureProfileExists(userId);
+    
     const supabase = await getSupabaseClient();
     const effectiveProfileId = profileId !== undefined 
       ? profileId 
@@ -852,6 +945,9 @@ export async function getStudySessions(userId: string, limit = 100, profileId?: 
  */
 export async function saveStudySession(userId: string, session: StudySession, profileId?: string | null): Promise<string | null> {
   try {
+    // CRITICAL: Ensure profile exists before saving (foreign keys point to profiles.id)
+    await ensureProfileExists(userId);
+    
     const supabase = await getSupabaseClient();
     const effectiveProfileId = profileId !== undefined 
       ? profileId 
@@ -907,6 +1003,9 @@ export interface DailyGoal {
  */
 export async function getDailyGoals(userId: string, limit = 30, profileId?: string | null): Promise<DailyGoal[]> {
   try {
+    // CRITICAL: Ensure profile exists before querying (foreign keys point to profiles.id)
+    await ensureProfileExists(userId);
+    
     const supabase = await getSupabaseClient();
     const effectiveProfileId = profileId !== undefined 
       ? profileId 
@@ -950,6 +1049,9 @@ export async function getDailyGoals(userId: string, limit = 30, profileId?: stri
  */
 export async function saveDailyGoal(userId: string, goal: DailyGoal, profileId?: string | null): Promise<string | null> {
   try {
+    // CRITICAL: Ensure profile exists before saving (foreign keys point to profiles.id)
+    await ensureProfileExists(userId);
+    
     const supabase = await getSupabaseClient();
     const effectiveProfileId = profileId !== undefined 
       ? profileId 

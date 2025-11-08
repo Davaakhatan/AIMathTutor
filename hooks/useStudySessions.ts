@@ -16,37 +16,51 @@ export function useStudySessions() {
   const [isLoading, setIsLoading] = useState(true);
   const [localSessions, setLocalSessions] = useLocalStorage<StudySession[]>("aitutor-study-sessions", []);
 
-  // Load study sessions - show localStorage immediately, then sync from database
+  // Load study sessions - Database-first pattern with localStorage fallback
   useEffect(() => {
     let isMounted = true;
     
-    // STEP 1: Load from localStorage IMMEDIATELY (no loading state)
-    setSessions(localSessions);
-    setIsLoading(false); // Show data immediately
-    
-    // STEP 2: Sync from database in background (only for logged-in users)
-    if (user) {
-      const syncFromDatabase = async () => {
-        try {
-          const data = await getStudySessions(user.id, 100, activeProfile?.id || null);
-          
-          if (isMounted) {
-            if (data && data.length > 0) {
-              setSessions(data);
-              // Sync to localStorage as cache
-              setLocalSessions(data);
-            }
-            // If no data in DB, keep localStorage data (already set above)
-          }
-        } catch (error) {
-          logger.error("Error syncing study sessions from database", { error });
-          // Don't update state on error - keep localStorage data
-        }
-      };
-      
-      // Sync in background (don't block UI)
-      syncFromDatabase();
+    if (!user) {
+      // Guest mode - use localStorage only
+      setSessions(localSessions);
+      setIsLoading(false);
+      return;
     }
+
+    // For logged-in users: Database-first pattern
+    const loadFromDatabase = async () => {
+      setIsLoading(true);
+      
+      try {
+        // STEP 1: Load from database (source of truth)
+        const data = await getStudySessions(user.id, 100, activeProfile?.id || null);
+        
+        if (!isMounted) return;
+        
+        if (data && data.length > 0) {
+          // STEP 2: Update state with database data
+          setSessions(data);
+          
+          // STEP 3: Cache to localStorage
+          setLocalSessions(data);
+        } else {
+          // No data in database, use localStorage defaults
+          setSessions(localSessions);
+        }
+        
+        setIsLoading(false);
+      } catch (error) {
+        logger.error("Error loading study sessions from database", { error });
+        
+        // STEP 4: Fallback to localStorage if database fails (offline mode)
+        if (isMounted) {
+          setSessions(localSessions);
+          setIsLoading(false);
+        }
+      }
+    };
+    
+    loadFromDatabase();
     
     return () => {
       isMounted = false;
@@ -54,38 +68,42 @@ export function useStudySessions() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [user?.id, activeProfile?.id]); // Only depend on IDs, not full objects
 
-  // Add study session
+  // Add study session (optimistic update with revert on error)
   const addSession = useCallback(
     async (session: StudySession) => {
+      // STEP 1: Optimistic update (immediate UI)
+      const previousSessions = sessions;
       const updatedSessions = [session, ...sessions].slice(0, 100); // Keep last 100
       setSessions(updatedSessions);
       setLocalSessions(updatedSessions);
 
-      // Save to database if logged in
+      // STEP 2: Save to database (in background)
       if (user) {
         try {
           await saveStudySession(user.id, session, activeProfile?.id || null);
         } catch (error) {
           logger.error("Error saving study session to database", { error });
-          // Revert on error
-          setSessions(sessions);
-          setLocalSessions(localSessions);
+          // STEP 3: Revert on error
+          setSessions(previousSessions);
+          setLocalSessions(previousSessions);
         }
       }
     },
-    [sessions, user, activeProfile?.id, setLocalSessions, localSessions]
+    [sessions, user, activeProfile?.id, setLocalSessions]
   );
 
-  // Update study session
+  // Update study session (optimistic update with revert on error)
   const updateSession = useCallback(
     async (sessionId: string, updates: Partial<StudySession>) => {
+      // STEP 1: Optimistic update (immediate UI)
+      const previousSessions = sessions;
       const updatedSessions = sessions.map((s) =>
         s.id === sessionId ? { ...s, ...updates } : s
       );
       setSessions(updatedSessions);
       setLocalSessions(updatedSessions);
 
-      // Save to database if logged in
+      // STEP 2: Save to database (in background)
       if (user) {
         try {
           // Find the session and save it
@@ -95,13 +113,13 @@ export function useStudySessions() {
           }
         } catch (error) {
           logger.error("Error updating study session in database", { error });
-          // Revert on error
-          setSessions(sessions);
-          setLocalSessions(localSessions);
+          // STEP 3: Revert on error
+          setSessions(previousSessions);
+          setLocalSessions(previousSessions);
         }
       }
     },
-    [sessions, user, activeProfile?.id, setLocalSessions, localSessions]
+    [sessions, user, activeProfile?.id, setLocalSessions]
   );
 
   return {
