@@ -71,7 +71,19 @@ export async function getXPData(userId: string, profileId?: string | null): Prom
     }
     
     logger.info("Executing XP query", { userId, profileId: effectiveProfileId });
-    const { data, error } = await query;
+    
+    // Add timeout to the query itself to prevent infinite hanging
+    const queryPromise = query;
+    const timeoutPromise = new Promise<any>((_, reject) => {
+      setTimeout(() => reject(new Error("XP query timeout after 10 seconds")), 10000);
+    });
+    
+    const { data, error } = await Promise.race([queryPromise, timeoutPromise])
+      .catch((err) => {
+        logger.error("XP query timeout or error", { error: err.message, userId, profileId: effectiveProfileId });
+        return { data: null, error: err };
+      });
+    
     logger.info("XP query completed", { userId, profileId: effectiveProfileId, rowCount: data?.length, hasError: !!error });
 
     if (error) {
