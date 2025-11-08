@@ -28,65 +28,86 @@ export function useProblemHistory() {
   const [isSyncing, setIsSyncing] = useState(false);
 
   // Load from database on mount or when user/profile changes
-  // Use immediate loading pattern: show localStorage first, then sync from database
+  // BEST PRACTICE: Database is ALWAYS the source of truth for logged-in users
+  // localStorage is ONLY used for:
+  // 1. Guest users (no database access)
+  // 2. Performance cache (optional, doesn't affect data persistence)
   useEffect(() => {
     let isMounted = true;
     
-    // STEP 1: Load from localStorage IMMEDIATELY (no loading state)
-    // This ensures the UI shows data right away
-    try {
-      const localData = JSON.parse(localStorage.getItem("aitutor-problem-history") || "[]");
-      if (isMounted) {
-        setProblems(localData);
-        setIsLoading(false); // Show data immediately
-      }
-    } catch (error) {
-      logger.error("Error loading problem history from localStorage", { error });
-      if (isMounted) {
-        setProblems([]);
-        setIsLoading(false);
-      }
-    }
-
-    // STEP 2: Sync from database in background (only for logged-in users)
-    if (user) {
-      const syncFromDatabase = async () => {
-        try {
-          const dbProblems = await getProblems(user.id, 100, activeProfile?.id || null);
-          
-          if (!isMounted) return;
-          
-          // Convert to SavedProblem format
-          const savedProblems: SavedProblem[] = dbProblems.map((p) => {
-            const parsedData = p.parsed_data as any;
-            return {
-              id: p.id || Date.now().toString(),
-              text: p.text,
-              type: p.type as any,
-              confidence: 1.0,
-              savedAt: p.solved_at ? new Date(p.solved_at).getTime() : Date.now(),
-              isBookmarked: p.is_bookmarked || false,
-              imageUrl: p.image_url || undefined,
-              difficulty: p.difficulty || parsedData?.difficulty,
-              hintsUsed: p.hints_used || parsedData?.hintsUsed,
-              exchanges: parsedData?.exchanges,
-            };
-          });
-
-          // Update state with database data
-          setProblems(savedProblems);
-          
-          // Also update localStorage as cache
-          localStorage.setItem("aitutor-problem-history", JSON.stringify(savedProblems));
-        } catch (error) {
-          logger.error("Error loading problem history from database", { error });
-          // Don't update state on error - keep localStorage data
+    if (!user) {
+      // Guest mode - use localStorage only (no database access)
+      try {
+        const localData = JSON.parse(localStorage.getItem("aitutor-problem-history") || "[]");
+        if (isMounted) {
+          setProblems(localData);
+          setIsLoading(false);
         }
-      };
-      
-      // Sync in background (don't block UI)
-      syncFromDatabase();
+      } catch (error) {
+        logger.error("Error loading problem history from localStorage", { error });
+        if (isMounted) {
+          setProblems([]);
+          setIsLoading(false);
+        }
+      }
+      return;
     }
+
+    // For logged-in users: ALWAYS load from database (source of truth)
+    // This ensures data is consistent across all devices and sessions
+    const loadFromDatabase = async () => {
+      try {
+        setIsLoading(true);
+        
+        // Load from database (source of truth - works across all devices)
+        const dbProblems = await getProblems(user.id, 100, activeProfile?.id || null);
+        
+        if (!isMounted) return;
+        
+        // Convert to SavedProblem format
+        const savedProblems: SavedProblem[] = dbProblems.map((p) => {
+          const parsedData = p.parsed_data as any;
+          return {
+            id: p.id || Date.now().toString(),
+            text: p.text,
+            type: p.type as any,
+            confidence: 1.0,
+            savedAt: p.solved_at ? new Date(p.solved_at).getTime() : Date.now(),
+            isBookmarked: p.is_bookmarked || false,
+            imageUrl: p.image_url || undefined,
+            difficulty: p.difficulty || parsedData?.difficulty,
+            hintsUsed: p.hints_used || parsedData?.hintsUsed,
+            exchanges: parsedData?.exchanges,
+          };
+        });
+
+        // Update state with database data (source of truth)
+        setProblems(savedProblems);
+        
+        // Update localStorage as cache ONLY (for performance, not for persistence)
+        // This cache is device-specific and can be cleared - database is what matters
+        localStorage.setItem("aitutor-problem-history", JSON.stringify(savedProblems));
+      } catch (error) {
+        logger.error("Error loading problem history from database", { error });
+        // Fallback to localStorage cache if database fails (offline mode)
+        try {
+          const cachedData = JSON.parse(localStorage.getItem("aitutor-problem-history") || "[]");
+          if (isMounted) {
+            setProblems(cachedData);
+          }
+        } catch (e) {
+          if (isMounted) {
+            setProblems([]);
+          }
+        }
+      } finally {
+        if (isMounted) {
+          setIsLoading(false);
+        }
+      }
+    };
+    
+    loadFromDatabase();
     
     return () => {
       isMounted = false;
