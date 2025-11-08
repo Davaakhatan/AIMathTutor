@@ -533,6 +533,154 @@ export async function deleteProblem(userId: string, problemId: string, profileId
 }
 
 // ============================================
+// CHALLENGES
+// ============================================
+
+export interface ChallengeData {
+  id?: string;
+  challenge_text: string;
+  challenge_type?: string; // 'share', 'daily', 'generated', 'friend_challenge'
+  problem_type?: string;
+  difficulty?: string;
+  share_code?: string;
+  share_id?: string;
+  challenger_id?: string;
+  solved_at?: string;
+  attempts?: number;
+  hints_used?: number;
+  time_spent?: number;
+  is_completed?: boolean;
+  metadata?: any;
+}
+
+/**
+ * Get challenges from Supabase
+ */
+export async function getChallenges(userId: string, limit = 100, profileId?: string | null): Promise<ChallengeData[]> {
+  try {
+    const supabase = await getSupabaseClient();
+    const effectiveProfileId = profileId !== undefined 
+      ? profileId 
+      : await getEffectiveProfileId();
+    
+    let query = supabase
+      .from("challenges")
+      .select("*");
+    
+    if (effectiveProfileId) {
+      query = query.eq("student_profile_id", effectiveProfileId);
+    } else {
+      query = query.eq("user_id", userId).is("student_profile_id", null);
+    }
+    
+    const { data, error } = await query
+      .order("created_at", { ascending: false })
+      .limit(limit);
+
+    if (error) {
+      logger.error("Error fetching challenges", { error: error.message, userId });
+      return [];
+    }
+
+    return (data || []).map((c: any) => ({
+      id: c.id,
+      challenge_text: c.challenge_text,
+      challenge_type: c.challenge_type,
+      problem_type: c.problem_type,
+      difficulty: c.difficulty,
+      share_code: c.share_code,
+      share_id: c.share_id,
+      challenger_id: c.challenger_id,
+      solved_at: c.solved_at,
+      attempts: c.attempts || 0,
+      hints_used: c.hints_used || 0,
+      time_spent: c.time_spent || 0,
+      is_completed: c.is_completed || false,
+      metadata: c.metadata,
+    }));
+  } catch (error) {
+    logger.error("Error in getChallenges", { error, userId });
+    return [];
+  }
+}
+
+/**
+ * Save challenge to Supabase
+ */
+export async function saveChallenge(userId: string, challenge: ChallengeData, profileId?: string | null): Promise<string | null> {
+  try {
+    const supabase = await getSupabaseClient();
+    const effectiveProfileId = profileId !== undefined 
+      ? profileId 
+      : await getEffectiveProfileId();
+    
+    const insertData: any = {
+      user_id: userId,
+      challenge_text: challenge.challenge_text,
+      challenge_type: challenge.challenge_type || "generated",
+      problem_type: challenge.problem_type,
+      difficulty: challenge.difficulty,
+      share_code: challenge.share_code,
+      share_id: challenge.share_id,
+      challenger_id: challenge.challenger_id,
+      solved_at: challenge.solved_at,
+      attempts: challenge.attempts || 0,
+      hints_used: challenge.hints_used || 0,
+      time_spent: challenge.time_spent || 0,
+      is_completed: challenge.is_completed || false,
+      metadata: challenge.metadata || {},
+    };
+    
+    if (effectiveProfileId) {
+      insertData.student_profile_id = effectiveProfileId;
+    }
+    
+    const { data, error } = await supabase
+      .from("challenges")
+      .insert(insertData)
+      .select()
+      .single();
+
+    if (error) {
+      logger.error("Error saving challenge", { error: error.message, userId });
+      return null;
+    }
+
+    return data.id;
+  } catch (error) {
+    logger.error("Error in saveChallenge", { error, userId });
+    return null;
+  }
+}
+
+/**
+ * Update challenge in Supabase
+ */
+export async function updateChallenge(userId: string, challengeId: string, updates: Partial<ChallengeData>): Promise<boolean> {
+  try {
+    const supabase = await getSupabaseClient();
+    const { error } = await supabase
+      .from("challenges")
+      .update({
+        ...updates,
+        updated_at: new Date().toISOString(),
+      })
+      .eq("id", challengeId)
+      .eq("user_id", userId);
+
+    if (error) {
+      logger.error("Error updating challenge", { error: error.message, userId, challengeId });
+      return false;
+    }
+
+    return true;
+  } catch (error) {
+    logger.error("Error in updateChallenge", { error, userId, challengeId });
+    return false;
+  }
+}
+
+// ============================================
 // ACHIEVEMENTS
 // ============================================
 

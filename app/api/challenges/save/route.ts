@@ -61,7 +61,7 @@ export async function POST(request: NextRequest) {
         .limit(1);
       
       if (profiles && profiles.length > 0) {
-        profileId = profiles[0].id;
+        profileId = (profiles[0] as any).id;
       }
     } catch (e) {
       // Ignore profile lookup errors
