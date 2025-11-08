@@ -86,14 +86,25 @@ export interface XPData {
 export async function getXPData(userId: string, profileId?: string | null): Promise<XPData | null> {
   try {
     // CRITICAL: Ensure profile exists before querying (foreign keys point to profiles.id)
-    await ensureProfileExists(userId);
+    // Add timeout to prevent hanging
+    const profileExistsPromise = ensureProfileExists(userId);
+    const profileTimeout = new Promise<boolean>((resolve) => {
+      setTimeout(() => {
+        logger.warn("ensureProfileExists timeout - continuing anyway", { userId });
+        resolve(false);
+      }, 2000); // 2 second timeout
+    });
+    await Promise.race([profileExistsPromise, profileTimeout]);
     
     const supabase = await getSupabaseClient();
+    if (!supabase) {
+      logger.warn("Supabase client not available");
+      return null;
+    }
     
-    // Use profile ID if provided, otherwise get from active profile
-    const effectiveProfileId = profileId !== undefined 
-      ? profileId 
-      : await getEffectiveProfileId();
+    // Use profile ID if provided, otherwise use null (don't call getEffectiveProfileId - it hangs!)
+    // The hook should pass activeProfile?.id directly
+    const effectiveProfileId = profileId !== undefined ? profileId : null;
     
     let query = supabase
       .from("xp_data")
@@ -142,9 +153,19 @@ export async function getXPData(userId: string, profileId?: string | null): Prom
 async function createDefaultXPData(userId: string, profileId?: string | null): Promise<XPData> {
   try {
     const supabase = await getSupabaseClient();
-    const effectiveProfileId = profileId !== undefined 
-      ? profileId 
-      : await getEffectiveProfileId();
+    if (!supabase) {
+      logger.warn("Supabase client not available for creating default XP data");
+      return {
+        total_xp: 0,
+        level: 1,
+        xp_to_next_level: 100,
+        xp_history: [],
+        recent_gains: [],
+      };
+    }
+    
+    // Use profile ID if provided, otherwise use null (don't call getEffectiveProfileId - it hangs!)
+    const effectiveProfileId = profileId !== undefined ? profileId : null;
     
     // Check if data already exists for this profile/user combination
     let checkQuery = supabase.from("xp_data").select("*");
@@ -218,12 +239,24 @@ async function createDefaultXPData(userId: string, profileId?: string | null): P
 export async function updateXPData(userId: string, xpData: Partial<XPData>, profileId?: string | null): Promise<boolean> {
   try {
     // CRITICAL: Ensure profile exists before updating (foreign keys point to profiles.id)
-    await ensureProfileExists(userId);
+    // Add timeout to prevent hanging
+    const profileExistsPromise = ensureProfileExists(userId);
+    const profileTimeout = new Promise<boolean>((resolve) => {
+      setTimeout(() => {
+        logger.warn("ensureProfileExists timeout - continuing anyway", { userId });
+        resolve(false);
+      }, 2000);
+    });
+    await Promise.race([profileExistsPromise, profileTimeout]);
     
     const supabase = await getSupabaseClient();
-    const effectiveProfileId = profileId !== undefined 
-      ? profileId 
-      : await getEffectiveProfileId();
+    if (!supabase) {
+      logger.warn("Supabase client not available");
+      return false;
+    }
+    
+    // Use profile ID if provided, otherwise use null (don't call getEffectiveProfileId - it hangs!)
+    const effectiveProfileId = profileId !== undefined ? profileId : null;
     
     const updateData: any = {
       user_id: userId,
@@ -272,12 +305,24 @@ export interface StreakData {
 export async function getStreakData(userId: string, profileId?: string | null): Promise<StreakData | null> {
   try {
     // CRITICAL: Ensure profile exists before querying (foreign keys point to profiles.id)
-    await ensureProfileExists(userId);
+    // Add timeout to prevent hanging
+    const profileExistsPromise = ensureProfileExists(userId);
+    const profileTimeout = new Promise<boolean>((resolve) => {
+      setTimeout(() => {
+        logger.warn("ensureProfileExists timeout - continuing anyway", { userId });
+        resolve(false);
+      }, 2000);
+    });
+    await Promise.race([profileExistsPromise, profileTimeout]);
     
     const supabase = await getSupabaseClient();
-    const effectiveProfileId = profileId !== undefined 
-      ? profileId 
-      : await getEffectiveProfileId();
+    if (!supabase) {
+      logger.warn("Supabase client not available");
+      return null;
+    }
+    
+    // Use profile ID if provided, otherwise use null (don't call getEffectiveProfileId - it hangs!)
+    const effectiveProfileId = profileId !== undefined ? profileId : null;
     
     let query = supabase
       .from("streaks")
@@ -386,12 +431,24 @@ async function createDefaultStreakData(userId: string, profileId?: string | null
 export async function updateStreakData(userId: string, streakData: Partial<StreakData>, profileId?: string | null): Promise<boolean> {
   try {
     // CRITICAL: Ensure profile exists before updating (foreign keys point to profiles.id)
-    await ensureProfileExists(userId);
+    // Add timeout to prevent hanging
+    const profileExistsPromise = ensureProfileExists(userId);
+    const profileTimeout = new Promise<boolean>((resolve) => {
+      setTimeout(() => {
+        logger.warn("ensureProfileExists timeout - continuing anyway", { userId });
+        resolve(false);
+      }, 2000);
+    });
+    await Promise.race([profileExistsPromise, profileTimeout]);
     
     const supabase = await getSupabaseClient();
-    const effectiveProfileId = profileId !== undefined 
-      ? profileId 
-      : await getEffectiveProfileId();
+    if (!supabase) {
+      logger.warn("Supabase client not available");
+      return false;
+    }
+    
+    // Use profile ID if provided, otherwise use null (don't call getEffectiveProfileId - it hangs!)
+    const effectiveProfileId = profileId !== undefined ? profileId : null;
     
     const updateData: any = {
       user_id: userId,
@@ -449,12 +506,24 @@ export interface ProblemData {
 export async function getProblems(userId: string, limit = 100, profileId?: string | null): Promise<ProblemData[]> {
   try {
     // CRITICAL: Ensure profile exists before querying (foreign keys point to profiles.id)
-    await ensureProfileExists(userId);
+    // Add timeout to prevent hanging
+    const profileExistsPromise = ensureProfileExists(userId);
+    const profileTimeout = new Promise<boolean>((resolve) => {
+      setTimeout(() => {
+        logger.warn("ensureProfileExists timeout - continuing anyway", { userId });
+        resolve(false);
+      }, 2000);
+    });
+    await Promise.race([profileExistsPromise, profileTimeout]);
     
     const supabase = await getSupabaseClient();
-    const effectiveProfileId = profileId !== undefined 
-      ? profileId 
-      : await getEffectiveProfileId();
+    if (!supabase) {
+      logger.warn("Supabase client not available");
+      return [];
+    }
+    
+    // Use profile ID if provided, otherwise use null (don't call getEffectiveProfileId - it hangs!)
+    const effectiveProfileId = profileId !== undefined ? profileId : null;
     
     let query = supabase
       .from("problems")
@@ -553,9 +622,21 @@ export async function saveProblem(userId: string, problem: ProblemData, profileI
 export async function updateProblem(userId: string, problemId: string, updates: Partial<ProblemData>): Promise<boolean> {
   try {
     // CRITICAL: Ensure profile exists before updating (foreign keys point to profiles.id)
-    await ensureProfileExists(userId);
+    // Add timeout to prevent hanging
+    const profileExistsPromise = ensureProfileExists(userId);
+    const profileTimeout = new Promise<boolean>((resolve) => {
+      setTimeout(() => {
+        logger.warn("ensureProfileExists timeout - continuing anyway", { userId });
+        resolve(false);
+      }, 2000);
+    });
+    await Promise.race([profileExistsPromise, profileTimeout]);
     
     const supabase = await getSupabaseClient();
+    if (!supabase) {
+      logger.warn("Supabase client not available");
+      return false;
+    }
     const { error } = await supabase
       .from("problems")
       .update({
@@ -583,12 +664,24 @@ export async function updateProblem(userId: string, problemId: string, updates: 
 export async function deleteProblem(userId: string, problemId: string, profileId?: string | null): Promise<boolean> {
   try {
     // CRITICAL: Ensure profile exists before deleting (foreign keys point to profiles.id)
-    await ensureProfileExists(userId);
+    // Add timeout to prevent hanging
+    const profileExistsPromise = ensureProfileExists(userId);
+    const profileTimeout = new Promise<boolean>((resolve) => {
+      setTimeout(() => {
+        logger.warn("ensureProfileExists timeout - continuing anyway", { userId });
+        resolve(false);
+      }, 2000);
+    });
+    await Promise.race([profileExistsPromise, profileTimeout]);
     
     const supabase = await getSupabaseClient();
-    const effectiveProfileId = profileId !== undefined 
-      ? profileId 
-      : await getEffectiveProfileId();
+    if (!supabase) {
+      logger.warn("Supabase client not available");
+      return false;
+    }
+    
+    // Use profile ID if provided, otherwise use null (don't call getEffectiveProfileId - it hangs!)
+    const effectiveProfileId = profileId !== undefined ? profileId : null;
     
     let query = supabase
       .from("problems")
@@ -643,9 +736,13 @@ export interface ChallengeData {
 export async function getChallenges(userId: string, limit = 100, profileId?: string | null): Promise<ChallengeData[]> {
   try {
     const supabase = await getSupabaseClient();
-    const effectiveProfileId = profileId !== undefined 
-      ? profileId 
-      : await getEffectiveProfileId();
+    if (!supabase) {
+      logger.warn("Supabase client not available");
+      return [];
+    }
+    
+    // Use profile ID if provided, otherwise use null (don't call getEffectiveProfileId - it hangs!)
+    const effectiveProfileId = profileId !== undefined ? profileId : null;
     
     let query = supabase
       .from("challenges")
@@ -693,10 +790,24 @@ export async function getChallenges(userId: string, limit = 100, profileId?: str
  */
 export async function saveChallenge(userId: string, challenge: ChallengeData, profileId?: string | null): Promise<string | null> {
   try {
+    // CRITICAL: Ensure profile exists (even though challenges table references auth.users, we need profiles for consistency)
+    const profileExistsPromise = ensureProfileExists(userId);
+    const profileTimeout = new Promise<boolean>((resolve) => {
+      setTimeout(() => {
+        logger.warn("ensureProfileExists timeout - continuing anyway", { userId });
+        resolve(false);
+      }, 2000);
+    });
+    await Promise.race([profileExistsPromise, profileTimeout]);
+    
     const supabase = await getSupabaseClient();
-    const effectiveProfileId = profileId !== undefined 
-      ? profileId 
-      : await getEffectiveProfileId();
+    if (!supabase) {
+      logger.warn("Supabase client not available");
+      return null;
+    }
+    
+    // Use profile ID if provided, otherwise use null (don't call getEffectiveProfileId - it hangs!)
+    const effectiveProfileId = profileId !== undefined ? profileId : null;
     
     const insertData: any = {
       user_id: userId,
@@ -782,12 +893,24 @@ export interface AchievementData {
 export async function getAchievements(userId: string, profileId?: string | null): Promise<AchievementData[]> {
   try {
     // CRITICAL: Ensure profile exists before querying (foreign keys point to profiles.id)
-    await ensureProfileExists(userId);
+    // Add timeout to prevent hanging
+    const profileExistsPromise = ensureProfileExists(userId);
+    const profileTimeout = new Promise<boolean>((resolve) => {
+      setTimeout(() => {
+        logger.warn("ensureProfileExists timeout - continuing anyway", { userId });
+        resolve(false);
+      }, 2000);
+    });
+    await Promise.race([profileExistsPromise, profileTimeout]);
     
     const supabase = await getSupabaseClient();
-    const effectiveProfileId = profileId !== undefined 
-      ? profileId 
-      : await getEffectiveProfileId();
+    if (!supabase) {
+      logger.warn("Supabase client not available");
+      return [];
+    }
+    
+    // Use profile ID if provided, otherwise use null (don't call getEffectiveProfileId - it hangs!)
+    const effectiveProfileId = profileId !== undefined ? profileId : null;
     
     let query = supabase
       .from("achievements")
@@ -826,12 +949,24 @@ export async function getAchievements(userId: string, profileId?: string | null)
 export async function unlockAchievement(userId: string, achievement: AchievementData, profileId?: string | null): Promise<boolean> {
   try {
     // CRITICAL: Ensure profile exists before saving (foreign keys point to profiles.id)
-    await ensureProfileExists(userId);
+    // Add timeout to prevent hanging
+    const profileExistsPromise = ensureProfileExists(userId);
+    const profileTimeout = new Promise<boolean>((resolve) => {
+      setTimeout(() => {
+        logger.warn("ensureProfileExists timeout - continuing anyway", { userId });
+        resolve(false);
+      }, 2000);
+    });
+    await Promise.race([profileExistsPromise, profileTimeout]);
     
     const supabase = await getSupabaseClient();
-    const effectiveProfileId = profileId !== undefined 
-      ? profileId 
-      : await getEffectiveProfileId();
+    if (!supabase) {
+      logger.warn("Supabase client not available");
+      return false;
+    }
+    
+    // Use profile ID if provided, otherwise use null (don't call getEffectiveProfileId - it hangs!)
+    const effectiveProfileId = profileId !== undefined ? profileId : null;
     
     const insertData: any = {
       user_id: userId,
@@ -899,12 +1034,24 @@ export interface StudySession {
 export async function getStudySessions(userId: string, limit = 100, profileId?: string | null): Promise<StudySession[]> {
   try {
     // CRITICAL: Ensure profile exists before querying (foreign keys point to profiles.id)
-    await ensureProfileExists(userId);
+    // Add timeout to prevent hanging
+    const profileExistsPromise = ensureProfileExists(userId);
+    const profileTimeout = new Promise<boolean>((resolve) => {
+      setTimeout(() => {
+        logger.warn("ensureProfileExists timeout - continuing anyway", { userId });
+        resolve(false);
+      }, 2000);
+    });
+    await Promise.race([profileExistsPromise, profileTimeout]);
     
     const supabase = await getSupabaseClient();
-    const effectiveProfileId = profileId !== undefined 
-      ? profileId 
-      : await getEffectiveProfileId();
+    if (!supabase) {
+      logger.warn("Supabase client not available");
+      return [];
+    }
+    
+    // Use profile ID if provided, otherwise use null (don't call getEffectiveProfileId - it hangs!)
+    const effectiveProfileId = profileId !== undefined ? profileId : null;
     
     let query = supabase
       .from("study_sessions")
@@ -946,12 +1093,24 @@ export async function getStudySessions(userId: string, limit = 100, profileId?: 
 export async function saveStudySession(userId: string, session: StudySession, profileId?: string | null): Promise<string | null> {
   try {
     // CRITICAL: Ensure profile exists before saving (foreign keys point to profiles.id)
-    await ensureProfileExists(userId);
+    // Add timeout to prevent hanging
+    const profileExistsPromise = ensureProfileExists(userId);
+    const profileTimeout = new Promise<boolean>((resolve) => {
+      setTimeout(() => {
+        logger.warn("ensureProfileExists timeout - continuing anyway", { userId });
+        resolve(false);
+      }, 2000);
+    });
+    await Promise.race([profileExistsPromise, profileTimeout]);
     
     const supabase = await getSupabaseClient();
-    const effectiveProfileId = profileId !== undefined 
-      ? profileId 
-      : await getEffectiveProfileId();
+    if (!supabase) {
+      logger.warn("Supabase client not available");
+      return null;
+    }
+    
+    // Use profile ID if provided, otherwise use null (don't call getEffectiveProfileId - it hangs!)
+    const effectiveProfileId = profileId !== undefined ? profileId : null;
     
     const insertData: any = {
       user_id: userId,
@@ -1004,12 +1163,24 @@ export interface DailyGoal {
 export async function getDailyGoals(userId: string, limit = 30, profileId?: string | null): Promise<DailyGoal[]> {
   try {
     // CRITICAL: Ensure profile exists before querying (foreign keys point to profiles.id)
-    await ensureProfileExists(userId);
+    // Add timeout to prevent hanging
+    const profileExistsPromise = ensureProfileExists(userId);
+    const profileTimeout = new Promise<boolean>((resolve) => {
+      setTimeout(() => {
+        logger.warn("ensureProfileExists timeout - continuing anyway", { userId });
+        resolve(false);
+      }, 2000);
+    });
+    await Promise.race([profileExistsPromise, profileTimeout]);
     
     const supabase = await getSupabaseClient();
-    const effectiveProfileId = profileId !== undefined 
-      ? profileId 
-      : await getEffectiveProfileId();
+    if (!supabase) {
+      logger.warn("Supabase client not available");
+      return [];
+    }
+    
+    // Use profile ID if provided, otherwise use null (don't call getEffectiveProfileId - it hangs!)
+    const effectiveProfileId = profileId !== undefined ? profileId : null;
     
     let query = supabase
       .from("daily_goals")
@@ -1050,12 +1221,24 @@ export async function getDailyGoals(userId: string, limit = 30, profileId?: stri
 export async function saveDailyGoal(userId: string, goal: DailyGoal, profileId?: string | null): Promise<string | null> {
   try {
     // CRITICAL: Ensure profile exists before saving (foreign keys point to profiles.id)
-    await ensureProfileExists(userId);
+    // Add timeout to prevent hanging
+    const profileExistsPromise = ensureProfileExists(userId);
+    const profileTimeout = new Promise<boolean>((resolve) => {
+      setTimeout(() => {
+        logger.warn("ensureProfileExists timeout - continuing anyway", { userId });
+        resolve(false);
+      }, 2000);
+    });
+    await Promise.race([profileExistsPromise, profileTimeout]);
     
     const supabase = await getSupabaseClient();
-    const effectiveProfileId = profileId !== undefined 
-      ? profileId 
-      : await getEffectiveProfileId();
+    if (!supabase) {
+      logger.warn("Supabase client not available");
+      return null;
+    }
+    
+    // Use profile ID if provided, otherwise use null (don't call getEffectiveProfileId - it hangs!)
+    const effectiveProfileId = profileId !== undefined ? profileId : null;
     
     const upsertData: any = {
       user_id: userId,
@@ -1110,10 +1293,8 @@ export interface UserData {
  */
 export async function loadUserData(userId: string, profileId?: string | null): Promise<UserData> {
   try {
-    // Use provided profileId or get from active profile
-    const effectiveProfileId = profileId !== undefined 
-      ? profileId 
-      : await getEffectiveProfileId();
+    // Use provided profileId, don't call getEffectiveProfileId - it hangs!
+    const effectiveProfileId = profileId !== undefined ? profileId : null;
     
     // Load all data in parallel for speed
     const [xpData, streakData, problems, achievements, studySessions, dailyGoals] = await Promise.all([
