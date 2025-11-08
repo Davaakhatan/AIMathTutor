@@ -162,74 +162,103 @@ export default function LandingPage({ onGetStarted }: LandingPageProps) {
             </div>
           </div>
 
-          {/* Additional Features List */}
-          <div className="mt-16 max-w-3xl mx-auto">
-            <div className="grid sm:grid-cols-2 gap-6">
-              <div className="flex items-start gap-3">
-                <div className="w-8 h-8 bg-indigo-100 dark:bg-indigo-900 rounded-lg flex items-center justify-center flex-shrink-0">
-                  <svg className="w-4 h-4 text-indigo-600 dark:text-indigo-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
+          {/* Complete Ecosystem Showcase */}
+          <div className="mt-24 bg-gradient-to-br from-indigo-50 to-purple-50 dark:from-indigo-950/20 dark:to-purple-950/20 rounded-3xl p-12 border-2 border-indigo-100 dark:border-indigo-900">
+            <div className="text-center mb-12">
+              <h3 className="text-2xl font-bold text-gray-900 dark:text-gray-100 mb-3">
+                Complete Learning Ecosystem
+              </h3>
+              <p className="text-gray-600 dark:text-gray-400">
+                Three powerful systems working together
+              </p>
+            </div>
+
+            <div className="grid md:grid-cols-3 gap-8">
+              {/* System 1: Tutoring */}
+              <div className="text-center">
+                <div className="w-16 h-16 mx-auto mb-4 bg-gradient-to-br from-blue-500 to-cyan-600 rounded-2xl flex items-center justify-center shadow-lg">
+                  <svg className="w-10 h-10 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.747 0 3.332.477 4.5 1.253v13C19.832 18.477 18.247 18 16.5 18c-1.746 0-3.332.477-4.5 1.253" />
                   </svg>
                 </div>
-                <div>
-                  <p className="text-sm font-medium text-gray-900 dark:text-gray-100 mb-1 transition-colors">Problem Input</p>
-                  <p className="text-xs text-gray-500 dark:text-gray-400 font-light transition-colors">Text, image, or draw</p>
-                </div>
+                <h4 className="text-lg font-bold text-gray-900 dark:text-gray-100 mb-2">Smart Tutoring</h4>
+                <ul className="text-sm text-gray-600 dark:text-gray-400 space-y-1 text-left">
+                  <li>• Socratic method guidance</li>
+                  <li>• Text, image, or whiteboard input</li>
+                  <li>• Adaptive difficulty</li>
+                  <li>• Step-by-step explanations</li>
+                </ul>
               </div>
-              <div className="flex items-start gap-3">
-                <div className="w-8 h-8 bg-purple-100 dark:bg-purple-900 rounded-lg flex items-center justify-center flex-shrink-0">
-                  <svg className="w-4 h-4 text-purple-600 dark:text-purple-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+
+              {/* System 2: Growth */}
+              <div className="text-center">
+                <div className="w-16 h-16 mx-auto mb-4 bg-gradient-to-br from-orange-500 to-red-600 rounded-2xl flex items-center justify-center shadow-lg">
+                  <svg className="w-10 h-10 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 10V3L4 14h7v7l9-11h-7z" />
                   </svg>
                 </div>
-                <div>
-                  <p className="text-sm font-medium text-gray-900 dark:text-gray-100 mb-1 transition-colors">Difficulty Levels</p>
-                  <p className="text-xs text-gray-500 dark:text-gray-400 font-light transition-colors">Elementary to Advanced</p>
-                </div>
+                <h4 className="text-lg font-bold text-gray-900 dark:text-gray-100 mb-2">Viral Growth</h4>
+                <ul className="text-sm text-gray-600 dark:text-gray-400 space-y-1 text-left">
+                  <li>• Auto-challenges after problems</li>
+                  <li>• Share & compete with friends</li>
+                  <li>• Referral rewards system</li>
+                  <li>• Real-time activity feed</li>
+                </ul>
               </div>
-              <div className="flex items-start gap-3">
-                <div className="w-8 h-8 bg-green-100 dark:bg-green-900 rounded-lg flex items-center justify-center flex-shrink-0">
-                  <svg className="w-4 h-4 text-green-600 dark:text-green-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 21a4 4 0 01-4-4V5a2 2 0 012-2h4a2 2 0 012 2v12a4 4 0 01-4 4zm0 0h12a2 2 0 002-2v-4a2 2 0 00-2-2h-2.343M11 7.343l1.657-1.657a2 2 0 012.828 0l2.829 2.829a2 2 0 010 2.828l-8.486 8.485M7 17h.01" />
-                  </svg>
-                </div>
-                <div>
-                  <p className="text-sm font-medium text-gray-900 dark:text-gray-100 mb-1 transition-colors">Whiteboard</p>
-                  <p className="text-xs text-gray-500 dark:text-gray-400 font-light transition-colors">Visual problem solving</p>
-                </div>
-              </div>
-              <div className="flex items-start gap-3">
-                <div className="w-8 h-8 bg-orange-100 dark:bg-orange-900 rounded-lg flex items-center justify-center flex-shrink-0">
-                  <svg className="w-4 h-4 text-orange-600 dark:text-orange-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+
+              {/* System 3: Companion */}
+              <div className="text-center">
+                <div className="w-16 h-16 mx-auto mb-4 bg-gradient-to-br from-green-500 to-emerald-600 rounded-2xl flex items-center justify-center shadow-lg">
+                  <svg className="w-10 h-10 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4M7.835 4.697a3.42 3.42 0 001.946-.806 3.42 3.42 0 014.438 0 3.42 3.42 0 001.946.806 3.42 3.42 0 013.138 3.138 3.42 3.42 0 00.806 1.946 3.42 3.42 0 010 4.438 3.42 3.42 0 00-.806 1.946 3.42 3.42 0 01-3.138 3.138 3.42 3.42 0 00-1.946.806 3.42 3.42 0 01-4.438 0 3.42 3.42 0 00-1.946-.806 3.42 3.42 0 01-3.138-3.138 3.42 3.42 0 00-.806-1.946 3.42 3.42 0 010-4.438 3.42 3.42 0 00.806-1.946 3.42 3.42 0 013.138-3.138z" />
                   </svg>
                 </div>
-                <div>
-                  <p className="text-sm font-medium text-gray-900 dark:text-gray-100 mb-1 transition-colors">Gamification</p>
-                  <p className="text-xs text-gray-500 dark:text-gray-400 font-light transition-colors">XP, levels, achievements</p>
-                </div>
+                <h4 className="text-lg font-bold text-gray-900 dark:text-gray-100 mb-2">Study Companion</h4>
+                <ul className="text-sm text-gray-600 dark:text-gray-400 space-y-1 text-left">
+                  <li>• Remembers past sessions</li>
+                  <li>• Tracks learning goals</li>
+                  <li>• Smart subject recommendations</li>
+                  <li>• Streak rescue alerts</li>
+                </ul>
               </div>
+            </div>
+
+            {/* Unified Message */}
+            <div className="mt-10 text-center">
+              <p className="text-sm font-semibold text-indigo-700 dark:text-indigo-300">
+                All three systems work together automatically - one problem solved triggers everything!
+              </p>
             </div>
           </div>
         </div>
 
         {/* Final CTA */}
-        <div className="mt-24 sm:mt-32 text-center">
-          <h2 className="text-2xl sm:text-3xl font-light text-gray-900 dark:text-gray-100 mb-4 transition-colors">
-            Ready to start learning?
-          </h2>
-          <p className="text-gray-500 dark:text-gray-400 font-light mb-8 transition-colors">
-            Join thousands of students mastering math through guided discovery
-          </p>
-          <button
-            onClick={() => {
-              setAuthMode("signup");
-              setAuthModalOpen(true);
-            }}
-            className="px-8 py-3.5 bg-indigo-600 text-white text-base font-medium rounded-lg hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2 dark:focus:ring-offset-gray-900 transition-colors min-h-[48px]"
-          >
-            Create Free Account
-          </button>
+        <div className="mt-32 text-center">
+          <div className="inline-block">
+            <h2 className="text-3xl sm:text-4xl font-bold text-gray-900 dark:text-gray-100 mb-4">
+              Ready to start learning?
+            </h2>
+            <p className="text-lg text-gray-600 dark:text-gray-400 mb-10 max-w-2xl">
+              Join students mastering math through guided discovery, automated challenges, and personalized learning paths
+            </p>
+            <div className="flex flex-col sm:flex-row gap-4 justify-center">
+              <button
+                onClick={() => {
+                  setAuthMode("signup");
+                  setAuthModalOpen(true);
+                }}
+                className="px-10 py-4 bg-gradient-to-r from-indigo-600 via-purple-600 to-pink-600 hover:from-indigo-700 hover:via-purple-700 hover:to-pink-700 text-white text-lg font-bold rounded-xl shadow-2xl hover:shadow-indigo-500/50 active:scale-95 transition-all duration-300"
+              >
+                Create Free Account
+              </button>
+              <button
+                onClick={onGetStarted}
+                className="px-10 py-4 text-gray-700 dark:text-gray-300 text-lg font-semibold rounded-xl border-2 border-gray-300 dark:border-gray-700 hover:bg-white dark:hover:bg-gray-800 hover:border-indigo-300 dark:hover:border-indigo-700 shadow-lg hover:shadow-xl active:scale-95 transition-all duration-300"
+              >
+                Try as Guest
+              </button>
+            </div>
+          </div>
         </div>
       </main>
 
