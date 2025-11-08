@@ -6,18 +6,12 @@ import { useXPData } from "@/hooks/useXPData";
 import { useStreakData } from "@/hooks/useStreakData";
 import { useDailyGoals } from "@/hooks/useDailyGoals";
 import { useStudySessions } from "@/hooks/useStudySessions";
+import { StudySession } from "@/services/supabaseDataService";
 
 interface DailyGoal {
   problems: number;
   time: number; // in minutes
   date: string; // YYYY-MM-DD
-}
-
-interface StudySession {
-  startTime: number;
-  endTime?: number;
-  duration: number; // in seconds
-  problemsSolved: number;
 }
 
 interface StreakData {
@@ -116,13 +110,13 @@ export default function ProgressHub({
         intervalRef.current = null;
       }
       if (startTimeRef.current) {
-        const session: StudySession = {
+        const session = {
           start_time: new Date(startTimeRef.current).toISOString(),
           end_time: new Date().toISOString(),
           duration: elapsedTime,
           problems_solved: problemsSolvedThisSession,
           xp_earned: 0,
-        };
+        } as StudySession;
         addSession(session);
         setElapsedTime(0);
         setProblemsSolvedThisSession(0);
