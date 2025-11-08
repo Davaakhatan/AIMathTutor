@@ -306,15 +306,14 @@ export async function updateXPData(userId: string, xpData: Partial<XPData>, prof
     
     const updateData: any = {
       ...dbFields,
+      user_id: userId, // ALWAYS include user_id (required by RLS and NOT NULL constraint)
       updated_at: new Date().toISOString(),
     };
     
     if (effectiveProfileId) {
-      updateData.student_profile_id = effectiveProfileId;
-      updateData.user_id = null; // Profile-level: user_id must be null
+      updateData.student_profile_id = effectiveProfileId; // Profile-level: include both
     } else {
-      updateData.user_id = userId;
-      updateData.student_profile_id = null; // User-level: profile_id must be null
+      updateData.student_profile_id = null; // User-level: profile_id is null
     }
     
     // Use the composite unique constraint: (user_id, student_profile_id)
@@ -516,15 +515,14 @@ export async function updateStreakData(userId: string, streakData: Partial<Strea
     
     const updateData: any = {
       ...streakData,
+      user_id: userId, // ALWAYS include user_id (required by RLS and NOT NULL constraint)
       updated_at: new Date().toISOString(),
     };
     
     if (effectiveProfileId) {
-      updateData.student_profile_id = effectiveProfileId;
-      updateData.user_id = null; // Profile-level: user_id must be null
+      updateData.student_profile_id = effectiveProfileId; // Profile-level: include both
     } else {
-      updateData.user_id = userId;
-      updateData.student_profile_id = null; // User-level: profile_id must be null
+      updateData.student_profile_id = null; // User-level: profile_id is null
     }
     
     // Use the composite unique constraint: (user_id, student_profile_id)

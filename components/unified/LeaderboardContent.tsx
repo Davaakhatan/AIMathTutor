@@ -173,7 +173,7 @@ export default function LeaderboardContent({
               
               return (
                 <div
-                  key={player.userId}
+                  key={`${player.userId}-${index}`}
                   className={`relative overflow-hidden rounded-xl p-4 border shadow-sm transition-all duration-200 hover:shadow-md ${
                     isCurrentUser
                       ? "bg-gradient-to-r from-indigo-50 to-purple-50 dark:from-indigo-900/20 dark:to-purple-900/20 border-indigo-300 dark:border-indigo-600"

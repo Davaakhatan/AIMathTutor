@@ -83,12 +83,16 @@ export async function getGlobalLeaderboard(
     );
 
     // Get problems solved count for these users
-    const { data: problemsData } = await supabase
+    const { data: problemsData, error: problemsError } = await supabase
       .from("problems")
       .select("user_id")
       .in("user_id", userIds)
       .eq("status", "solved")
       .is("student_profile_id", null);
+
+    if (problemsError) {
+      logger.warn("Error fetching problems for leaderboard (continuing anyway)", { error: problemsError.message });
+    }
 
     // Count problems per user
     const problemsMap = new Map<string, number>();
