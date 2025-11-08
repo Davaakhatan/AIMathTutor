@@ -483,26 +483,9 @@ export default function ProblemOfTheDay({
     // Also listen for problem_completed event (from orchestrator)
     window.addEventListener("problem_completed", handleProblemSolvedWrapper);
     
-    // Test: Listen to all custom events to debug
-    const debugHandler = (event: Event) => {
-      if (event.type.includes("problem") || event.type.includes("solved") || event.type.includes("completed")) {
-        console.log("[ProblemOfTheDay] DEBUG - Custom event detected:", event.type, event);
-      }
-    };
-    window.addEventListener("problemSolved", debugHandler, true);
-    window.addEventListener("problem_completed", debugHandler, true);
-    
-    console.log("[ProblemOfTheDay] Event listeners registered", {
-      hasDailyProblem: !!dailyProblem,
-      hasUser: !!user,
-      dailyProblemText: dailyProblem?.problem.text?.substring(0, 50),
-    });
-    
     return () => {
       window.removeEventListener("problemSolved", handleProblemSolvedWrapper);
       window.removeEventListener("problem_completed", handleProblemSolvedWrapper);
-      window.removeEventListener("problemSolved", debugHandler, true);
-      window.removeEventListener("problem_completed", debugHandler, true);
     };
   }, [isMounted, dailyProblem, user, activeProfile?.id]);
 
