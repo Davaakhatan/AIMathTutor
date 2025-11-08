@@ -13,7 +13,7 @@ import { getEffectiveProfileId } from "@/services/studentProfileService";
  * Hook for achievements that syncs with database
  */
 export function useAchievements() {
-  const { user, activeProfile } = useAuth();
+  const { user, activeProfile, userRole } = useAuth();
   const [unlockedAchievements, setUnlockedAchievements] = useState<string[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [isSyncing, setIsSyncing] = useState(false);
@@ -41,15 +41,18 @@ export function useAchievements() {
           throw new Error("Supabase client not available");
         }
 
-        const effectiveProfileId = activeProfile?.id || (await getEffectiveProfileId());
+        // CRITICAL: For students, always use user-level (profileId = null)
+        const profileIdToUse = (userRole === "student") ? null : (activeProfile?.id || null);
+        
+        logger.info("Loading achievements from database", { userId: user.id, profileId: profileIdToUse, userRole });
 
         let query = supabase
           .from("achievements")
           .select("achievement_type")
           .eq("user_id", user.id);
 
-        if (effectiveProfileId) {
-          query = query.eq("student_profile_id", effectiveProfileId);
+        if (profileIdToUse) {
+          query = query.eq("student_profile_id", profileIdToUse);
         } else {
           query = query.is("student_profile_id", null);
         }
@@ -80,7 +83,7 @@ export function useAchievements() {
     };
 
     loadAchievements();
-  }, [user?.id, activeProfile?.id]);
+  }, [user?.id, userRole]); // Depend on userRole, not activeProfile for students
 
   // Unlock achievement (saves to both localStorage and database)
   const unlockAchievement = useCallback(async (achievementId: string) => {
@@ -102,17 +105,15 @@ export function useAchievements() {
           throw new Error("Supabase client not available");
         }
 
-        const effectiveProfileId = activeProfile?.id || (await getEffectiveProfileId());
+        // CRITICAL: For students, always use user-level (profileId = null)
+        const profileIdToUse = (userRole === "student") ? null : (activeProfile?.id || null);
 
         const insertData: any = {
           user_id: user.id,
           achievement_type: achievementId,
           unlocked_at: new Date().toISOString(),
+          student_profile_id: profileIdToUse,
         };
-
-        if (effectiveProfileId) {
-          insertData.student_profile_id = effectiveProfileId;
-        }
 
         const { error } = await supabase
           .from("achievements")
