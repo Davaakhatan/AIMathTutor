@@ -98,7 +98,33 @@ export default function StudyStreak({ onStreakChange }: StudyStreakProps = {}) {
       });
 
       if (hasTodayStudy && streakData.lastStudyDate !== today.getTime()) {
-        updateStreak();
+        // Update streak to reflect today's study
+        const todayDate = today.toISOString().split("T")[0];
+        const lastDate = streakData.lastStudyDate
+          ? new Date(streakData.lastStudyDate).toISOString().split("T")[0]
+          : null;
+        
+        const daysDiff = lastDate
+          ? Math.floor((today.getTime() - new Date(lastDate).getTime()) / (1000 * 60 * 60 * 24))
+          : 999;
+        
+        if (daysDiff === 0) {
+          // Already studied today, keep streak
+          return;
+        } else if (daysDiff === 1) {
+          // Continue streak (yesterday -> today)
+          updateStreak({
+            current_streak: streakData.currentStreak + 1,
+            longest_streak: Math.max(streakData.longestStreak, streakData.currentStreak + 1),
+            last_study_date: todayDate,
+          });
+        } else {
+          // Reset streak (gap > 1 day)
+          updateStreak({
+            current_streak: 1,
+            last_study_date: todayDate,
+          });
+        }
       }
     } catch {
       // Ignore
