@@ -22,7 +22,7 @@ export function useXPData() {
     recentGains: [],
   });
 
-  // Load XP data - Show localStorage immediately, then sync from database
+  // Load XP data - Fetch from database for authenticated users
   useEffect(() => {
     let isMounted = true;
     
@@ -40,30 +40,13 @@ export function useXPData() {
       return;
     }
 
-    // STEP 1: Show localStorage data IMMEDIATELY (no loading state)
-    const localData = {
-      total_xp: localXPData.totalXP || 0,
-      level: localXPData.level || 1,
-      xp_to_next_level: localXPData.xpToNextLevel || 100,
-      xp_history: localXPData.xpHistory || [],
-      recent_gains: localXPData.recentGains || [],
-    };
-    setXPData(localData);
-    setIsLoading(false); // Show data immediately
-    
-    // STEP 2: Sync from database in background (with timeout)
+    // For authenticated users: Load from database (with loading state)
     const loadFromDatabase = async () => {
       try {
-        // Add timeout to prevent hanging
-        const timeoutPromise = new Promise<XPData | null>((resolve) => {
-          setTimeout(() => {
-            logger.warn("getXPData timeout - using localStorage data", { userId: user.id });
-            resolve(null);
-          }, 5000); // 5 second timeout
-        });
+        setIsLoading(true);
+        logger.info("Loading XP data from database", { userId: user.id, profileId: activeProfile?.id });
         
-        const dataPromise = getXPData(user.id, activeProfile?.id || null);
-        const data = await Promise.race([dataPromise, timeoutPromise]);
+        const data = await getXPData(user.id, activeProfile?.id || null);
         
         if (!isMounted) return;
         
@@ -76,22 +59,33 @@ export function useXPData() {
             recent_gains: data.recent_gains || [],
           };
           
-          // Update state with database data (only if different)
+          logger.info("XP data loaded from database", { 
+            userId: user.id, 
+            totalXP: data.total_xp, 
+            level: data.level 
+          });
+          
+          // Update state with database data
           setXPData(dbData);
           
-          // Cache to localStorage
+          // Cache to localStorage for this user (store user ID too)
           setLocalXPData({
+            userId: user.id, // Store user ID to detect user changes
             totalXP: data.total_xp,
             level: data.level,
             xpToNextLevel: data.xp_to_next_level,
             xpHistory: data.xp_history || [],
             recentGains: data.recent_gains || [],
           });
+        } else {
+          logger.warn("No XP data found in database", { userId: user.id });
         }
-        // If timeout or no data, keep localStorage data (already shown)
       } catch (error) {
-        logger.error("Error loading XP data from database", { error });
-        // Keep localStorage data (already shown)
+        logger.error("Error loading XP data from database", { error, userId: user.id });
+      } finally {
+        if (isMounted) {
+          setIsLoading(false);
+        }
       }
     };
     

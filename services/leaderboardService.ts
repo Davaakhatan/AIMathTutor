@@ -35,54 +35,59 @@ export async function getGlobalLeaderboard(
   limit: number = 100
 ): Promise<LeaderboardEntry[]> {
   try {
+    logger.debug("Fetching global leaderboard", { limit });
     const supabase = await getSupabaseClient();
     if (!supabase) {
       logger.warn("Supabase client not available for leaderboard");
       return [];
     }
 
-    // Query xp_data joined with profiles for username
-    // Only get personal XP (student_profile_id IS NULL)
-    const { data, error } = await supabase
-      .from("xp_data")
-      .select(`
-        user_id,
-        total_xp,
-        level,
-        updated_at,
-        profiles!inner(
-          username,
-          display_name
-        )
-      `)
-      .is("student_profile_id", null)
-      .order("total_xp", { ascending: false })
-      .order("level", { ascending: false })
-      .limit(limit);
+    // Use Promise.all to fetch all data in parallel for speed
+    const [xpResult, streaksResult, profilesResult] = await Promise.all([
+      // Get XP data
+      supabase
+        .from("xp_data")
+        .select("user_id, total_xp, level, updated_at")
+        .is("student_profile_id", null)
+        .order("total_xp", { ascending: false })
+        .order("level", { ascending: false })
+        .limit(limit),
+      
+      // Get all streaks at once
+      supabase
+        .from("streaks")
+        .select("user_id, current_streak")
+        .is("student_profile_id", null),
+      
+      // Get all profiles at once
+      supabase
+        .from("profiles")
+        .select("id, username, display_name")
+    ]);
 
-    if (error) {
-      logger.error("Error fetching global leaderboard", { error: error.message });
+    if (xpResult.error) {
+      logger.error("Error fetching XP data for leaderboard", { error: xpResult.error.message });
       return [];
     }
 
-    if (!data || data.length === 0) {
+    if (!xpResult.data || xpResult.data.length === 0) {
+      logger.info("No XP data found for leaderboard");
       return [];
     }
 
-    // Get streak data for these users
-    const userIds = data.map((entry: any) => entry.user_id);
-    const { data: streakData } = await supabase
-      .from("streaks")
-      .select("user_id, current_streak")
-      .in("user_id", userIds)
-      .is("student_profile_id", null);
-
-    // Create a map of userId -> currentStreak
+    // Create maps for fast lookups
     const streakMap = new Map(
-      (streakData || []).map((s: any) => [s.user_id, s.current_streak])
+      (streaksResult.data || []).map((s: any) => [s.user_id, s.current_streak || 0])
     );
 
-    // Get problems solved count for these users
+    const profileMap = new Map(
+      (profilesResult.data || []).map((p: any) => [p.id, { username: p.username, displayName: p.display_name }])
+    );
+
+    // Get user IDs for problems query
+    const userIds = xpResult.data.map((entry: any) => entry.user_id);
+
+    // Fetch problems count (this is often the slowest query, so do it separately)
     const { data: problemsData, error: problemsError } = await supabase
       .from("problems")
       .select("user_id")
@@ -91,7 +96,7 @@ export async function getGlobalLeaderboard(
       .is("student_profile_id", null);
 
     if (problemsError) {
-      logger.warn("Error fetching problems for leaderboard (continuing anyway)", { error: problemsError.message });
+      logger.warn("Error fetching problems for leaderboard", { error: problemsError.message });
     }
 
     // Count problems per user
@@ -101,12 +106,14 @@ export async function getGlobalLeaderboard(
     });
 
     // Transform data
-    const leaderboard: LeaderboardEntry[] = data.map((entry: any) => {
+    const leaderboard: LeaderboardEntry[] = xpResult.data.map((entry: any) => {
       const rank = getRankForLevel(entry.level);
+      const profile = profileMap.get(entry.user_id);
+      
       return {
         userId: entry.user_id,
-        username: entry.profiles?.username || "Anonymous",
-        displayName: entry.profiles?.display_name,
+        username: profile?.username || "Anonymous",
+        displayName: profile?.displayName,
         totalXP: entry.total_xp || 0,
         level: entry.level || 1,
         rank: rank.title,
@@ -118,6 +125,7 @@ export async function getGlobalLeaderboard(
       };
     });
 
+    logger.debug("Leaderboard fetched successfully", { count: leaderboard.length });
     return leaderboard;
   } catch (error) {
     logger.error("Exception in getGlobalLeaderboard", { error });

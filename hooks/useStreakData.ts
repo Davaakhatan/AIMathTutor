@@ -49,17 +49,26 @@ export function useStreakData() {
       setIsLoading(true);
       
       try {
+        logger.info("Loading streak data from database", { userId: user.id, profileId: activeProfile?.id });
+        
         // STEP 1: Load from database (source of truth)
         const data = await getStreakData(user.id, activeProfile?.id || null);
         
         if (!isMounted) return;
         
         if (data) {
+          logger.info("Streak data loaded from database", { 
+            userId: user.id, 
+            currentStreak: data.current_streak,
+            longestStreak: data.longest_streak
+          });
+          
           // STEP 2: Update state with database data
           setStreakData(data);
           
-          // STEP 3: Cache to localStorage
+          // STEP 3: Cache to localStorage (with user ID)
           setLocalStreakData({
+            userId: user.id, // Store user ID to detect user changes
             currentStreak: data.current_streak || 0,
             longestStreak: data.longest_streak || 0,
             lastStudyDate: data.last_study_date
@@ -67,6 +76,7 @@ export function useStreakData() {
               : null,
           });
         } else {
+          logger.warn("No streak data found in database", { userId: user.id });
           // No data in database, use localStorage defaults
           const localData = {
             current_streak: localStreakData.currentStreak || 0,
@@ -80,7 +90,7 @@ export function useStreakData() {
         
         setIsLoading(false);
       } catch (error) {
-        logger.error("Error loading streak data from database", { error });
+        logger.error("Error loading streak data from database", { error, userId: user.id });
         
         // STEP 4: Fallback to localStorage if database fails (offline mode)
         if (isMounted) {
