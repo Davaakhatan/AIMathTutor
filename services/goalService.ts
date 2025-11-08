@@ -44,6 +44,17 @@ export async function createGoal(
   input: CreateGoalInput
 ): Promise<LearningGoal | null> {
   try {
+    // CRITICAL: Ensure profile exists before creating goal
+    const { ensureProfileExists } = await import("@/services/supabaseDataService");
+    const profileExistsPromise = ensureProfileExists(userId);
+    const profileTimeout = new Promise<boolean>((resolve) => {
+      setTimeout(() => {
+        logger.warn("ensureProfileExists timeout - continuing anyway", { userId });
+        resolve(false);
+      }, 2000);
+    });
+    await Promise.race([profileExistsPromise, profileTimeout]);
+    
     const supabase = getSupabaseAdmin();
     if (!supabase) {
       logger.error("Supabase admin client not available for creating goal");
@@ -93,6 +104,17 @@ export async function getGoals(
   status?: LearningGoal["status"]
 ): Promise<LearningGoal[]> {
   try {
+    // CRITICAL: Ensure profile exists before querying
+    const { ensureProfileExists } = await import("@/services/supabaseDataService");
+    const profileExistsPromise = ensureProfileExists(userId);
+    const profileTimeout = new Promise<boolean>((resolve) => {
+      setTimeout(() => {
+        logger.warn("ensureProfileExists timeout - continuing anyway", { userId });
+        resolve(false);
+      }, 2000);
+    });
+    await Promise.race([profileExistsPromise, profileTimeout]);
+    
     const supabase = getSupabaseAdmin();
     if (!supabase) {
       logger.error("Supabase admin client not available for fetching goals");
