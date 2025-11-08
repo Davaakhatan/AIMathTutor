@@ -494,11 +494,11 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
                 logger.info("Profiles loaded successfully on SIGNED_IN");
                 
                 // Check and award daily login XP (after profiles are loaded)
-                // Get active profile ID for student users
-                const activeProfileId = await getActiveStudentProfile(session.user.id);
+                // CRITICAL: Always use null profileId for daily login (user-level XP only)
+                // This ensures students get rewards on their main account
                 const dailyReward = await checkAndAwardDailyLoginXP(
                   session.user.id, 
-                  activeProfileId?.id || null
+                  null // Always user-level for daily login
                 );
                 
                 if (dailyReward.awarded) {
