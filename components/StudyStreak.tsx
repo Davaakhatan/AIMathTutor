@@ -137,10 +137,8 @@ export default function StudyStreak({ onStreakChange }: StudyStreakProps = {}) {
         if (onStreakChange) onStreakChange(streakData.currentStreak);
       }, 0);
     }
-
-    return () => window.removeEventListener("problemStarted", handleProblemStarted);
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []); // Only run once on mount - event listener handles updates
+  }, []); // Only run once on mount
 
   // Don't render until after hydration to avoid hydration mismatch
   if (!isMounted) return null;
