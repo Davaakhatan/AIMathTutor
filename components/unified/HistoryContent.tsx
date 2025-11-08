@@ -105,7 +105,17 @@ export default function HistoryContent({ onSelectProblem }: HistoryContentProps)
   };
 
   return (
-    <div className="flex flex-col h-full">
+    <div className="flex flex-col h-full max-h-[700px]">
+      {/* Header */}
+      <div className="text-center py-4 border-b border-gray-200 dark:border-gray-700">
+        <h2 className="text-2xl font-bold bg-gradient-to-r from-purple-600 to-pink-600 dark:from-purple-400 dark:to-pink-400 bg-clip-text text-transparent">
+          Problem History
+        </h2>
+        <p className="text-sm text-gray-600 dark:text-gray-400 mt-1">
+          Review and revisit past problems
+        </p>
+      </div>
+      
       {/* Tabs for All vs Bookmarked */}
       <div className="flex border-b border-gray-200 dark:border-gray-700">
         <button
