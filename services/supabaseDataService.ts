@@ -45,16 +45,8 @@ export interface XPData {
  */
 export async function getXPData(userId: string, profileId?: string | null): Promise<XPData | null> {
   try {
-    // CRITICAL: Ensure profile exists before querying (foreign keys point to profiles.id)
-    // Add timeout to prevent hanging
-    const profileExistsPromise = ensureProfileExists(userId);
-    const profileTimeout = new Promise<boolean>((resolve) => {
-      setTimeout(() => {
-        logger.debug("ensureProfileExists timeout - continuing anyway", { userId });
-        resolve(false);
-      }, 5000); // 5 second timeout (increased from 2s)
-    });
-    await Promise.race([profileExistsPromise, profileTimeout]);
+    // Profile existence is ensured by AuthContext - no need to check here
+    // await ensureProfileExists(userId); // DISABLED - causes 5s timeout
     
     const supabase = await getSupabaseClient();
     if (!supabase) {
@@ -255,16 +247,8 @@ async function createDefaultXPData(userId: string, profileId?: string | null): P
  */
 export async function updateXPData(userId: string, xpData: Partial<XPData>, profileId?: string | null): Promise<boolean> {
   try {
-    // CRITICAL: Ensure profile exists before updating (foreign keys point to profiles.id)
-    // Add timeout to prevent hanging
-    const profileExistsPromise = ensureProfileExists(userId);
-    const profileTimeout = new Promise<boolean>((resolve) => {
-      setTimeout(() => {
-        logger.warn("ensureProfileExists timeout - continuing anyway", { userId });
-        resolve(false);
-      }, 2000);
-    });
-    await Promise.race([profileExistsPromise, profileTimeout]);
+    // Profile existence is ensured by AuthContext - no need to check here
+    // await ensureProfileExists(userId); // DISABLED - causes 2s timeout
     
     const supabase = await getSupabaseClient();
     if (!supabase) {
@@ -324,16 +308,8 @@ export interface StreakData {
  */
 export async function getStreakData(userId: string, profileId?: string | null): Promise<StreakData | null> {
   try {
-    // CRITICAL: Ensure profile exists before querying (foreign keys point to profiles.id)
-    // Add timeout to prevent hanging
-    const profileExistsPromise = ensureProfileExists(userId);
-    const profileTimeout = new Promise<boolean>((resolve) => {
-      setTimeout(() => {
-        logger.debug("ensureProfileExists timeout - continuing anyway", { userId });
-        resolve(false);
-      }, 5000); // Increased timeout
-    });
-    await Promise.race([profileExistsPromise, profileTimeout]);
+    // Profile existence is ensured by AuthContext - no need to check here
+    // await ensureProfileExists(userId); // DISABLED - causes 5s timeout
     
     const supabase = await getSupabaseClient();
     if (!supabase) {
@@ -467,16 +443,8 @@ async function createDefaultStreakData(userId: string, profileId?: string | null
  */
 export async function updateStreakData(userId: string, streakData: Partial<StreakData>, profileId?: string | null): Promise<boolean> {
   try {
-    // CRITICAL: Ensure profile exists before updating (foreign keys point to profiles.id)
-    // Add timeout to prevent hanging
-    const profileExistsPromise = ensureProfileExists(userId);
-    const profileTimeout = new Promise<boolean>((resolve) => {
-      setTimeout(() => {
-        logger.warn("ensureProfileExists timeout - continuing anyway", { userId });
-        resolve(false);
-      }, 2000);
-    });
-    await Promise.race([profileExistsPromise, profileTimeout]);
+    // Profile existence is ensured by AuthContext - no need to check here
+    // await ensureProfileExists(userId); // DISABLED - causes 2s timeout
     
     const supabase = await getSupabaseClient();
     if (!supabase) {
