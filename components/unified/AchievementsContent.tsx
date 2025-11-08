@@ -170,28 +170,30 @@ export default function AchievementsContent() {
               unlocked.map((achievement) => (
                 <div
                   key={achievement.id}
-                  className="group bg-gradient-to-br from-white to-purple-50 dark:from-gray-800 dark:to-purple-950/20 border-2 border-purple-200 dark:border-purple-800 rounded-2xl shadow-lg hover:shadow-xl transition-all duration-300 hover:scale-105 overflow-hidden"
+                  className="group bg-gradient-to-br from-white to-purple-50 dark:from-gray-800 dark:to-purple-950/20 border-2 border-purple-200 dark:border-purple-800 rounded-xl shadow-lg hover:shadow-xl transition-all duration-300 hover:scale-[1.02]"
                 >
-                  <div className="p-5 text-center">
-                    <div className="flex justify-center mb-3">
-                      <div className="w-16 h-16 bg-gradient-to-br from-purple-500 to-pink-600 rounded-2xl flex items-center justify-center shadow-lg group-hover:rotate-6 transition-transform">
-                        <div className="w-12 h-12 text-white">
+                  <div className="p-4">
+                    <div className="flex items-start gap-3">
+                      <div className="w-14 h-14 bg-gradient-to-br from-purple-500 to-pink-600 rounded-xl flex items-center justify-center shadow-lg group-hover:scale-110 transition-transform flex-shrink-0">
+                        <div className="w-10 h-10 text-white">
                           <AchievementIcon achievementId={achievement.id} className="w-full h-full" />
                         </div>
                       </div>
+                      <div className="flex-1 min-w-0">
+                        <h5 className="text-sm font-bold text-gray-900 dark:text-gray-100 mb-1 line-clamp-1">{achievement.name}</h5>
+                        <p className="text-xs text-gray-600 dark:text-gray-400 line-clamp-2 mb-2">{achievement.description}</p>
+                        {user && (
+                          <ShareCard
+                            shareType="achievement"
+                            metadata={{
+                              achievement_title: achievement.name,
+                              achievement_type: achievement.id,
+                            }}
+                            className="text-xs px-2 py-1 w-full bg-gradient-to-r from-purple-500 to-pink-600 hover:from-purple-600 hover:to-pink-700 text-white border-0"
+                          />
+                        )}
+                      </div>
                     </div>
-                    <h5 className="text-sm font-bold text-gray-900 dark:text-gray-100 mb-1">{achievement.name}</h5>
-                    <p className="text-xs text-gray-600 dark:text-gray-400 mb-3">{achievement.description}</p>
-                    {user && (
-                      <ShareCard
-                        shareType="achievement"
-                        metadata={{
-                          achievement_title: achievement.name,
-                          achievement_type: achievement.id,
-                        }}
-                        className="text-xs px-3 py-1.5 w-full bg-gradient-to-r from-purple-500 to-pink-600 hover:from-purple-600 hover:to-pink-700 text-white border-0"
-                      />
-                    )}
                   </div>
                 </div>
               ))
@@ -210,23 +212,25 @@ export default function AchievementsContent() {
               {locked.map((achievement) => (
                 <div
                   key={achievement.id}
-                  className="bg-gradient-to-br from-gray-100 to-gray-200 dark:from-gray-900 dark:to-gray-800 border-2 border-gray-300 dark:border-gray-700 rounded-2xl shadow-md overflow-hidden opacity-60"
+                  className="bg-gradient-to-br from-gray-100 to-gray-200 dark:from-gray-900 dark:to-gray-800 border-2 border-gray-300 dark:border-gray-700 rounded-xl shadow-md opacity-60"
                 >
-                  <div className="p-5 text-center">
-                    <div className="flex justify-center mb-3">
-                      <div className="w-16 h-16 bg-gray-300 dark:bg-gray-700 rounded-2xl flex items-center justify-center relative">
-                        <div className="w-12 h-12 text-gray-500 dark:text-gray-600 blur-[2px]">
+                  <div className="p-4">
+                    <div className="flex items-start gap-3">
+                      <div className="w-14 h-14 bg-gray-300 dark:bg-gray-700 rounded-xl flex items-center justify-center relative flex-shrink-0">
+                        <div className="w-10 h-10 text-gray-500 dark:text-gray-600 blur-sm">
                           <AchievementIcon achievementId={achievement.id} className="w-full h-full" />
                         </div>
                         <div className="absolute inset-0 flex items-center justify-center">
-                          <svg className="w-8 h-8 text-gray-600 dark:text-gray-500" fill="currentColor" viewBox="0 0 20 20">
+                          <svg className="w-6 h-6 text-gray-600 dark:text-gray-500" fill="currentColor" viewBox="0 0 20 20">
                             <path fillRule="evenodd" d="M5 9V7a5 5 0 0110 0v2a2 2 0 012 2v5a2 2 0 01-2 2H5a2 2 0 01-2-2v-5a2 2 0 012-2zm8-2v2H7V7a3 3 0 016 0z" clipRule="evenodd" />
                           </svg>
                         </div>
                       </div>
+                      <div className="flex-1 min-w-0 flex flex-col justify-center">
+                        <h5 className="text-sm font-bold text-gray-500 dark:text-gray-500 mb-1">???</h5>
+                        <p className="text-xs text-gray-400 dark:text-gray-600 line-clamp-2">Unlock by completing challenges</p>
+                      </div>
                     </div>
-                    <h5 className="text-sm font-bold text-gray-500 dark:text-gray-500 mb-1">???</h5>
-                    <p className="text-xs text-gray-400 dark:text-gray-600">Complete challenges to unlock</p>
                   </div>
                 </div>
               ))}
