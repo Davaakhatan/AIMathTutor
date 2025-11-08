@@ -276,9 +276,9 @@ export default function DeepLinkPage() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [challengeProblem, difficultyMode]);
 
-  // Check if problem is solved and track conversion
+  // Check if problem is solved and track conversion + save challenge
   useEffect(() => {
-    if (!sessionId || !allMessages.length || completed) return;
+    if (!sessionId || !allMessages.length || completed || !challengeProblem) return;
 
     const tutorMessages = allMessages.filter(m => m.role === "tutor");
     const isSolved = tutorMessages.some(msg => {
@@ -313,8 +313,29 @@ export default function DeepLinkPage() {
       }).catch((err) => {
         console.error("[DeepLinkPage] Error tracking conversion:", err);
       });
+      
+      // Save challenge to database (if user is logged in)
+      // This will be handled by the API route that checks auth
+      fetch("/api/challenges/save", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          challenge_text: challengeProblem.text,
+          challenge_type: "share",
+          problem_type: challengeProblem.type,
+          share_code: shareCode,
+          is_completed: true,
+          solved_at: new Date().toISOString(),
+          attempts: allMessages.filter(m => m.role === "user").length,
+          hints_used: allMessages.filter(m => 
+            m.role === "tutor" && m.content.includes("💡 Hint:")
+          ).length,
+        }),
+      }).catch((err) => {
+        console.error("[DeepLinkPage] Error saving challenge:", err);
+      });
     }
-  }, [allMessages, sessionId, completed, shareCode]);
+  }, [allMessages, sessionId, completed, shareCode, challengeProblem]);
 
   const handleSignUp = () => {
     router.push(`/?signup=true&share=${shareCode}`);

@@ -192,6 +192,68 @@ Database format → UI format:
 - Guest mode (localStorage only, cleared when browser data cleared)
 - If database is deleted (but that's server-side, not user action)
 
+## Challenge History
+
+### Database Schema: `challenges` Table
+
+The `challenges` table stores all challenge history (problems from shares, daily challenges, etc.):
+
+```sql
+CREATE TABLE challenges (
+  id UUID PRIMARY KEY,
+  user_id UUID NOT NULL,
+  student_profile_id UUID,
+  
+  -- Challenge Data
+  challenge_text TEXT NOT NULL,              -- The challenge problem text
+  challenge_type TEXT,                       -- 'share', 'daily', 'generated', 'friend_challenge'
+  problem_type TEXT,                         -- Problem type (ARITHMETIC, ALGEBRA, etc.)
+  difficulty TEXT,                           -- Difficulty level
+  
+  -- Source Information
+  share_code TEXT,                           -- Share code if from a share link
+  share_id UUID,                             -- Reference to share
+  challenger_id UUID,                        -- Who created the challenge (if from friend)
+  
+  -- Completion Stats
+  solved_at TIMESTAMPTZ,                     -- When solved
+  attempts INTEGER DEFAULT 0,               -- Number of attempts
+  hints_used INTEGER DEFAULT 0,              -- Number of hints used
+  time_spent INTEGER DEFAULT 0,             -- Time spent in seconds
+  is_completed BOOLEAN DEFAULT false,       -- Whether challenge is completed
+  
+  -- Metadata
+  metadata JSONB,                            -- Additional challenge data
+  
+  created_at TIMESTAMPTZ DEFAULT NOW(),
+  updated_at TIMESTAMPTZ DEFAULT NOW()
+);
+```
+
+### What Challenge Data Syncs?
+
+When you're **ONLINE**, the following challenge data syncs:
+
+1. **All Challenges** - Up to 100 most recent challenges
+2. **Challenge Type** - Where it came from (share, daily, generated, friend)
+3. **Completion Status** - Whether you completed it
+4. **Stats** - Attempts, hints used, time spent
+5. **Source Info** - Share code, challenger (if from friend)
+
+### How Challenge History Works
+
+**When you complete a challenge:**
+1. Challenge is saved to `challenges` table
+2. Linked to `shares` table via `share_code` (if from share)
+3. Tracks completion stats (attempts, hints, time)
+4. Syncs across all devices
+
+**Challenge Types:**
+- `share` - From a share link (someone shared a problem)
+- `daily` - Daily challenge (Problem of the Day)
+- `generated` - AI-generated challenge
+- `friend_challenge` - Challenge sent by a friend
+
 ## Summary
 
 **Database = Source of Truth**
