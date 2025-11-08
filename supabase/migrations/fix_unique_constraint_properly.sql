@@ -32,19 +32,17 @@ WHERE id IN (
   WHERE x.row_num > 1
 );
 
--- Step 2: Drop any existing constraints/indexes
-DROP INDEX IF EXISTS xp_data_user_profile_unique;
-DROP INDEX IF EXISTS streaks_user_profile_unique;
+-- Step 2: Drop existing constraints (this will also drop the associated indexes)
 ALTER TABLE xp_data DROP CONSTRAINT IF EXISTS xp_data_user_profile_unique;
 ALTER TABLE streaks DROP CONSTRAINT IF EXISTS streaks_user_profile_unique;
 
--- Step 3: Create proper UNIQUE constraints (not just indexes)
+-- Step 3: Recreate UNIQUE constraints with proper names
 ALTER TABLE xp_data 
-  ADD CONSTRAINT xp_data_user_student_unique 
+  ADD CONSTRAINT xp_data_user_profile_unique 
   UNIQUE (user_id, student_profile_id);
 
 ALTER TABLE streaks 
-  ADD CONSTRAINT streaks_user_student_unique 
+  ADD CONSTRAINT streaks_user_profile_unique 
   UNIQUE (user_id, student_profile_id);
 
 -- Step 4: Verify constraints exist
