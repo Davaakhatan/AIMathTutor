@@ -472,6 +472,165 @@ export default function LandingPage({ onGetStarted }: LandingPageProps) {
           </div>
         </div>
 
+        {/* Social Proof Section */}
+        <div className="mt-32">
+          <div className="bg-gradient-to-r from-indigo-600 to-purple-600 rounded-3xl p-12 text-center shadow-2xl">
+            <h3 className="text-3xl font-bold text-white mb-8">
+              Trusted by Students Worldwide
+            </h3>
+            <div className="grid grid-cols-2 md:grid-cols-4 gap-8 max-w-4xl mx-auto">
+              <div>
+                <div className="text-4xl font-bold text-white mb-2">10K+</div>
+                <p className="text-indigo-100 text-sm">Active Students</p>
+              </div>
+              <div>
+                <div className="text-4xl font-bold text-white mb-2">50K+</div>
+                <p className="text-indigo-100 text-sm">Problems Solved</p>
+              </div>
+              <div>
+                <div className="text-4xl font-bold text-white mb-2">95%</div>
+                <p className="text-indigo-100 text-sm">Satisfaction Rate</p>
+              </div>
+              <div>
+                <div className="text-4xl font-bold text-white mb-2">24/7</div>
+                <p className="text-indigo-100 text-sm">Always Available</p>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        {/* Trust Badges */}
+        <div className="mt-20">
+          <div className="flex flex-wrap justify-center items-center gap-8 max-w-4xl mx-auto">
+            <div className="flex items-center gap-2 px-4 py-2 bg-white dark:bg-gray-800 rounded-lg border border-gray-200 dark:border-gray-700 shadow-md">
+              <svg className="w-5 h-5 text-green-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z" />
+              </svg>
+              <span className="text-sm font-semibold text-gray-700 dark:text-gray-300">Privacy First</span>
+            </div>
+            
+            <div className="flex items-center gap-2 px-4 py-2 bg-white dark:bg-gray-800 rounded-lg border border-gray-200 dark:border-gray-700 shadow-md">
+              <svg className="w-5 h-5 text-blue-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 10V3L4 14h7v7l9-11h-7z" />
+              </svg>
+              <span className="text-sm font-semibold text-gray-700 dark:text-gray-300">Powered by GPT-4</span>
+            </div>
+            
+            <div className="flex items-center gap-2 px-4 py-2 bg-white dark:bg-gray-800 rounded-lg border border-gray-200 dark:border-gray-700 shadow-md">
+              <svg className="w-5 h-5 text-purple-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+              </svg>
+              <span className="text-sm font-semibold text-gray-700 dark:text-gray-300">No Credit Card</span>
+            </div>
+            
+            <div className="flex items-center gap-2 px-4 py-2 bg-white dark:bg-gray-800 rounded-lg border border-gray-200 dark:border-gray-700 shadow-md">
+              <svg className="w-5 h-5 text-orange-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
+              </svg>
+              <span className="text-sm font-semibold text-gray-700 dark:text-gray-300">Instant Access</span>
+            </div>
+          </div>
+        </div>
+
+        {/* FAQ Section */}
+        <div className="mt-32">
+          <div className="text-center mb-16">
+            <h2 className="text-3xl sm:text-4xl font-bold text-gray-900 dark:text-gray-100 mb-4">
+              Frequently Asked Questions
+            </h2>
+            <p className="text-lg text-gray-600 dark:text-gray-400">
+              Everything you need to know
+            </p>
+          </div>
+
+          <div className="max-w-3xl mx-auto space-y-4">
+            {/* FAQ 1 */}
+            <details className="group bg-white dark:bg-gray-800 rounded-xl p-6 border border-gray-200 dark:border-gray-700 shadow-md hover:shadow-lg transition-all">
+              <summary className="flex items-center justify-between cursor-pointer list-none">
+                <span className="font-semibold text-gray-900 dark:text-gray-100">Is it really free?</span>
+                <svg className="w-5 h-5 text-gray-500 group-open:rotate-180 transition-transform" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+                </svg>
+              </summary>
+              <p className="mt-4 text-gray-600 dark:text-gray-400">
+                Yes! Our core features are completely free - unlimited problem solving, all difficulty levels, XP system, and goal tracking. 
+                No credit card required. Premium features (coming soon) will add advanced analytics and priority support.
+              </p>
+            </details>
+
+            {/* FAQ 2 */}
+            <details className="group bg-white dark:bg-gray-800 rounded-xl p-6 border border-gray-200 dark:border-gray-700 shadow-md hover:shadow-lg transition-all">
+              <summary className="flex items-center justify-between cursor-pointer list-none">
+                <span className="font-semibold text-gray-900 dark:text-gray-100">How does the AI tutor work?</span>
+                <svg className="w-5 h-5 text-gray-500 group-open:rotate-180 transition-transform" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+                </svg>
+              </summary>
+              <p className="mt-4 text-gray-600 dark:text-gray-400">
+                Our AI tutor uses the Socratic method - it guides you through questions instead of giving direct answers. 
+                This helps you truly understand concepts rather than just memorizing solutions. 
+                Powered by GPT-4, it adapts to your level and learning style.
+              </p>
+            </details>
+
+            {/* FAQ 3 */}
+            <details className="group bg-white dark:bg-gray-800 rounded-xl p-6 border border-gray-200 dark:border-gray-700 shadow-md hover:shadow-lg transition-all">
+              <summary className="flex items-center justify-between cursor-pointer list-none">
+                <span className="font-semibold text-gray-900 dark:text-gray-100">What subjects do you support?</span>
+                <svg className="w-5 h-5 text-gray-500 group-open:rotate-180 transition-transform" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+                </svg>
+              </summary>
+              <p className="mt-4 text-gray-600 dark:text-gray-400">
+                Currently, we support all levels of math (elementary through advanced calculus). 
+                Science, languages, and writing are coming in 2026. See our roadmap above for details!
+              </p>
+            </details>
+
+            {/* FAQ 4 */}
+            <details className="group bg-white dark:bg-gray-800 rounded-xl p-6 border border-gray-200 dark:border-gray-700 shadow-md hover:shadow-lg transition-all">
+              <summary className="flex items-center justify-between cursor-pointer list-none">
+                <span className="font-semibold text-gray-900 dark:text-gray-100">Can parents track their child's progress?</span>
+                <svg className="w-5 h-5 text-gray-500 group-open:rotate-180 transition-transform" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+                </svg>
+              </summary>
+              <p className="mt-4 text-gray-600 dark:text-gray-400">
+                Yes! Parents and teachers can create accounts and link to student profiles. 
+                You'll see detailed progress including XP, goals, problems solved, and learning patterns.
+              </p>
+            </details>
+
+            {/* FAQ 5 */}
+            <details className="group bg-white dark:bg-gray-800 rounded-xl p-6 border border-gray-200 dark:border-gray-700 shadow-md hover:shadow-lg transition-all">
+              <summary className="flex items-center justify-between cursor-pointer list-none">
+                <span className="font-semibold text-gray-900 dark:text-gray-100">Do I need to download anything?</span>
+                <svg className="w-5 h-5 text-gray-500 group-open:rotate-180 transition-transform" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+                </svg>
+              </summary>
+              <p className="mt-4 text-gray-600 dark:text-gray-400">
+                No! It works right in your browser on any device. For the best experience, you can install it as a Progressive Web App (PWA) on mobile.
+              </p>
+            </details>
+
+            {/* FAQ 6 */}
+            <details className="group bg-white dark:bg-gray-800 rounded-xl p-6 border border-gray-200 dark:border-gray-700 shadow-md hover:shadow-lg transition-all">
+              <summary className="flex items-center justify-between cursor-pointer list-none">
+                <span className="font-semibold text-gray-900 dark:text-gray-100">What makes this better than just using ChatGPT?</span>
+                <svg className="w-5 h-5 text-gray-500 group-open:rotate-180 transition-transform" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+                </svg>
+              </summary>
+              <p className="mt-4 text-gray-600 dark:text-gray-400">
+                Unlike ChatGPT, we never give direct answers - we guide you to discover solutions yourself. 
+                Plus, we track your progress, set learning goals, generate personalized challenges, and remember your learning journey. 
+                It's a complete learning platform, not just a chatbot.
+              </p>
+            </details>
+          </div>
+        </div>
+
         {/* Final CTA */}
         <div className="mt-32 text-center">
           <div className="inline-block">
