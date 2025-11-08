@@ -123,21 +123,22 @@ export default function PracticeContent({ onStartPractice, apiKey }: PracticeCon
   };
 
   return (
-    <div className="flex-1 overflow-y-auto p-4">
-      <div className="max-w-md mx-auto space-y-4">
-        <div className="text-center">
-          <h3 className="text-sm font-medium text-gray-900 dark:text-gray-100 mb-2">
-            Quick Practice Mode
-          </h3>
-          <p className="text-xs text-gray-600 dark:text-gray-400 mb-4">
-            Generate a random problem to practice instantly
-          </p>
-        </div>
+    <div className="flex-1 overflow-y-auto p-6 max-h-[700px]">
+      {/* Header */}
+      <div className="text-center mb-6">
+        <h2 className="text-2xl font-bold bg-gradient-to-r from-blue-600 to-cyan-600 dark:from-blue-400 dark:to-cyan-400 bg-clip-text text-transparent">
+          Practice Mode
+        </h2>
+        <p className="text-sm text-gray-600 dark:text-gray-400 mt-1">
+          Generate random problems instantly
+        </p>
+      </div>
 
+      <div className="max-w-md mx-auto space-y-6">
         <button
           onClick={generateRandomProblem}
           disabled={isGenerating}
-          className="w-full bg-blue-600 hover:bg-blue-700 disabled:bg-blue-400 disabled:cursor-not-allowed text-white font-medium py-3 px-4 rounded-lg transition-colors focus:outline-none focus:ring-2 focus:ring-blue-400 focus:ring-offset-2 flex items-center justify-center gap-2"
+          className="w-full bg-gradient-to-r from-blue-600 to-cyan-600 hover:from-blue-700 hover:to-cyan-700 disabled:opacity-50 disabled:cursor-not-allowed text-white font-bold py-4 px-6 rounded-xl shadow-lg hover:shadow-xl active:scale-95 transition-all flex items-center justify-center gap-2"
         >
           {isGenerating ? (
             <>
@@ -159,24 +160,28 @@ export default function PracticeContent({ onStartPractice, apiKey }: PracticeCon
           )}
         </button>
 
-        <div className="mt-6 p-4 bg-gray-50 dark:bg-gray-800 rounded-lg border border-gray-200 dark:border-gray-700">
-          <p className="text-xs font-medium text-gray-700 dark:text-gray-300 mb-2">
-            Practice Types Available:
+        <div className="bg-gradient-to-br from-white to-gray-50 dark:from-gray-800 dark:to-gray-900 rounded-xl p-5 border border-gray-200 dark:border-gray-700 shadow-lg">
+          <p className="text-sm font-semibold text-gray-900 dark:text-gray-100 mb-3">
+            Practice Types Available
           </p>
-          <ul className="text-xs text-gray-600 dark:text-gray-400 space-y-1">
-            <li>• Arithmetic</li>
-            <li>• Algebra</li>
-            <li>• Geometry</li>
-            <li>• Word Problems</li>
-            <li>• Multi-Step Problems</li>
-          </ul>
+          <div className="grid grid-cols-2 gap-2">
+            <span className="px-3 py-2 bg-blue-100 dark:bg-blue-900/30 text-blue-700 dark:text-blue-300 text-xs font-medium rounded-lg text-center">Arithmetic</span>
+            <span className="px-3 py-2 bg-purple-100 dark:bg-purple-900/30 text-purple-700 dark:text-purple-300 text-xs font-medium rounded-lg text-center">Algebra</span>
+            <span className="px-3 py-2 bg-green-100 dark:bg-green-900/30 text-green-700 dark:text-green-300 text-xs font-medium rounded-lg text-center">Geometry</span>
+            <span className="px-3 py-2 bg-orange-100 dark:bg-orange-900/30 text-orange-700 dark:text-orange-300 text-xs font-medium rounded-lg text-center">Word Problems</span>
+            <span className="px-3 py-2 bg-pink-100 dark:bg-pink-900/30 text-pink-700 dark:text-pink-300 text-xs font-medium rounded-lg text-center col-span-2">Multi-Step</span>
+          </div>
         </div>
 
-        <div className="mt-4 p-3 bg-blue-50 dark:bg-blue-900/20 rounded-lg border border-blue-200 dark:border-blue-700">
-          <p className="text-xs text-blue-700 dark:text-blue-300">
-            💡 <strong>Tip:</strong> Problems are randomly selected from various difficulty levels. 
-            Perfect for quick practice sessions!
-          </p>
+        <div className="bg-gradient-to-br from-blue-50 to-cyan-50 dark:from-blue-950/20 dark:to-cyan-950/20 rounded-xl p-4 border-2 border-blue-200 dark:border-blue-800">
+          <div className="flex items-start gap-3">
+            <svg className="w-5 h-5 text-blue-600 dark:text-blue-400 flex-shrink-0 mt-0.5" fill="currentColor" viewBox="0 0 20 20">
+              <path fillRule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7-4a1 1 0 11-2 0 1 1 0 012 0zM9 9a1 1 0 000 2v3a1 1 0 001 1h1a1 1 0 100-2v-3a1 1 0 00-1-1H9z" clipRule="evenodd" />
+            </svg>
+            <p className="text-xs text-blue-700 dark:text-blue-300">
+              <strong>Tip:</strong> Problems are randomly selected from various difficulty levels. Perfect for quick practice sessions!
+            </p>
+          </div>
         </div>
       </div>
     </div>
