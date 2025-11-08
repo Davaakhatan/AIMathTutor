@@ -8,6 +8,9 @@ import { logger } from "@/lib/logger";
 import eventBus, { type EcosystemEvent } from "@/lib/eventBus";
 import { updateXPData, getXPData } from "./supabaseDataService";
 import { updateStreakData, getStreakData } from "./supabaseDataService";
+import { generateConversationSummary, saveConversationSummary } from "./conversationMemory";
+import { checkGoalsForProblem } from "./goalSystem";
+import type { Message } from "@/types";
 
 /**
  * Handle problem completion
@@ -74,10 +77,15 @@ export async function onProblemCompleted(
     // 3. Emit event for other systems to respond
     await eventBus.emit("problem_completed", userId, problemData, { profileId });
 
-    // 4. TODO: Generate challenge (Week 3)
-    // 5. TODO: Create share link (Week 3)
-    // 6. TODO: Update conversation summary (Week 2)
-    // 7. TODO: Check goals (Week 2)
+    // 4. Check and update goals (Week 2) - IMPLEMENTED
+    await checkGoalsForProblem(userId, problemData.problemType, profileId);
+
+    // 5. Update conversation summary (Week 2)
+    // TODO: Pass messages array from problem completion event
+    // Will be implemented when session management is integrated
+
+    // 6. TODO: Generate challenge (Week 3)
+    // 7. TODO: Create share link (Week 3)
 
     logger.info("Problem completion orchestrated successfully", { userId });
   } catch (error) {
