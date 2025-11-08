@@ -335,6 +335,143 @@ export default function LandingPage({ onGetStarted }: LandingPageProps) {
           </div>
         </div>
 
+        {/* Roadmap Section */}
+        <div className="mt-32">
+          <div className="text-center mb-16">
+            <h2 className="text-3xl sm:text-4xl font-bold text-gray-900 dark:text-gray-100 mb-4">
+              Our Vision & Roadmap
+            </h2>
+            <p className="text-lg text-gray-600 dark:text-gray-400">
+              We're building the future of personalized education
+            </p>
+          </div>
+
+          <div className="max-w-5xl mx-auto space-y-6">
+            {/* Current: Math Tutoring */}
+            <div className="bg-gradient-to-r from-green-50 to-emerald-50 dark:from-green-950/20 dark:to-emerald-950/20 border-2 border-green-200 dark:border-green-800 rounded-2xl p-6">
+              <div className="flex items-start gap-4">
+                <div className="w-12 h-12 bg-gradient-to-br from-green-500 to-emerald-600 rounded-xl flex items-center justify-center text-white font-bold shadow-lg flex-shrink-0">
+                  ✓
+                </div>
+                <div className="flex-1">
+                  <div className="flex items-center gap-3 mb-2">
+                    <h3 className="text-xl font-bold text-gray-900 dark:text-gray-100">Math Tutoring</h3>
+                    <span className="px-3 py-1 bg-green-500 text-white text-xs font-bold rounded-full">LIVE NOW</span>
+                  </div>
+                  <p className="text-gray-600 dark:text-gray-400 mb-3">
+                    Complete AI-powered math tutoring with Socratic method, gamification, and goal tracking
+                  </p>
+                  <div className="flex flex-wrap gap-2">
+                    <span className="px-2 py-1 bg-green-100 dark:bg-green-900/30 text-green-700 dark:text-green-300 text-xs rounded">Algebra</span>
+                    <span className="px-2 py-1 bg-green-100 dark:bg-green-900/30 text-green-700 dark:text-green-300 text-xs rounded">Geometry</span>
+                    <span className="px-2 py-1 bg-green-100 dark:bg-green-900/30 text-green-700 dark:text-green-300 text-xs rounded">Calculus</span>
+                    <span className="px-2 py-1 bg-green-100 dark:bg-green-900/30 text-green-700 dark:text-green-300 text-xs rounded">All Levels</span>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            {/* Coming: Science Tutoring */}
+            <div className="bg-gradient-to-r from-blue-50 to-cyan-50 dark:from-blue-950/20 dark:to-cyan-950/20 border-2 border-blue-200 dark:border-blue-800 rounded-2xl p-6">
+              <div className="flex items-start gap-4">
+                <div className="w-12 h-12 bg-gradient-to-br from-blue-500 to-cyan-600 rounded-xl flex items-center justify-center text-white font-bold shadow-lg flex-shrink-0">
+                  Q1
+                </div>
+                <div className="flex-1">
+                  <div className="flex items-center gap-3 mb-2">
+                    <h3 className="text-xl font-bold text-gray-900 dark:text-gray-100">Science Tutoring</h3>
+                    <span className="px-3 py-1 bg-blue-500 text-white text-xs font-bold rounded-full">Q1 2026</span>
+                  </div>
+                  <p className="text-gray-600 dark:text-gray-400 mb-3">
+                    Expand to Physics, Chemistry, and Biology with interactive experiments and visual simulations
+                  </p>
+                  <div className="flex flex-wrap gap-2">
+                    <span className="px-2 py-1 bg-blue-100 dark:bg-blue-900/30 text-blue-700 dark:text-blue-300 text-xs rounded">Physics</span>
+                    <span className="px-2 py-1 bg-blue-100 dark:bg-blue-900/30 text-blue-700 dark:text-blue-300 text-xs rounded">Chemistry</span>
+                    <span className="px-2 py-1 bg-blue-100 dark:bg-blue-900/30 text-blue-700 dark:text-blue-300 text-xs rounded">Biology</span>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            {/* Coming: Educational Video Generation */}
+            <div className="bg-gradient-to-r from-purple-50 to-pink-50 dark:from-purple-950/20 dark:to-pink-950/20 border-2 border-purple-200 dark:border-purple-800 rounded-2xl p-6">
+              <div className="flex items-start gap-4">
+                <div className="w-12 h-12 bg-gradient-to-br from-purple-500 to-pink-600 rounded-xl flex items-center justify-center text-white font-bold shadow-lg flex-shrink-0">
+                  Q2
+                </div>
+                <div className="flex-1">
+                  <div className="flex items-center gap-3 mb-2">
+                    <h3 className="text-xl font-bold text-gray-900 dark:text-gray-100">AI Video Lessons</h3>
+                    <span className="px-3 py-1 bg-purple-500 text-white text-xs font-bold rounded-full">Q2 2026</span>
+                  </div>
+                  <p className="text-gray-600 dark:text-gray-400 mb-3">
+                    Auto-generate personalized video explanations for any concept, tailored to your learning style
+                  </p>
+                  <div className="flex flex-wrap gap-2">
+                    <span className="px-2 py-1 bg-purple-100 dark:bg-purple-900/30 text-purple-700 dark:text-purple-300 text-xs rounded">Video Generation</span>
+                    <span className="px-2 py-1 bg-purple-100 dark:bg-purple-900/30 text-purple-700 dark:text-purple-300 text-xs rounded">Personalized</span>
+                    <span className="px-2 py-1 bg-purple-100 dark:bg-purple-900/30 text-purple-700 dark:text-purple-300 text-xs rounded">Multi-modal</span>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            {/* Coming: Language Learning */}
+            <div className="bg-gradient-to-r from-orange-50 to-red-50 dark:from-orange-950/20 dark:to-red-950/20 border-2 border-orange-200 dark:border-orange-800 rounded-2xl p-6">
+              <div className="flex items-start gap-4">
+                <div className="w-12 h-12 bg-gradient-to-br from-orange-500 to-red-600 rounded-xl flex items-center justify-center text-white font-bold shadow-lg flex-shrink-0">
+                  Q3
+                </div>
+                <div className="flex-1">
+                  <div className="flex items-center gap-3 mb-2">
+                    <h3 className="text-xl font-bold text-gray-900 dark:text-gray-100">Language Learning</h3>
+                    <span className="px-3 py-1 bg-orange-500 text-white text-xs font-bold rounded-full">Q3 2026</span>
+                  </div>
+                  <p className="text-gray-600 dark:text-gray-400 mb-3">
+                    Conversational AI for learning languages with real-time feedback and cultural context
+                  </p>
+                  <div className="flex flex-wrap gap-2">
+                    <span className="px-2 py-1 bg-orange-100 dark:bg-orange-900/30 text-orange-700 dark:text-orange-300 text-xs rounded">Conversation</span>
+                    <span className="px-2 py-1 bg-orange-100 dark:bg-orange-900/30 text-orange-700 dark:text-orange-300 text-xs rounded">Pronunciation</span>
+                    <span className="px-2 py-1 bg-orange-100 dark:bg-orange-900/30 text-orange-700 dark:text-orange-300 text-xs rounded">Cultural Context</span>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            {/* Coming: Writing & Essay Coach */}
+            <div className="bg-gradient-to-r from-yellow-50 to-amber-50 dark:from-yellow-950/20 dark:to-amber-950/20 border-2 border-yellow-200 dark:border-yellow-800 rounded-2xl p-6">
+              <div className="flex items-start gap-4">
+                <div className="w-12 h-12 bg-gradient-to-br from-yellow-500 to-amber-600 rounded-xl flex items-center justify-center text-white font-bold shadow-lg flex-shrink-0">
+                  Q4
+                </div>
+                <div className="flex-1">
+                  <div className="flex items-center gap-3 mb-2">
+                    <h3 className="text-xl font-bold text-gray-900 dark:text-gray-100">Writing & Essay Coach</h3>
+                    <span className="px-3 py-1 bg-yellow-500 text-white text-xs font-bold rounded-full">Q4 2026</span>
+                  </div>
+                  <p className="text-gray-600 dark:text-gray-400 mb-3">
+                    AI-powered writing coach for essays, research papers, and creative writing
+                  </p>
+                  <div className="flex flex-wrap gap-2">
+                    <span className="px-2 py-1 bg-yellow-100 dark:bg-yellow-900/30 text-yellow-700 dark:text-yellow-300 text-xs rounded">Essay Feedback</span>
+                    <span className="px-2 py-1 bg-yellow-100 dark:bg-yellow-900/30 text-yellow-700 dark:text-yellow-300 text-xs rounded">Grammar</span>
+                    <span className="px-2 py-1 bg-yellow-100 dark:bg-yellow-900/30 text-yellow-700 dark:text-yellow-300 text-xs rounded">Structure</span>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            {/* Vision Statement */}
+            <div className="mt-8 text-center">
+              <p className="text-lg font-semibold bg-gradient-to-r from-indigo-600 to-purple-600 dark:from-indigo-400 dark:to-purple-400 bg-clip-text text-transparent">
+                Our mission: Personalized AI education for every subject, every student, everywhere
+              </p>
+            </div>
+          </div>
+        </div>
+
         {/* Final CTA */}
         <div className="mt-32 text-center">
           <div className="inline-block">
