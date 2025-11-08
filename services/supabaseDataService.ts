@@ -46,21 +46,8 @@ export async function ensureProfileExists(userId: string): Promise<boolean> {
 
     if (!data) {
       // Profile doesn't exist, create it
-      // Try to get role from user metadata first
-      let userRole: "student" | "parent" | "teacher" | "admin" = "student";
-      try {
-        const { data: { user } } = await supabase.auth.getUser();
-        if (user?.user_metadata?.role) {
-          const metadataRole = user.user_metadata.role;
-          if (["student", "parent", "teacher", "admin"].includes(metadataRole)) {
-            userRole = metadataRole as any;
-            logger.debug("Using role from user metadata", { userId, role: userRole });
-          }
-        }
-      } catch (e) {
-        // If we can't get user metadata, default to student
-        logger.debug("Could not get user metadata, defaulting to student", { userId });
-      }
+      // Default to "student" role (don't call .auth.getUser() - it's VERY slow!)
+      const userRole = "student";
       
       logger.info("Creating missing profile for user", { userId, role: userRole });
       const { error: insertError } = await supabase
