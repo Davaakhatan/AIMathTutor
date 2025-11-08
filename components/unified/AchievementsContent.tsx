@@ -85,6 +85,21 @@ export default function AchievementsContent() {
     return () => window.removeEventListener("achievementUnlocked", handleAchievementUnlocked as EventListener);
   }, [unlockedAchievements, unlockAchievement]);
 
+  // Listen for problem completion events from event bus
+  useEffect(() => {
+    import("@/lib/eventBus").then(({ default: eventBus }) => {
+      const unsubscribe = eventBus.on("problem_completed", (event) => {
+        console.log("[Achievements] Problem completed event received", event.data);
+        // Check for newly unlocked achievements based on updated stats
+        // The existing useEffect with checkAchievements will handle this
+      });
+
+      return () => {
+        unsubscribe();
+      };
+    });
+  }, []);
+
   const unlocked = allAchievements.filter(a => unlockedAchievements.includes(a.id));
   const locked = allAchievements.filter(a => !unlockedAchievements.includes(a.id));
 

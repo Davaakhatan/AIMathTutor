@@ -638,6 +638,8 @@ function HomeContentInternal() {
                     messages={allMessages}
                     problem={currentProblem}
                     difficultyMode={difficultyMode}
+                    userId={user?.id}
+                    profileId={activeProfile?.id || null}
                   />
                 )}
 
