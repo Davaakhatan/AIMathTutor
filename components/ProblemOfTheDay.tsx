@@ -98,82 +98,77 @@ export default function ProblemOfTheDay({
       }
 
       try {
-        // Try to get today's problem from database
-        console.log("[ProblemOfTheDay] Fetching from database...");
+        // Fetch today's problem from API (server-side, ensures same problem for all users)
+        console.log("[ProblemOfTheDay] Fetching daily problem from API...");
+        const response = await fetch(`/api/daily-problem?action=getProblem&date=${today}`, {
+          method: "GET",
+          headers: { "Content-Type": "application/json" },
+        });
+
+        if (response.ok) {
+          const data = await response.json();
+          if (data.success && data.problem) {
+            console.log("[ProblemOfTheDay] Problem fetched from API (shared for all users)");
+            const problem: DailyProblem = {
+              ...data.problem,
+              solved: false, // Will check completion status separately
+              solvedAt: undefined,
+            };
+            setDailyProblem(problem);
+            setIsLoading(false);
+            
+            // Cache it for future loads
+            try {
+              const cacheKey = `daily-problem-${today}`;
+              localStorage.setItem(cacheKey, JSON.stringify(problem));
+            } catch (e) {
+              console.error("[ProblemOfTheDay] Cache write failed:", e);
+            }
+
+            // Check completion status separately (will be handled by the useEffect)
+            // Don't check here to avoid duplicate checks
+            return; // Early return - problem loaded
+          }
+        }
+        
+        // Fallback if API fails
+        console.log("[ProblemOfTheDay] API failed, trying direct database fetch...");
         const dbProblem = await getDailyProblem(today);
         
         if (dbProblem) {
           console.log("[ProblemOfTheDay] Problem found in database");
           const problem: DailyProblem = {
             ...dbProblem,
-            solved: false, // Will check completion status separately
+            solved: false,
             solvedAt: undefined,
           };
           setDailyProblem(problem);
-          setIsLoading(false); // Clear loading immediately after setting problem
+          setIsLoading(false);
           
-          // Cache it for future loads
           try {
             const cacheKey = `daily-problem-${today}`;
             localStorage.setItem(cacheKey, JSON.stringify(problem));
           } catch (e) {
             console.error("[ProblemOfTheDay] Cache write failed:", e);
           }
-
-          // Check completion status via API (more reliable than direct query)
-          if (user) {
-            fetch(`/api/daily-problem?date=${today}&userId=${user.id}&profileId=${activeProfile?.id || "null"}`, {
-              method: "GET",
-              headers: { "Content-Type": "application/json" },
-            })
-              .then((res) => res.json())
-              .then((data) => {
-                if (data.success && data.isSolved) {
-                  console.log("[ProblemOfTheDay] Already solved via API check");
-                  setIsSolved(true);
-                  setDailyProblem((prev) => prev ? {
-                    ...prev,
-                    solved: true,
-                    solvedAt: new Date().toISOString(),
-                  } : prev);
-                }
-              })
-              .catch((err) => console.error("[ProblemOfTheDay] Error checking completion via API:", err));
-          } else {
-            // Guest mode - check localStorage for completion
-            const localData = localStorage.getItem("aitutor-daily-problem");
-            if (localData) {
-              const localProblem = JSON.parse(localData);
-              if (localProblem.date === today && localProblem.solved) {
-                setIsSolved(true);
-              }
-            }
-          }
-          return; // Early return - problem loaded
+          return;
         }
         
-        // No problem in database for today - generate one
-        console.log("[ProblemOfTheDay] No problem in database for today, generating...");
-        try {
-          await generateDailyProblem();
-          setIsLoading(false); // Ensure loading is cleared after generation
-        } catch (genError) {
-          console.error("[ProblemOfTheDay] Error generating problem:", genError);
-          setIsLoading(false); // Clear loading even on error
-          // Show a fallback problem
-          const fallbackProblem: DailyProblem = {
-            problem: {
-              text: "Solve: 2x + 5 = 13",
-              type: ProblemType.ALGEBRA,
-              confidence: 1.0,
-            },
-            date: today,
-            difficulty: "middle school",
-            topic: "Algebra",
-            solved: false,
-          };
-          setDailyProblem(fallbackProblem);
-        }
+        // Last resort - show fallback problem
+        console.log("[ProblemOfTheDay] No problem available, showing fallback");
+        setIsLoading(false);
+        const fallbackProblem: DailyProblem = {
+          problem: {
+            text: "Solve: 2x + 5 = 13",
+            type: ProblemType.ALGEBRA,
+            confidence: 1.0,
+          },
+          date: today,
+          difficulty: "middle school",
+          topic: "Algebra",
+          solved: false,
+        };
+        setDailyProblem(fallbackProblem);
       } catch (error) {
         console.error("[ProblemOfTheDay] Error loading daily problem from database:", error);
         setIsLoading(false); // Clear loading on error
@@ -252,13 +247,52 @@ export default function ProblemOfTheDay({
   }, [isMounted]); // Only run on mount - don't wait for user!
 
   // Check completion status separately when user/profile loads (non-blocking)
+  // ONLY for logged-in users - guest users use localStorage
   useEffect(() => {
-    if (!dailyProblem || !user) return;
+    if (!dailyProblem) return;
     
     const today = getTodayDate();
     if (dailyProblem.date !== today) return;
 
+    // Guest mode: check localStorage only (no database access)
+    if (!user) {
+      try {
+        const localData = localStorage.getItem("aitutor-daily-problem");
+        if (localData) {
+          const localProblem = JSON.parse(localData);
+          // Only mark as solved if date AND problem text match
+          if (localProblem.date === today && 
+              localProblem.problem?.text === dailyProblem.problem.text && 
+              localProblem.solved) {
+            setIsSolved(true);
+          } else {
+            setIsSolved(false);
+          }
+        } else {
+          setIsSolved(false);
+        }
+      } catch (e) {
+        setIsSolved(false);
+      }
+      return; // Don't check database for guest users
+    }
+    
+    // Logged-in users: check database
+    let isChecking = false;
+    let interval: NodeJS.Timeout | null = null;
+
     const checkCompletion = async () => {
+      // Don't check if already solved or currently checking
+      if (isSolved || isChecking) {
+        // If already solved, stop interval immediately
+        if (isSolved && interval) {
+          clearInterval(interval);
+          interval = null;
+        }
+        return;
+      }
+      isChecking = true;
+      
       // Check completion status via API (more reliable than direct query)
       console.log("[ProblemOfTheDay] Checking completion status via API...", { userId: user.id, today, profileId: activeProfile?.id });
       try {
@@ -277,32 +311,66 @@ export default function ProblemOfTheDay({
 
         const data = await response.json();
         const solved = data.success && data.isSolved === true;
-        console.log("[ProblemOfTheDay] Completion check result:", solved);
-        setIsSolved(solved);
-        if (solved) {
+        const savedProblemText = data.problemText || null;
+        const currentProblemText = dailyProblem.problem.text;
+        
+        // CRITICAL: Only mark as solved if the problem text matches!
+        // This prevents showing "completed" for a different problem on the same date
+        const problemMatches = savedProblemText && currentProblemText && savedProblemText === currentProblemText;
+        
+        if (solved && problemMatches) {
+          console.log("[ProblemOfTheDay] ✅ Completion verified - problem text matches!");
+          setIsSolved(true);
           setDailyProblem((prev) => prev ? {
             ...prev,
             solved: true,
             solvedAt: new Date().toISOString(),
           } : prev);
+          // Stop interval immediately when solved to prevent flicker
+          if (interval) {
+            clearInterval(interval);
+            interval = null;
+          }
+        } else if (solved && !problemMatches) {
+          console.log("[ProblemOfTheDay] ⚠️ Completion found but problem text doesn't match - ignoring", {
+            saved: savedProblemText?.substring(0, 50),
+            current: currentProblemText?.substring(0, 50),
+          });
+          setIsSolved(false);
+        } else {
+          console.log("[ProblemOfTheDay] Not solved yet");
+          setIsSolved(false);
         }
       } catch (err) {
         console.error("[ProblemOfTheDay] Error checking completion:", err);
         setIsSolved(false);
+      } finally {
+        isChecking = false;
       }
     };
 
+    // Initial check
     checkCompletion();
 
-    // Also check periodically (every 2 seconds) in case the event was missed
-    const interval = setInterval(() => {
-      if (!isSolved) {
+    // Only check periodically if NOT solved (stop immediately when solved)
+    if (!isSolved) {
+      interval = setInterval(() => {
+        // Stop if solved (check current state, not closure)
+        if (isSolved) {
+          if (interval) {
+            clearInterval(interval);
+            interval = null;
+          }
+          return;
+        }
         checkCompletion();
-      }
-    }, 2000);
+      }, 2000);
+    }
 
-    return () => clearInterval(interval);
-  }, [user, activeProfile?.id, dailyProblem?.date, isSolved]); // Check when user/profile changes or when not solved
+    return () => {
+      if (interval) clearInterval(interval);
+    };
+  }, [user, activeProfile?.id, dailyProblem?.date, dailyProblem?.problem?.text, isSolved]); // Include isSolved to stop interval when it changes
 
   // Reset card visibility when problem changes (new day)
   useEffect(() => {
@@ -317,7 +385,7 @@ export default function ProblemOfTheDay({
 
   // Listen for problem solved events and save to database
   useEffect(() => {
-    if (!isMounted || !dailyProblem || !user) return;
+    if (!isMounted || !dailyProblem) return; // Remove !user check - guest users can solve too
 
     const handleProblemSolved = async (event?: Event) => {
       const today = getTodayDate();
@@ -327,37 +395,81 @@ export default function ProblemOfTheDay({
         return;
       }
 
-      console.log("[ProblemOfTheDay] Saving completion to database...");
-      
-      // Save directly via API
-      try {
-        const response = await fetch("/api/daily-problem", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            action: "markSolved",
-            date: today,
-            userId: user.id,
-            profileId: activeProfile?.id || null,
-            problemText: dailyProblem.problem.text,
-          }),
-        });
+      // Update UI IMMEDIATELY (optimistic update)
+      const solvedAt = new Date().toISOString();
+      setIsSolved(true);
+      setDailyProblem((prev) => prev ? {
+        ...prev,
+        solved: true,
+        solvedAt,
+      } : prev);
 
-        const data = await response.json();
-        if (data.success) {
-          console.log("[ProblemOfTheDay] ✅ Saved to database!");
-          setIsSolved(true);
+      // Guest mode: save to localStorage only (non-blocking)
+      if (!user) {
+        console.log("[ProblemOfTheDay] Saving completion to localStorage (guest mode)...");
+        // Save in background (don't await)
+        try {
+          const localData = {
+            date: today,
+            problem: dailyProblem.problem,
+            solved: true,
+            solvedAt,
+          };
+          localStorage.setItem("aitutor-daily-problem", JSON.stringify(localData));
+          console.log("[ProblemOfTheDay] ✅ Saved to localStorage!");
+        } catch (err) {
+          console.error("[ProblemOfTheDay] ❌ Error saving to localStorage:", err);
+          // Revert on error
+          setIsSolved(false);
           setDailyProblem((prev) => prev ? {
             ...prev,
-            solved: true,
-            solvedAt: new Date().toISOString(),
+            solved: false,
+            solvedAt: undefined,
           } : prev);
-        } else {
-          console.error("[ProblemOfTheDay] ❌ Save failed:", data.error);
         }
-      } catch (err) {
-        console.error("[ProblemOfTheDay] ❌ Error saving:", err);
+        return;
       }
+
+      // Logged-in users: save to database (non-blocking, in background)
+      console.log("[ProblemOfTheDay] Saving completion to database...");
+      
+      // Don't await - save in background
+      fetch("/api/daily-problem", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          action: "markSolved",
+          date: today,
+          userId: user.id,
+          profileId: activeProfile?.id || null,
+          problemText: dailyProblem.problem.text,
+        }),
+      })
+        .then((response) => response.json())
+        .then((data) => {
+          if (data.success) {
+            console.log("[ProblemOfTheDay] ✅ Saved to database!");
+          } else {
+            console.error("[ProblemOfTheDay] ❌ Save failed:", data.error);
+            // Revert on error
+            setIsSolved(false);
+            setDailyProblem((prev) => prev ? {
+              ...prev,
+              solved: false,
+              solvedAt: undefined,
+            } : prev);
+          }
+        })
+        .catch((err) => {
+          console.error("[ProblemOfTheDay] ❌ Error saving:", err);
+          // Revert on error
+          setIsSolved(false);
+          setDailyProblem((prev) => prev ? {
+            ...prev,
+            solved: false,
+            solvedAt: undefined,
+          } : prev);
+        });
     };
 
     // Listen for problem solved events

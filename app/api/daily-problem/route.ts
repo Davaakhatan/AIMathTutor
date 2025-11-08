@@ -4,25 +4,153 @@
  */
 
 import { NextRequest, NextResponse } from "next/server";
-import { saveDailyProblem } from "@/services/dailyProblemService";
+import { saveDailyProblem, getDailyProblem, DailyProblemData } from "@/services/dailyProblemService";
 import { getSupabaseServer } from "@/lib/supabase-server";
 import { logger } from "@/lib/logger";
 import { ProblemType } from "@/types";
 
+/**
+ * Generate a deterministic daily problem based on the date
+ * Same date = same problem for all users
+ */
+async function generateDeterministicDailyProblem(date: string): Promise<DailyProblemData | null> {
+  try {
+    // Use date as seed for deterministic selection
+    const dateObj = new Date(date);
+    const dayOfWeek = dateObj.getDay();
+    const dayOfMonth = dateObj.getDate();
+    
+    // Deterministic difficulty based on day of week
+    const difficulties: Array<"elementary" | "middle school" | "high school" | "advanced"> = [
+      "elementary",
+      "middle school", 
+      "high school",
+      "advanced",
+      "middle school",
+      "high school",
+      "elementary"
+    ];
+    const difficulty = difficulties[dayOfWeek];
+
+    // Deterministic problem type based on day of month
+    const problemTypes: ProblemType[] = [
+      ProblemType.ARITHMETIC,
+      ProblemType.ALGEBRA,
+      ProblemType.GEOMETRY,
+      ProblemType.WORD_PROBLEM,
+      ProblemType.MULTI_STEP,
+    ];
+    const problemType = problemTypes[dayOfMonth % problemTypes.length];
+
+    // Deterministic template selection based on date hash
+    const dateHash = date.split("-").reduce((acc, val) => acc + parseInt(val), 0);
+    
+    const templates: Record<ProblemType, string[]> = {
+      [ProblemType.ARITHMETIC]: [
+        "If a pizza is cut into 8 equal slices and you eat 3 slices, what fraction of the pizza did you eat?",
+        "Calculate: 15 × 4 + 12 ÷ 3",
+        "What is 25% of 80?",
+        "Solve: 3² + 4² = ?",
+        "A box contains 24 apples. If you remove 9 apples, how many are left?",
+      ],
+      [ProblemType.ALGEBRA]: [
+        "Solve for x: 2x + 5 = 13",
+        "If 3x - 7 = 14, what is the value of x?",
+        "Find x if: x + 8 = 20",
+        "Solve: 5x = 25",
+        "If 2x - 3 = 11, what is x?",
+      ],
+      [ProblemType.GEOMETRY]: [
+        "Find the area of a rectangle with length 8 and width 5",
+        "What is the perimeter of a square with side length 6?",
+        "Find the area of a circle with radius 4. Use π ≈ 3.14",
+        "A triangle has angles of 60°, 60°, and ? What is the missing angle?",
+        "What is the volume of a cube with side length 3?",
+      ],
+      [ProblemType.WORD_PROBLEM]: [
+        "Sarah has 15 apples. She gives away 7. How many does she have left?",
+        "A store has a 20% off sale. If an item costs $50, what's the sale price?",
+        "John has twice as many books as Mary. Together they have 18 books. How many does each have?",
+        "A train travels 120 miles in 2 hours. What is its speed in miles per hour?",
+        "If 3 pizzas cost $27, how much does 1 pizza cost?",
+      ],
+      [ProblemType.MULTI_STEP]: [
+        "Solve: 2(x + 3) - 5 = 11",
+        "If 3x + 2 = 2x + 8, what is x?",
+        "Solve: 5(x - 2) + 3 = 18",
+        "Find x: 4x - 7 = 2x + 9",
+        "Solve: 2(x + 5) - 3(x - 2) = 10",
+      ],
+      [ProblemType.UNKNOWN]: [
+        "Solve for x: 2x + 5 = 13",
+        "What is 15 + 23?",
+        "Find the area of a rectangle with length 8 and width 5",
+      ],
+    };
+
+    const typeTemplates = templates[problemType] || templates[ProblemType.ALGEBRA];
+    const templateIndex = dateHash % typeTemplates.length;
+    const problemText = typeTemplates[templateIndex];
+
+    return {
+      date,
+      problem: {
+        text: problemText,
+        type: problemType,
+        confidence: 1.0,
+      },
+      difficulty,
+      topic: problemType.replace("_", " "),
+    };
+  } catch (error) {
+    logger.error("Error generating deterministic daily problem", { error, date });
+    return null;
+  }
+}
+
 // Note: GET is now used for completion status check
 // To fetch the problem itself, we'll need a different endpoint or use POST with action parameter
 
-// GET completion status: Check if daily problem is solved
+// GET: Get daily problem OR check completion status
 export async function GET(request: NextRequest) {
   try {
     const { searchParams } = new URL(request.url);
     const date = searchParams.get("date") || new Date().toISOString().split("T")[0];
     const userId = searchParams.get("userId");
     const profileId = searchParams.get("profileId");
+    const action = searchParams.get("action"); // "getProblem" or "checkCompletion"
 
+    // If action is "getProblem", return the daily problem (shared for all users)
+    if (action === "getProblem") {
+      logger.debug("Fetching daily problem", { date });
+      
+      // First check if problem exists in database
+      const existingProblem = await getDailyProblem(date);
+      if (existingProblem) {
+        logger.debug("Daily problem found in database", { date });
+        return NextResponse.json({ success: true, problem: existingProblem });
+      }
+
+      // No problem exists - generate one deterministically based on date
+      logger.info("No daily problem found, generating new one", { date });
+      const generatedProblem = await generateDeterministicDailyProblem(date);
+      
+      if (generatedProblem) {
+        // Save to database
+        const saved = await saveDailyProblem(generatedProblem);
+        if (saved) {
+          logger.info("Daily problem generated and saved", { date });
+          return NextResponse.json({ success: true, problem: generatedProblem });
+        }
+      }
+
+      return NextResponse.json({ success: false, error: "Failed to generate daily problem" }, { status: 500 });
+    }
+
+    // Default: Check completion status (requires userId)
     if (!userId) {
       return NextResponse.json(
-        { success: false, error: "userId is required" },
+        { success: false, error: "userId is required for completion check" },
         { status: 400 }
       );
     }
@@ -32,10 +160,10 @@ export async function GET(request: NextRequest) {
     try {
       const supabase = getSupabaseServer();
       
-      // Build query with timeout protection
+      // Build query with timeout protection - also get problem_text to verify it matches
       let query = supabase
         .from("daily_problems_completion")
-        .select("id")
+        .select("id, problem_text")
         .eq("user_id", userId)
         .eq("problem_date", date);
 
@@ -67,8 +195,9 @@ export async function GET(request: NextRequest) {
       }
 
       const isSolved = !!data;
-      logger.debug("Completion check result", { date, userId, isSolved, hasData: !!data });
-      return NextResponse.json({ success: true, isSolved });
+      const problemText = data?.problem_text || null;
+      logger.debug("Completion check result", { date, userId, isSolved, hasData: !!data, hasProblemText: !!problemText });
+      return NextResponse.json({ success: true, isSolved, problemText });
     } catch (err) {
       logger.error("Exception in completion check", { error: err, date, userId });
       return NextResponse.json({ success: false, isSolved: false });
