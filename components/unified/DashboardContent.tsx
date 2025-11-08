@@ -3,6 +3,8 @@
 import { useState, useEffect } from "react";
 import { useLocalStorage } from "@/hooks/useLocalStorage";
 import { useProblemHistory } from "@/hooks/useProblemHistory";
+import { useXPData } from "@/hooks/useXPData";
+import { useStreakData } from "@/hooks/useStreakData";
 import { ProblemType } from "@/types";
 import { getAllConcepts, getConceptsByCategory, getConceptsNeedingPractice, ConceptTrackingData } from "@/services/conceptTracker";
 import ProgressVisualization from "../ProgressVisualization";
@@ -61,8 +63,8 @@ interface DashboardContentProps {
 
 export default function DashboardContent({ onDifficultyChange }: DashboardContentProps = {}) {
   const { problems: savedProblems } = useProblemHistory();
-  const [xpData] = useLocalStorage<XPData>("aitutor-xp", { totalXP: 0, level: 1, xpHistory: [] });
-  const [streakData] = useLocalStorage<StreakData>("aitutor-streak", { currentStreak: 0, longestStreak: 0, lastStudyDate: 0 });
+  const { xpData } = useXPData();
+  const { streakData } = useStreakData();
   const [conceptData] = useLocalStorage<ConceptTrackingData>("aitutor-concepts", { concepts: {}, lastUpdated: Date.now() });
   const [stats, setStats] = useState<ProblemStats | null>(null);
 

@@ -1,23 +1,7 @@
 "use client";
 
 import { useEffect, useState, useRef } from "react";
-import { useLocalStorage } from "@/hooks/useLocalStorage";
-
-interface XPData {
-  totalXP: number;
-  level: number;
-  xpToNextLevel: number;
-  xpHistory: Array<{
-    date: string;
-    xp: number;
-    reason: string;
-  }>;
-  recentGains: Array<{
-    timestamp: number;
-    xp: number;
-    reason: string;
-  }>;
-}
+import { useXPData } from "@/hooks/useXPData";
 
 interface XPContentProps {
   onXPDataChange?: (data: { totalXP: number; level: number; problemsSolved: number }) => void;
@@ -27,13 +11,7 @@ interface XPContentProps {
  * XP Content - Just the XP display (no badge wrapper)
  */
 export default function XPContent({ onXPDataChange }: XPContentProps) {
-  const [xpData, setXPData] = useLocalStorage<XPData>("aitutor-xp", {
-    totalXP: 0,
-    level: 1,
-    xpToNextLevel: 100,
-    xpHistory: [],
-    recentGains: [],
-  });
+  const { xpData, updateXP, isLoading } = useXPData();
 
   // Calculate XP needed for next level
   const calculateXPForLevel = (level: number): number => {
@@ -60,12 +38,14 @@ export default function XPContent({ onXPDataChange }: XPContentProps) {
         prevXPDataRef.current.level !== xpData.level) {
       const xpToNext = calculateXPToNext(xpData.totalXP, xpData.level);
       if (xpToNext !== xpData.xpToNextLevel) {
-        setXPData((prev) => ({ ...prev, xpToNextLevel: xpToNext }));
+        updateXP({
+          xp_to_next_level: xpToNext,
+        });
       }
       prevXPDataRef.current = { totalXP: xpData.totalXP, level: xpData.level };
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [xpData.totalXP, xpData.level, xpData.xpToNextLevel]); // calculateXPToNext and setXPData are stable functions
+  }, [xpData.totalXP, xpData.level, xpData.xpToNextLevel]); // calculateXPToNext and updateXP are stable functions
 
   const progressPercentage = xpData.xpToNextLevel > 0
     ? ((calculateXPForLevel(xpData.level) - xpData.xpToNextLevel) / calculateXPForLevel(xpData.level)) * 100
@@ -96,6 +76,16 @@ export default function XPContent({ onXPDataChange }: XPContentProps) {
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [xpData.totalXP, xpData.level, problemsSolved]); // Don't include onXPDataChange to prevent loops
+
+  if (isLoading) {
+    return (
+      <div className="p-4 space-y-4">
+        <div className="animate-pulse">
+          <div className="h-24 bg-gray-200 dark:bg-gray-700 rounded-lg"></div>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="p-4 space-y-4">

@@ -1,8 +1,9 @@
 "use client";
 
 import { useState, useEffect, useRef } from "react";
-import { useLocalStorage } from "@/hooks/useLocalStorage";
 import { useProblemHistory } from "@/hooks/useProblemHistory";
+import { useXPData } from "@/hooks/useXPData";
+import { useStreakData } from "@/hooks/useStreakData";
 import { ProblemType } from "@/types";
 
 interface ProblemStats {
@@ -51,8 +52,8 @@ interface StreakData {
 export default function LearningDashboard() {
   const [isOpen, setIsOpen] = useState(false);
   const { problems: savedProblems } = useProblemHistory();
-  const [xpData] = useLocalStorage<XPData>("aitutor-xp", { totalXP: 0, level: 1, xpHistory: [] });
-  const [streakData] = useLocalStorage<StreakData>("aitutor-streak", { currentStreak: 0, longestStreak: 0, lastStudyDate: 0 });
+  const { xpData } = useXPData();
+  const { streakData } = useStreakData();
   const [stats, setStats] = useState<ProblemStats | null>(null);
   const panelRef = useRef<HTMLDivElement>(null);
 

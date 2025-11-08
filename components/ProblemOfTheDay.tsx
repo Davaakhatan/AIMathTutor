@@ -28,74 +28,68 @@ export default function ProblemOfTheDay({
   apiKey 
 }: ProblemOfTheDayProps) {
   const { user, activeProfile } = useAuth();
-  const [dailyProblem, setDailyProblem] = useState<DailyProblem | null>(null);
-  const [isGenerating, setIsGenerating] = useState(false);
-  const [showCard, setShowCard] = useState(true);
-  const [isMounted, setIsMounted] = useState(false);
-  const [isSolved, setIsSolved] = useState(false);
-  const [isLoading, setIsLoading] = useState(true); // Track if we're loading from database
-
+  
   // Get today's date in YYYY-MM-DD format
   const getTodayDate = () => {
     const today = new Date();
     return today.toISOString().split("T")[0];
   };
 
+  // Load from cache IMMEDIATELY (synchronously) on initial render
+  const today = getTodayDate();
+  const cacheKey = `daily-problem-${today}`;
+  let initialProblem: DailyProblem | null = null;
+  let initialIsSolved = false;
+  
+  try {
+    const cached = localStorage.getItem(cacheKey);
+    if (cached) {
+      initialProblem = JSON.parse(cached);
+      console.log("[ProblemOfTheDay] Using cached problem (immediate load)");
+      
+      // Check guest completion status immediately
+      const localData = localStorage.getItem("aitutor-daily-problem");
+      if (localData) {
+        const localProblem = JSON.parse(localData);
+        if (localProblem.date === today && localProblem.solved) {
+          initialIsSolved = true;
+          if (initialProblem) {
+            initialProblem.solved = true;
+            initialProblem.solvedAt = localProblem.solvedAt;
+          }
+        }
+      }
+    }
+  } catch (e) {
+    console.error("[ProblemOfTheDay] Cache read failed:", e);
+  }
+
+  const [dailyProblem, setDailyProblem] = useState<DailyProblem | null>(initialProblem);
+  const [isGenerating, setIsGenerating] = useState(false);
+  const [showCard, setShowCard] = useState(true);
+  const [isMounted, setIsMounted] = useState(false);
+  const [isSolved, setIsSolved] = useState(initialIsSolved);
+  const [isLoading, setIsLoading] = useState(!initialProblem); // Only loading if no cache
+
   // Only render after client-side hydration to avoid hydration mismatch
   useEffect(() => {
     setIsMounted(true);
   }, []);
 
-  // Load daily problem IMMEDIATELY (don't wait for user/profile - problem is shared)
+  // Load daily problem - sync from database if needed (only if no cache)
   useEffect(() => {
     if (!isMounted) return;
+    
+    // If we already have cached problem, don't check completion here
+    // Let the dedicated completion check useEffect handle it
+    if (dailyProblem) {
+      return; // Already have problem from cache - completion check is separate
+    }
 
+    // No cache - load from database/API
     const loadDailyProblem = async () => {
       setIsLoading(true);
-      const today = getTodayDate();
-      console.log("[ProblemOfTheDay] Starting to load daily problem for", today);
-
-      // Check cache first (localStorage) - same problem for everyone on same day
-      try {
-        const cacheKey = `daily-problem-${today}`;
-        const cached = localStorage.getItem(cacheKey);
-        if (cached) {
-          const cachedProblem = JSON.parse(cached);
-          console.log("[ProblemOfTheDay] Using cached problem");
-          setDailyProblem(cachedProblem);
-          setIsLoading(false);
-          
-          // Check completion status separately (async, non-blocking)
-          if (user) {
-            isDailyProblemSolved(user.id, today, activeProfile?.id || null)
-              .then((solved) => {
-                setIsSolved(solved);
-                if (solved && cachedProblem) {
-                  setDailyProblem({
-                    ...cachedProblem,
-                    solved: true,
-                    solvedAt: new Date().toISOString(),
-                  });
-                }
-              })
-              .catch((err) => console.error("[ProblemOfTheDay] Error checking completion:", err));
-          } else {
-            // Guest mode - check localStorage for completion
-            const localData = localStorage.getItem("aitutor-daily-problem");
-            if (localData) {
-              const localProblem = JSON.parse(localData);
-              if (localProblem.date === today && localProblem.solved) {
-                setIsSolved(true);
-              }
-            }
-          }
-          return; // Early return - problem loaded from cache
-        }
-        console.log("[ProblemOfTheDay] No cache found, checking database...");
-      } catch (e) {
-        console.error("[ProblemOfTheDay] Cache read failed:", e);
-        // Cache read failed, continue to database
-      }
+      console.log("[ProblemOfTheDay] No cache found, checking database...");
 
       try {
         // Fetch today's problem from API (server-side, ensures same problem for all users)
@@ -248,14 +242,16 @@ export default function ProblemOfTheDay({
 
   // Check completion status separately when user/profile loads (non-blocking)
   // ONLY for logged-in users - guest users use localStorage
+  // Check ONCE only to prevent flicker
   useEffect(() => {
-    if (!dailyProblem) return;
+    if (!dailyProblem || !isMounted) return;
     
     const today = getTodayDate();
     if (dailyProblem.date !== today) return;
 
-    // Guest mode: check localStorage only (no database access)
+    // Guest mode: check localStorage only (no database access) - do it once
     if (!user) {
+      // Only check once, don't re-check
       try {
         const localData = localStorage.getItem("aitutor-daily-problem");
         if (localData) {
@@ -265,33 +261,27 @@ export default function ProblemOfTheDay({
               localProblem.problem?.text === dailyProblem.problem.text && 
               localProblem.solved) {
             setIsSolved(true);
-          } else {
-            setIsSolved(false);
+            setDailyProblem((prev) => prev ? {
+              ...prev,
+              solved: true,
+              solvedAt: localProblem.solvedAt,
+            } : prev);
           }
-        } else {
-          setIsSolved(false);
         }
       } catch (e) {
-        setIsSolved(false);
+        // Ignore errors for guest mode
       }
       return; // Don't check database for guest users
     }
     
-    // Logged-in users: check database
-    let isChecking = false;
-    let interval: NodeJS.Timeout | null = null;
+    // Logged-in users: check database ONCE (no interval to prevent flicker)
+    let hasChecked = false;
+    let timeoutId: NodeJS.Timeout | null = null;
 
     const checkCompletion = async () => {
-      // Don't check if already solved or currently checking
-      if (isSolved || isChecking) {
-        // If already solved, stop interval immediately
-        if (isSolved && interval) {
-          clearInterval(interval);
-          interval = null;
-        }
-        return;
-      }
-      isChecking = true;
+      // Only check once
+      if (hasChecked) return;
+      hasChecked = true;
       
       // Check completion status via API (more reliable than direct query)
       console.log("[ProblemOfTheDay] Checking completion status via API...", { userId: user.id, today, profileId: activeProfile?.id });
@@ -302,7 +292,7 @@ export default function ProblemOfTheDay({
             headers: { "Content-Type": "application/json" },
           }),
           new Promise<Response>((resolve) => {
-            setTimeout(() => {
+            timeoutId = setTimeout(() => {
               console.warn("[ProblemOfTheDay] API completion check timeout after 2 seconds");
               resolve(new Response(JSON.stringify({ success: false, isSolved: false }), { status: 200 }));
             }, 2000);
@@ -326,51 +316,30 @@ export default function ProblemOfTheDay({
             solved: true,
             solvedAt: new Date().toISOString(),
           } : prev);
-          // Stop interval immediately when solved to prevent flicker
-          if (interval) {
-            clearInterval(interval);
-            interval = null;
-          }
         } else if (solved && !problemMatches) {
           console.log("[ProblemOfTheDay] ⚠️ Completion found but problem text doesn't match - ignoring", {
             saved: savedProblemText?.substring(0, 50),
             current: currentProblemText?.substring(0, 50),
           });
-          setIsSolved(false);
-        } else {
-          console.log("[ProblemOfTheDay] Not solved yet");
-          setIsSolved(false);
+          // Don't change state if already set from cache
         }
       } catch (err) {
         console.error("[ProblemOfTheDay] Error checking completion:", err);
-        setIsSolved(false);
+        // Don't change state on error - keep what we have
       } finally {
-        isChecking = false;
+        if (timeoutId) clearTimeout(timeoutId);
       }
     };
 
-    // Initial check
-    checkCompletion();
-
-    // Only check periodically if NOT solved (stop immediately when solved)
-    if (!isSolved) {
-      interval = setInterval(() => {
-        // Stop if solved (check current state, not closure)
-        if (isSolved) {
-          if (interval) {
-            clearInterval(interval);
-            interval = null;
-          }
-          return;
-        }
-        checkCompletion();
-      }, 2000);
-    }
+    // Check once after a short delay (to avoid race with initial load)
+    timeoutId = setTimeout(() => {
+      checkCompletion();
+    }, 500);
 
     return () => {
-      if (interval) clearInterval(interval);
+      if (timeoutId) clearTimeout(timeoutId);
     };
-  }, [user, activeProfile?.id, dailyProblem?.date, dailyProblem?.problem?.text, isSolved]); // Include isSolved to stop interval when it changes
+  }, [user?.id, activeProfile?.id, dailyProblem?.date, dailyProblem?.problem?.text, isMounted]); // Remove isSolved from deps to prevent re-runs
 
   // Reset card visibility when problem changes (new day)
   useEffect(() => {

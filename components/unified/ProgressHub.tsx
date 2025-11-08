@@ -1,8 +1,11 @@
 "use client";
 
 import { useState, useEffect, useRef } from "react";
-import { useLocalStorage } from "@/hooks/useLocalStorage";
 import { useProblemHistory } from "@/hooks/useProblemHistory";
+import { useXPData } from "@/hooks/useXPData";
+import { useStreakData } from "@/hooks/useStreakData";
+import { useDailyGoals } from "@/hooks/useDailyGoals";
+import { useStudySessions } from "@/hooks/useStudySessions";
 
 interface DailyGoal {
   problems: number;
@@ -48,27 +51,22 @@ export default function ProgressHub({
   const panelRef = useRef<HTMLDivElement>(null);
   const [isMounted, setIsMounted] = useState(false);
 
-  // Stats
-  const [xpData] = useLocalStorage<any>("aitutor-xp", { totalXP: 0, level: 1 });
-  const [streakData, setStreakData] = useLocalStorage<StreakData>("aitutor-streak", {
-    currentStreak: 0,
-    longestStreak: 0,
-    lastStudyDate: 0,
-  });
+  // Stats - using database hooks
+  const { xpData } = useXPData();
+  const { streakData, updateStreak } = useStreakData();
   const { problems: savedProblems } = useProblemHistory();
 
-  // Goals
-  const [goals, setGoals] = useLocalStorage<DailyGoal>("aitutor-daily-goals", {
-    problems: 5,
-    time: 30,
-    date: new Date().toISOString().split("T")[0],
-  });
-  const [tempGoals, setTempGoals] = useState({ problems: goals.problems, time: goals.time });
+  // Goals - using database hook
+  const { todayGoal, updateGoal } = useDailyGoals();
+  const [tempGoals, setTempGoals] = useState(() => ({ 
+    problems: 5, 
+    time: 30 
+  }));
 
-  // Timer
+  // Timer - using database hook
   const [elapsedTime, setElapsedTime] = useState(0); // in seconds
   const [isRunning, setIsRunning] = useState(false);
-  const [sessions, setSessions] = useLocalStorage<StudySession[]>("aitutor-study-sessions", []);
+  const { sessions, addSession, updateSession } = useStudySessions();
   const intervalRef = useRef<NodeJS.Timeout | null>(null);
   const startTimeRef = useRef<number | null>(null);
   const [problemsSolvedThisSession, setProblemsSolvedThisSession] = useState(0);
@@ -78,29 +76,28 @@ export default function ProgressHub({
     setIsMounted(true);
   }, []);
 
-  // Only use localStorage values after mount to avoid hydration mismatch
+  // Stats from hooks
   const stats = {
-    level: isMounted ? (xpData.level || 1) : 1,
-    xp: isMounted ? (xpData.totalXP || 0) : 0,
-    streak: isMounted ? (streakData.currentStreak || 0) : 0,
-    problemsSolved: isMounted ? (savedProblems.length || 0) : 0,
+    level: xpData.level || 1,
+    xp: xpData.totalXP || 0,
+    streak: streakData.currentStreak || 0,
+    problemsSolved: savedProblems.length || 0,
   };
 
-  // Reset goals if it's a new day
+  // Update temp goals when todayGoal changes (only if values actually changed)
   useEffect(() => {
-    const today = new Date().toISOString().split("T")[0];
-    if (goals.date !== today) {
-      setGoals({
-        problems: 5,
-        time: 30,
-        date: today,
+    const newProblems = todayGoal.problems_goal || 5;
+    const newTime = todayGoal.time_goal || 30;
+    if (tempGoals.problems !== newProblems || tempGoals.time !== newTime) {
+      setTempGoals({ 
+        problems: newProblems, 
+        time: newTime 
       });
-      setTempGoals({ problems: 5, time: 30 });
     }
-  }, [goals.date, setGoals]);
+  }, [todayGoal.problems_goal, todayGoal.time_goal]); // Only depend on the values, not the object
 
-  const problemsProgress = Math.min(100, (problemsSolvedToday / goals.problems) * 100);
-  const timeProgress = Math.min(100, (timeSpentToday / goals.time) * 100);
+  const problemsProgress = Math.min(100, (problemsSolvedToday / (todayGoal.problems_goal || 5)) * 100);
+  const timeProgress = Math.min(100, (timeSpentToday / (todayGoal.time_goal || 30)) * 100);
   const overallProgress = (problemsProgress + timeProgress) / 2;
 
   // Start timer when active
@@ -120,12 +117,13 @@ export default function ProgressHub({
       }
       if (startTimeRef.current) {
         const session: StudySession = {
-          startTime: startTimeRef.current,
-          endTime: Date.now(),
+          start_time: new Date(startTimeRef.current).toISOString(),
+          end_time: new Date().toISOString(),
           duration: elapsedTime,
-          problemsSolved: problemsSolvedThisSession,
+          problems_solved: problemsSolvedThisSession,
+          xp_earned: 0,
         };
-        setSessions((prev) => [session, ...prev].slice(0, 100));
+        addSession(session);
         setElapsedTime(0);
         setProblemsSolvedThisSession(0);
       }
@@ -138,7 +136,7 @@ export default function ProgressHub({
         clearInterval(intervalRef.current);
       }
     };
-  }, [isStudyActive, isRunning, elapsedTime, problemsSolvedThisSession, setSessions]);
+  }, [isStudyActive, isRunning, elapsedTime, problemsSolvedThisSession, addSession]);
 
   // Listen for problem solved events
   useEffect(() => {
@@ -152,59 +150,49 @@ export default function ProgressHub({
 
   // Update streak when user starts a problem
   useEffect(() => {
-    const updateStreak = () => {
-      setStreakData((currentStreakData) => {
-        const today = new Date();
-        today.setHours(0, 0, 0, 0);
-        const todayTimestamp = today.getTime();
+    const handleUpdateStreak = () => {
+      const today = new Date();
+      today.setHours(0, 0, 0, 0);
+      const todayDate = today.toISOString().split("T")[0];
 
-        const lastDate = new Date(currentStreakData.lastStudyDate);
+      const lastDate = streakData.lastStudyDate
+        ? new Date(streakData.lastStudyDate)
+        : null;
+      if (lastDate) {
         lastDate.setHours(0, 0, 0, 0);
-        const lastDateTimestamp = lastDate.getTime();
+      }
 
-        const daysDiff = Math.floor((todayTimestamp - lastDateTimestamp) / (1000 * 60 * 60 * 24));
+      const daysDiff = lastDate
+        ? Math.floor((today.getTime() - lastDate.getTime()) / (1000 * 60 * 60 * 24))
+        : 999;
 
-        if (daysDiff === 0) {
-          return currentStreakData;
-        } else if (daysDiff === 1) {
-          const newStreak = currentStreakData.currentStreak + 1;
-          setTimeout(() => {
-            if (onStreakChange) onStreakChange(newStreak);
-          }, 0);
-          return {
-            currentStreak: newStreak,
-            longestStreak: Math.max(currentStreakData.longestStreak, newStreak),
-            lastStudyDate: todayTimestamp,
-          };
-        } else if (currentStreakData.lastStudyDate === 0) {
-          setTimeout(() => {
-            if (onStreakChange) onStreakChange(1);
-          }, 0);
-          return {
-            currentStreak: 1,
-            longestStreak: 1,
-            lastStudyDate: todayTimestamp,
-          };
-        } else {
-          setTimeout(() => {
-            if (onStreakChange) onStreakChange(1);
-          }, 0);
-          return {
-            currentStreak: 1,
-            longestStreak: currentStreakData.longestStreak,
-            lastStudyDate: todayTimestamp,
-          };
-        }
-      });
+      if (daysDiff === 0) {
+        return; // Already studied today
+      } else if (daysDiff === 1) {
+        const newStreak = streakData.currentStreak + 1;
+        updateStreak({
+          current_streak: newStreak,
+          longest_streak: Math.max(streakData.longestStreak, newStreak),
+          last_study_date: todayDate,
+        });
+        if (onStreakChange) onStreakChange(newStreak);
+      } else {
+        updateStreak({
+          current_streak: 1,
+          longest_streak: streakData.longestStreak,
+          last_study_date: todayDate,
+        });
+        if (onStreakChange) onStreakChange(1);
+      }
     };
 
     const handleProblemStarted = () => {
-      updateStreak();
+      handleUpdateStreak();
     };
 
     window.addEventListener("problemStarted", handleProblemStarted);
     return () => window.removeEventListener("problemStarted", handleProblemStarted);
-  }, [setStreakData, onStreakChange]);
+  }, [streakData, updateStreak, onStreakChange]);
 
   // Close on outside click
   useEffect(() => {
@@ -231,10 +219,13 @@ export default function ProgressHub({
   };
 
   const handleSaveGoals = () => {
-    setGoals({
-      ...goals,
-      problems: tempGoals.problems,
-      time: tempGoals.time,
+    const today = new Date().toISOString().split("T")[0];
+    updateGoal({
+      date: today,
+      problems_goal: tempGoals.problems,
+      time_goal: tempGoals.time,
+      problems_completed: todayGoal.problems_completed || 0,
+      time_completed: todayGoal.time_completed || 0,
     });
   };
 
@@ -378,7 +369,7 @@ export default function ProgressHub({
                 <div className="flex items-center justify-between mb-2">
                   <label className="text-xs font-medium text-gray-700 dark:text-gray-300">Problems</label>
                   <span className="text-xs text-gray-500 dark:text-gray-400">
-                    {problemsSolvedToday} / {goals.problems}
+                    {problemsSolvedToday} / {todayGoal.problems_goal || 5}
                   </span>
                 </div>
                 <div className="w-full bg-gray-200 dark:bg-gray-700 rounded-full h-2">
@@ -393,7 +384,7 @@ export default function ProgressHub({
                 <div className="flex items-center justify-between mb-2">
                   <label className="text-xs font-medium text-gray-700 dark:text-gray-300">Time (minutes)</label>
                   <span className="text-xs text-gray-500 dark:text-gray-400">
-                    {timeSpentToday} / {goals.time}
+                    {timeSpentToday} / {todayGoal.time_goal || 30}
                   </span>
                 </div>
                 <div className="w-full bg-gray-200 dark:bg-gray-700 rounded-full h-2">

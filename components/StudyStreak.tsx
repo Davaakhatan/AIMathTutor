@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { useLocalStorage } from "@/hooks/useLocalStorage";
+import { useStreakData } from "@/hooks/useStreakData";
 
 interface StreakData {
   currentStreak: number;
@@ -14,11 +14,7 @@ interface StudyStreakProps {
 }
 
 export default function StudyStreak({ onStreakChange }: StudyStreakProps = {}) {
-  const [streakData, setStreakData] = useLocalStorage<StreakData>("aitutor-streak", {
-    currentStreak: 0,
-    longestStreak: 0,
-    lastStudyDate: 0,
-  });
+  const { streakData, updateStreak } = useStreakData();
   const [showDetails, setShowDetails] = useState(false);
   const [isMounted, setIsMounted] = useState(false);
 
@@ -29,66 +25,67 @@ export default function StudyStreak({ onStreakChange }: StudyStreakProps = {}) {
 
   // Update streak when user starts a problem
   useEffect(() => {
-    const updateStreak = () => {
-      setStreakData((currentStreakData) => {
-        const today = new Date();
-        today.setHours(0, 0, 0, 0);
-        const todayTimestamp = today.getTime();
+    const handleUpdateStreak = () => {
+      const today = new Date();
+      today.setHours(0, 0, 0, 0);
+      const todayDate = today.toISOString().split("T")[0];
 
-        const lastDate = new Date(currentStreakData.lastStudyDate);
+      const lastDate = streakData.lastStudyDate
+        ? new Date(streakData.lastStudyDate)
+        : null;
+      if (lastDate) {
         lastDate.setHours(0, 0, 0, 0);
-        const lastDateTimestamp = lastDate.getTime();
+      }
 
-        const daysDiff = Math.floor((todayTimestamp - lastDateTimestamp) / (1000 * 60 * 60 * 24));
+      const daysDiff = lastDate
+        ? Math.floor((today.getTime() - lastDate.getTime()) / (1000 * 60 * 60 * 24))
+        : 999;
 
-        if (daysDiff === 0) {
-          // Already studied today, keep streak
-          return currentStreakData;
-        } else if (daysDiff === 1) {
-          // Continue streak (yesterday -> today)
-          const newStreak = currentStreakData.currentStreak + 1;
-          const updated = {
-            currentStreak: newStreak,
-            longestStreak: Math.max(currentStreakData.longestStreak, newStreak),
-            lastStudyDate: todayTimestamp,
-          };
-          // Call onStreakChange outside of setState
-          setTimeout(() => {
-            if (onStreakChange) onStreakChange(newStreak);
-          }, 0);
-          return updated;
-        } else if (currentStreakData.lastStudyDate === 0) {
-          // First time studying
-          setTimeout(() => {
-            if (onStreakChange) onStreakChange(1);
-          }, 0);
-          return {
-            currentStreak: 1,
-            longestStreak: 1,
-            lastStudyDate: todayTimestamp,
-          };
-        } else {
-          // Streak broken (missed days), start new
-          setTimeout(() => {
-            if (onStreakChange) onStreakChange(1);
-          }, 0);
-          return {
-            currentStreak: 1,
-            longestStreak: currentStreakData.longestStreak,
-            lastStudyDate: todayTimestamp,
-          };
-        }
-      });
+      if (daysDiff === 0) {
+        // Already studied today, keep streak
+        return;
+      } else if (daysDiff === 1) {
+        // Continue streak (yesterday -> today)
+        const newStreak = streakData.currentStreak + 1;
+        updateStreak({
+          current_streak: newStreak,
+          longest_streak: Math.max(streakData.longestStreak, newStreak),
+          last_study_date: todayDate,
+        });
+        if (onStreakChange) onStreakChange(newStreak);
+      } else if (!streakData.lastStudyDate) {
+        // First time studying
+        updateStreak({
+          current_streak: 1,
+          longest_streak: 1,
+          last_study_date: todayDate,
+        });
+        if (onStreakChange) onStreakChange(1);
+      } else {
+        // Streak broken (missed days), start new
+        updateStreak({
+          current_streak: 1,
+          longest_streak: streakData.longestStreak,
+          last_study_date: todayDate,
+        });
+        if (onStreakChange) onStreakChange(1);
+      }
     };
 
     // Listen for problem started event
     const handleProblemStarted = () => {
-      updateStreak();
+      handleUpdateStreak();
     };
 
     window.addEventListener("problemStarted", handleProblemStarted);
     
-    // Also check on mount (only once)
+    return () => {
+      window.removeEventListener("problemStarted", handleProblemStarted);
+    };
+  }, [streakData, updateStreak, onStreakChange]);
+
+  // Also check on mount (only once) - moved to separate effect
+  useEffect(() => {
     try {
       const history = JSON.parse(localStorage.getItem("aitutor-problem-history") || "[]");
       const today = new Date();

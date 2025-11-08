@@ -109,11 +109,14 @@ export function detectProblemCompletion(
   // ============================================
   // 6. Final determination
   // ============================================
-  // Need reasonable score (>= 60) AND student must have provided answer
-  // Lowered from 70 to 60 because:
-  // - Student answer (40) + Completion phrase (25) = 65 (was just below threshold)
+  // Need reasonable score (>= 50) AND student must have provided answer
+  // Lowered from 60 to 50 because:
+  // - Student answer (40) + Completion phrase (25) = 65 (should work)
+  // - But "well done" + "solving" (20) + student answer (40) = 60 (was at threshold)
   // - We want to be more lenient when student clearly provided answer and AI confirmed
-  const isCompleted = score >= 60 && studentProvidedAnswer.found;
+  // - Also allow if score is high enough even without explicit answer (for edge cases)
+  const isCompleted = (score >= 50 && studentProvidedAnswer.found) || 
+                      (score >= 70); // High confidence even without explicit answer pattern
   
   let confidence: "low" | "medium" | "high" = "low";
   if (score >= 80 && studentProvidedAnswer.found) confidence = "high";
@@ -210,17 +213,31 @@ function checkAIConfirmation(
       break;
     }
 
-    // Weak confirmations (10 points)
+    // Weak confirmations (10 points) - but upgrade if combined with solving
     if (
       content.includes("well done") ||
+      content.includes("great job") ||
       content.includes("great work") ||
       content.includes("excellent") ||
       content.includes("perfect")
     ) {
-      // Only count if combined with answer confirmation
-      if (content.includes("correct") || content.includes("right") || content.includes("found")) {
-        points += 10;
-        reasons.push("AI praised with confirmation");
+      // Check if combined with solving/completion indicators
+      if (
+        content.includes("solving") ||
+        content.includes("solved") ||
+        content.includes("correct") ||
+        content.includes("right") ||
+        content.includes("found") ||
+        content.includes("answer")
+      ) {
+        // Upgrade to medium confirmation if combined with solving
+        if (content.includes("solving") || content.includes("solved")) {
+          points += 20;
+          reasons.push("AI praised with solving confirmation");
+        } else {
+          points += 10;
+          reasons.push("AI praised with confirmation");
+        }
       }
     }
   }
@@ -245,6 +262,10 @@ function checkCompletionPhrases(
     // High-value phrases
     const highValuePhrases = [
       "well done on solving",
+      "well done!",
+      "well done.",
+      "great job",
+      "great job!",
       "congratulations on solving",
       "congratulations on completing",
       "congratulations! you solved",
@@ -253,6 +274,8 @@ function checkCompletionPhrases(
       "that's the correct answer",
       "you've got it right",
       "you got it right",
+      "well done on solving the problem",
+      "great job on solving",
     ];
 
   for (const phrase of highValuePhrases) {

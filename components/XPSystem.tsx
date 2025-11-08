@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect, useRef } from "react";
-import { useLocalStorage } from "@/hooks/useLocalStorage";
+import { useXPData } from "@/hooks/useXPData";
 import { ParsedProblem, Message, ProblemType } from "@/types";
 
 interface XPData {
@@ -42,13 +42,7 @@ export default function XPSystem({
   onLevelUp,
   onXPDataChange
 }: XPSystemProps) {
-  const [xpData, setXPData] = useLocalStorage<XPData>("aitutor-xp", {
-    totalXP: 0,
-    level: 1,
-    xpToNextLevel: 100,
-    xpHistory: [],
-    recentGains: [],
-  });
+  const { xpData, updateXP } = useXPData();
 
   const [showXPNotification, setShowXPNotification] = useState(false);
   const [lastXPNotification, setLastXPNotification] = useState<{ xp: number; reason: string } | null>(null);
@@ -185,18 +179,18 @@ export default function XPSystem({
     const today = new Date().toISOString().split("T")[0];
     const todayHistory = xpData.xpHistory.find(h => h.date === today);
 
-    setXPData({
-      totalXP: newTotalXP,
+    updateXP({
+      total_xp: newTotalXP,
       level: newLevel,
-      xpToNextLevel: newXPToNext,
-      xpHistory: todayHistory
+      xp_to_next_level: newXPToNext,
+      xp_history: todayHistory
         ? xpData.xpHistory.map(h => 
             h.date === today 
               ? { ...h, xp: h.xp + xpGained, reason: `${h.reason} + Problem solved` }
               : h
           )
         : [...xpData.xpHistory, { date: today, xp: xpGained, reason: "Problem solved" }],
-      recentGains: [
+      recent_gains: [
         {
           timestamp: Date.now(),
           xp: xpGained,
@@ -267,59 +261,52 @@ export default function XPSystem({
   // Award bonus XP for daily practice when a problem is started
   useEffect(() => {
     const handleProblemStarted = () => {
-      // Use functional update to avoid stale closure issues
-      setXPData((currentXPData) => {
-        const today = new Date().toISOString().split("T")[0];
-        const todayHistory = currentXPData.xpHistory.find(h => h.date === today);
-        
-        // Only award if no XP earned today yet (or very minimal)
-        if (!todayHistory || todayHistory.xp < 5) {
-          const dailyBonus = 10;
-          const newTotalXP = currentXPData.totalXP + dailyBonus;
-          const newLevel = calculateLevel(newTotalXP);
-          const newXPToNext = calculateXPToNext(newTotalXP, newLevel);
+      const today = new Date().toISOString().split("T")[0];
+      const todayHistory = xpData.xpHistory.find(h => h.date === today);
+      
+      // Only award if no XP earned today yet (or very minimal)
+      if (!todayHistory || todayHistory.xp < 5) {
+        const dailyBonus = 10;
+        const newTotalXP = xpData.totalXP + dailyBonus;
+        const newLevel = calculateLevel(newTotalXP);
+        const newXPToNext = calculateXPToNext(newTotalXP, newLevel);
 
-          const updatedData = {
-            ...currentXPData,
-            totalXP: newTotalXP,
-            level: newLevel,
-            xpToNextLevel: newXPToNext,
-            xpHistory: todayHistory
-              ? currentXPData.xpHistory.map(h => h.date === today ? { ...h, xp: h.xp + dailyBonus } : h)
-              : [...currentXPData.xpHistory, { date: today, xp: dailyBonus, reason: "Daily practice bonus" }],
-            recentGains: [
-              { timestamp: Date.now(), xp: dailyBonus, reason: "Daily practice bonus" },
-              ...currentXPData.recentGains.slice(0, 9),
-            ],
-          };
+        updateXP({
+          total_xp: newTotalXP,
+          level: newLevel,
+          xp_to_next_level: newXPToNext,
+          xp_history: todayHistory
+            ? xpData.xpHistory.map(h => h.date === today ? { ...h, xp: h.xp + dailyBonus } : h)
+            : [...xpData.xpHistory, { date: today, xp: dailyBonus, reason: "Daily practice bonus" }],
+          recent_gains: [
+            { timestamp: Date.now(), xp: dailyBonus, reason: "Daily practice bonus" },
+            ...xpData.recentGains.slice(0, 9),
+          ],
+        });
 
-          // Show notification outside of setState
-          setTimeout(() => {
-            setLastXPNotification({
-              xp: dailyBonus,
-              reason: "Daily practice bonus!",
-            });
-            setShowXPNotification(true);
-            setTimeout(() => setShowXPNotification(false), 3000);
+        // Show notification
+        setTimeout(() => {
+          setLastXPNotification({
+            xp: dailyBonus,
+            reason: "Daily practice bonus!",
+          });
+          setShowXPNotification(true);
+          setTimeout(() => setShowXPNotification(false), 3000);
             
-            // Play XP gain sound
-            if (typeof window !== "undefined") {
-              import("@/lib/soundEffects").then(({ playXPGain }) => {
-                playXPGain();
-              });
-            }
-          }, 0);
-
-          return updatedData;
-        }
-        return currentXPData; // No change if already awarded today
-      });
+          // Play XP gain sound
+          if (typeof window !== "undefined") {
+            import("@/lib/soundEffects").then(({ playXPGain }) => {
+              playXPGain();
+            });
+          }
+        }, 0);
+      }
     };
 
     window.addEventListener("problemStarted", handleProblemStarted);
     return () => window.removeEventListener("problemStarted", handleProblemStarted);
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []); // Event listener setup only - calculateLevel, calculateXPToNext, setXPData are stable functions
+  }, [xpData, updateXP]); // Event listener setup - depends on xpData and updateXP
 
   // Only render after client-side hydration to avoid hydration mismatch
   useEffect(() => {
