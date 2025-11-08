@@ -150,7 +150,15 @@ export async function getXPData(userId: string, profileId?: string | null): Prom
       recent_gains: (xpRow.recent_gains as any) || [],
     };
   } catch (error) {
-    logger.error("Error in getXPData", { error, userId, profileId });
+    const errorDetails = {
+      error,
+      message: error instanceof Error ? error.message : String(error),
+      stack: error instanceof Error ? error.stack?.split('\n').slice(0, 3).join('\n') : undefined,
+      userId,
+      profileId
+    };
+    logger.error("Error in getXPData", errorDetails);
+    console.error("[getXPData] CRASHED:", errorDetails);
     return null;
   }
 }
