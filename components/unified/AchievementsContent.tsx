@@ -155,7 +155,7 @@ export default function AchievementsContent() {
             <div className="w-1 h-6 rounded-full bg-gradient-to-b from-purple-500 to-pink-500"></div>
             <h4 className="text-lg font-semibold text-gray-900 dark:text-gray-100">Unlocked ({unlocked.length})</h4>
           </div>
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+          <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-3">
             {unlocked.length === 0 ? (
               <div className="col-span-full bg-gradient-to-br from-white to-gray-50 dark:from-gray-800 dark:to-gray-900 border-2 border-dashed border-gray-300 dark:border-gray-700 rounded-2xl p-8 text-center">
                 <div className="w-16 h-16 mx-auto mb-3 bg-gray-200 dark:bg-gray-700 rounded-full flex items-center justify-center">
@@ -170,22 +170,22 @@ export default function AchievementsContent() {
               unlocked.map((achievement) => (
                 <div
                   key={achievement.id}
-                  className="bg-gradient-to-br from-white to-purple-50 dark:from-gray-800 dark:to-purple-950/20 border-2 border-purple-200 dark:border-purple-800 rounded-xl shadow-lg hover:shadow-xl transition-all duration-200"
+                  className="bg-gradient-to-br from-white to-purple-50 dark:from-gray-800 dark:to-purple-950/20 border border-purple-200 dark:border-purple-800 rounded-lg shadow-md hover:shadow-lg transition-all duration-200"
                 >
-                  <div className="p-4 space-y-3">
+                  <div className="p-3 space-y-2">
                     {/* Icon */}
                     <div className="flex justify-center">
-                      <div className="w-16 h-16 bg-gradient-to-br from-purple-500 to-pink-600 rounded-xl flex items-center justify-center shadow-lg">
-                        <div className="w-12 h-12 text-white">
+                      <div className="w-12 h-12 bg-gradient-to-br from-purple-500 to-pink-600 rounded-lg flex items-center justify-center shadow-md">
+                        <div className="w-8 h-8 text-white">
                           <AchievementIcon achievementId={achievement.id} className="w-full h-full" />
                         </div>
                       </div>
                     </div>
                     
                     {/* Text */}
-                    <div className="text-center space-y-1">
-                      <h5 className="text-sm font-bold text-gray-900 dark:text-gray-100">{achievement.name}</h5>
-                      <p className="text-xs text-gray-600 dark:text-gray-400 min-h-[32px]">{achievement.description}</p>
+                    <div className="text-center">
+                      <h5 className="text-xs font-bold text-gray-900 dark:text-gray-100 mb-0.5 line-clamp-1">{achievement.name}</h5>
+                      <p className="text-[10px] text-gray-600 dark:text-gray-400 line-clamp-2 leading-tight">{achievement.description}</p>
                     </div>
                     
                     {/* Share Button */}
@@ -196,7 +196,7 @@ export default function AchievementsContent() {
                           achievement_title: achievement.name,
                           achievement_type: achievement.id,
                         }}
-                        className="text-xs px-3 py-1.5 w-full bg-gradient-to-r from-purple-500 to-pink-600 hover:from-purple-600 hover:to-pink-700 text-white border-0 shadow-md"
+                        className="text-[10px] px-2 py-1 w-full bg-gradient-to-r from-purple-500 to-pink-600 hover:from-purple-600 hover:to-pink-700 text-white border-0"
                       />
                     )}
                   </div>
@@ -209,25 +209,25 @@ export default function AchievementsContent() {
         {/* Locked Achievements */}
         {locked.length > 0 && (
           <div>
-            <div className="flex items-center gap-2 mb-4">
-              <div className="w-1 h-6 rounded-full bg-gradient-to-b from-gray-400 to-gray-500"></div>
-              <h4 className="text-lg font-semibold text-gray-900 dark:text-gray-100">Locked ({locked.length})</h4>
-            </div>
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+          <div className="flex items-center gap-2 mb-4">
+            <div className="w-1 h-6 rounded-full bg-gradient-to-b from-gray-400 to-gray-500"></div>
+            <h4 className="text-lg font-semibold text-gray-900 dark:text-gray-100">Locked ({locked.length})</h4>
+          </div>
+          <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-3">
               {locked.map((achievement) => (
                 <div
                   key={achievement.id}
-                  className="bg-gradient-to-br from-gray-100 to-gray-200 dark:from-gray-900 dark:to-gray-800 border-2 border-gray-300 dark:border-gray-700 rounded-xl shadow-md opacity-60"
+                  className="bg-gradient-to-br from-gray-100 to-gray-200 dark:from-gray-900 dark:to-gray-800 border border-gray-300 dark:border-gray-700 rounded-lg shadow-md opacity-60"
                 >
-                  <div className="p-4 space-y-3">
+                  <div className="p-3 space-y-2">
                     {/* Locked Icon with Lock Overlay */}
                     <div className="flex justify-center">
-                      <div className="w-16 h-16 bg-gray-300 dark:bg-gray-700 rounded-xl flex items-center justify-center relative">
-                        <div className="w-12 h-12 text-gray-500 dark:text-gray-600 blur-sm">
+                      <div className="w-12 h-12 bg-gray-300 dark:bg-gray-700 rounded-lg flex items-center justify-center relative">
+                        <div className="w-8 h-8 text-gray-500 dark:text-gray-600 blur-sm">
                           <AchievementIcon achievementId={achievement.id} className="w-full h-full" />
                         </div>
                         <div className="absolute inset-0 flex items-center justify-center">
-                          <svg className="w-7 h-7 text-gray-600 dark:text-gray-500" fill="currentColor" viewBox="0 0 20 20">
+                          <svg className="w-5 h-5 text-gray-600 dark:text-gray-500" fill="currentColor" viewBox="0 0 20 20">
                             <path fillRule="evenodd" d="M5 9V7a5 5 0 0110 0v2a2 2 0 012 2v5a2 2 0 01-2 2H5a2 2 0 01-2-2v-5a2 2 0 012-2zm8-2v2H7V7a3 3 0 016 0z" clipRule="evenodd" />
                           </svg>
                         </div>
@@ -235,9 +235,9 @@ export default function AchievementsContent() {
                     </div>
                     
                     {/* Text */}
-                    <div className="text-center space-y-1">
-                      <h5 className="text-sm font-bold text-gray-500 dark:text-gray-500">???</h5>
-                      <p className="text-xs text-gray-400 dark:text-gray-600 min-h-[32px]">Complete challenges to unlock</p>
+                    <div className="text-center">
+                      <h5 className="text-xs font-bold text-gray-500 dark:text-gray-500">???</h5>
+                      <p className="text-[10px] text-gray-400 dark:text-gray-600 leading-tight">Locked</p>
                     </div>
                   </div>
                 </div>
