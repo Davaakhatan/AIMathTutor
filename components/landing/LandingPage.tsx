@@ -177,6 +177,164 @@ export default function LandingPage({ onGetStarted }: LandingPageProps) {
           </div>
         </div>
 
+        {/* How It Works - Simple 3 Steps */}
+        <div className="mt-32">
+          <div className="text-center mb-16">
+            <h2 className="text-3xl sm:text-4xl font-bold text-gray-900 dark:text-gray-100 mb-4">
+              How it works
+            </h2>
+            <p className="text-lg text-gray-600 dark:text-gray-400">
+              Start learning in 3 simple steps
+            </p>
+          </div>
+
+          <div className="grid md:grid-cols-3 gap-12 max-w-5xl mx-auto">
+            <div className="text-center">
+              <div className="w-16 h-16 mx-auto mb-4 bg-gradient-to-br from-indigo-500 to-purple-600 rounded-full flex items-center justify-center text-2xl font-bold text-white shadow-lg">
+                1
+              </div>
+              <h3 className="text-xl font-bold text-gray-900 dark:text-gray-100 mb-2">
+                Enter Your Problem
+              </h3>
+              <p className="text-gray-600 dark:text-gray-400">
+                Type it, upload an image, or draw on the whiteboard
+              </p>
+            </div>
+
+            <div className="text-center">
+              <div className="w-16 h-16 mx-auto mb-4 bg-gradient-to-br from-purple-500 to-pink-600 rounded-full flex items-center justify-center text-2xl font-bold text-white shadow-lg">
+                2
+              </div>
+              <h3 className="text-xl font-bold text-gray-900 dark:text-gray-100 mb-2">
+                Learn Through Dialogue
+              </h3>
+              <p className="text-gray-600 dark:text-gray-400">
+                AI tutor guides you with questions, never giving direct answers
+              </p>
+            </div>
+
+            <div className="text-center">
+              <div className="w-16 h-16 mx-auto mb-4 bg-gradient-to-br from-pink-500 to-red-600 rounded-full flex items-center justify-center text-2xl font-bold text-white shadow-lg">
+                3
+              </div>
+              <h3 className="text-xl font-bold text-gray-900 dark:text-gray-100 mb-2">
+                Track & Grow
+              </h3>
+              <p className="text-gray-600 dark:text-gray-400">
+                Earn XP, set goals, and compete with friends as you master math
+              </p>
+            </div>
+          </div>
+        </div>
+
+        {/* Pricing Section */}
+        <div className="mt-32">
+          <div className="text-center mb-16">
+            <h2 className="text-3xl sm:text-4xl font-bold text-gray-900 dark:text-gray-100 mb-4">
+              Simple, Transparent Pricing
+            </h2>
+            <p className="text-lg text-gray-600 dark:text-gray-400">
+              Start free, upgrade when you need more
+            </p>
+          </div>
+
+          <div className="grid md:grid-cols-2 gap-8 max-w-4xl mx-auto">
+            {/* Free Tier */}
+            <div className="bg-white dark:bg-gray-800 rounded-2xl p-8 border-2 border-gray-200 dark:border-gray-700 shadow-xl">
+              <div className="text-center mb-6">
+                <h3 className="text-2xl font-bold text-gray-900 dark:text-gray-100 mb-2">Free</h3>
+                <div className="text-4xl font-bold text-gray-900 dark:text-gray-100 mb-4">
+                  $0
+                  <span className="text-lg font-normal text-gray-500 dark:text-gray-400">/month</span>
+                </div>
+                <p className="text-sm text-gray-600 dark:text-gray-400">Perfect for getting started</p>
+              </div>
+              <ul className="space-y-3 mb-8">
+                <li className="flex items-center gap-2 text-sm text-gray-700 dark:text-gray-300">
+                  <svg className="w-5 h-5 text-green-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+                  </svg>
+                  Unlimited problem solving
+                </li>
+                <li className="flex items-center gap-2 text-sm text-gray-700 dark:text-gray-300">
+                  <svg className="w-5 h-5 text-green-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+                  </svg>
+                  All difficulty levels
+                </li>
+                <li className="flex items-center gap-2 text-sm text-gray-700 dark:text-gray-300">
+                  <svg className="w-5 h-5 text-green-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+                  </svg>
+                  XP, levels, & achievements
+                </li>
+                <li className="flex items-center gap-2 text-sm text-gray-700 dark:text-gray-300">
+                  <svg className="w-5 h-5 text-green-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+                  </svg>
+                  Goal tracking
+                </li>
+              </ul>
+              <button
+                onClick={() => {
+                  setAuthMode("signup");
+                  setAuthModalOpen(true);
+                }}
+                className="w-full py-3 border-2 border-gray-300 dark:border-gray-600 text-gray-700 dark:text-gray-300 font-semibold rounded-xl hover:bg-gray-50 dark:hover:bg-gray-700 transition-all"
+              >
+                Get Started Free
+              </button>
+            </div>
+
+            {/* Premium Tier (Coming Soon) */}
+            <div className="relative bg-gradient-to-br from-indigo-600 to-purple-600 rounded-2xl p-8 shadow-2xl">
+              <div className="absolute top-4 right-4 bg-yellow-400 text-yellow-900 px-3 py-1 rounded-full text-xs font-bold">
+                Coming Soon
+              </div>
+              <div className="text-center mb-6">
+                <h3 className="text-2xl font-bold text-white mb-2">Premium</h3>
+                <div className="text-4xl font-bold text-white mb-4">
+                  $9
+                  <span className="text-lg font-normal text-indigo-200">/month</span>
+                </div>
+                <p className="text-sm text-indigo-100">For serious learners</p>
+              </div>
+              <ul className="space-y-3 mb-8">
+                <li className="flex items-center gap-2 text-sm text-white">
+                  <svg className="w-5 h-5 text-green-300" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+                  </svg>
+                  Everything in Free
+                </li>
+                <li className="flex items-center gap-2 text-sm text-white">
+                  <svg className="w-5 h-5 text-green-300" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+                  </svg>
+                  Priority AI responses
+                </li>
+                <li className="flex items-center gap-2 text-sm text-white">
+                  <svg className="w-5 h-5 text-green-300" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+                  </svg>
+                  Advanced analytics
+                </li>
+                <li className="flex items-center gap-2 text-sm text-white">
+                  <svg className="w-5 h-5 text-green-300" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+                  </svg>
+                  Custom learning paths
+                </li>
+              </ul>
+              <button
+                disabled
+                className="w-full py-3 bg-white text-indigo-600 font-bold rounded-xl opacity-60 cursor-not-allowed"
+              >
+                Coming Soon
+              </button>
+            </div>
+          </div>
+        </div>
+
         {/* Final CTA */}
         <div className="mt-32 text-center">
           <div className="inline-block">
@@ -206,6 +364,81 @@ export default function LandingPage({ onGetStarted }: LandingPageProps) {
           </div>
         </div>
       </main>
+
+      {/* Footer */}
+      <footer className="mt-32 border-t border-gray-200 dark:border-gray-800 bg-white/50 dark:bg-gray-900/50 backdrop-blur-sm">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
+          <div className="grid md:grid-cols-4 gap-8">
+            {/* Brand */}
+            <div className="md:col-span-2">
+              <div className="flex items-center gap-3 mb-4">
+                <div className="w-10 h-10 bg-gradient-to-br from-indigo-500 to-purple-600 rounded-xl flex items-center justify-center shadow-lg">
+                  <span className="text-xl font-bold text-white">∑</span>
+                </div>
+                <span className="text-lg font-bold bg-gradient-to-r from-indigo-600 to-purple-600 dark:from-indigo-400 dark:to-purple-400 bg-clip-text text-transparent">
+                  AI Math Tutor
+                </span>
+              </div>
+              <p className="text-sm text-gray-600 dark:text-gray-400 mb-4 max-w-sm">
+                Master math through guided discovery with our AI-powered learning platform. 
+                Built for students who want to truly understand, not just memorize.
+              </p>
+              <p className="text-xs text-gray-500 dark:text-gray-500">
+                © 2025 AI Math Tutor. All rights reserved.
+              </p>
+            </div>
+
+            {/* Quick Links */}
+            <div>
+              <h4 className="font-semibold text-gray-900 dark:text-gray-100 mb-4">Product</h4>
+              <ul className="space-y-2 text-sm text-gray-600 dark:text-gray-400">
+                <li>
+                  <button onClick={onGetStarted} className="hover:text-indigo-600 dark:hover:text-indigo-400 transition-colors">
+                    Try for Free
+                  </button>
+                </li>
+                <li>
+                  <button onClick={() => { setAuthMode("signup"); setAuthModalOpen(true); }} className="hover:text-indigo-600 dark:hover:text-indigo-400 transition-colors">
+                    Sign Up
+                  </button>
+                </li>
+                <li>
+                  <button onClick={() => { setAuthMode("login"); setAuthModalOpen(true); }} className="hover:text-indigo-600 dark:hover:text-indigo-400 transition-colors">
+                    Sign In
+                  </button>
+                </li>
+              </ul>
+            </div>
+
+            {/* Company */}
+            <div>
+              <h4 className="font-semibold text-gray-900 dark:text-gray-100 mb-4">Company</h4>
+              <ul className="space-y-2 text-sm text-gray-600 dark:text-gray-400">
+                <li>
+                  <a href="#about" className="hover:text-indigo-600 dark:hover:text-indigo-400 transition-colors">
+                    About Us
+                  </a>
+                </li>
+                <li>
+                  <a href="#contact" className="hover:text-indigo-600 dark:hover:text-indigo-400 transition-colors">
+                    Contact
+                  </a>
+                </li>
+                <li>
+                  <a href="#privacy" className="hover:text-indigo-600 dark:hover:text-indigo-400 transition-colors">
+                    Privacy Policy
+                  </a>
+                </li>
+                <li>
+                  <a href="#terms" className="hover:text-indigo-600 dark:hover:text-indigo-400 transition-colors">
+                    Terms of Service
+                  </a>
+                </li>
+              </ul>
+            </div>
+          </div>
+        </div>
+      </footer>
 
       {/* Auth Modal */}
       <AuthModal
