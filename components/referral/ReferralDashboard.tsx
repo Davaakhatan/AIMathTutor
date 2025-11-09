@@ -162,7 +162,17 @@ export default function ReferralDashboard() {
   }
 
   return (
-    <div className="p-4 space-y-4">
+    <div className="p-6 space-y-6 max-h-[700px] overflow-y-auto">
+      {/* Header */}
+      <div className="text-center mb-4">
+        <h2 className="text-2xl font-bold bg-gradient-to-r from-orange-600 to-red-600 dark:from-orange-400 dark:to-red-400 bg-clip-text text-transparent mb-2">
+          Referral Program
+        </h2>
+        <p className="text-sm text-gray-600 dark:text-gray-400">
+          Invite friends and earn rewards together
+        </p>
+      </div>
+      
       {/* Stats Cards - Compact Design */}
       <div className="grid grid-cols-3 gap-2">
         <div className="bg-gray-50 dark:bg-gray-800 rounded-lg p-3 border border-gray-200 dark:border-gray-700">
