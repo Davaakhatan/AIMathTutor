@@ -60,7 +60,7 @@ export default function ProfileSwitcher() {
         aria-expanded={isOpen}
       >
         <div className="flex items-center gap-2 min-w-0">
-          <div className="w-5 h-5 rounded-full bg-gray-900 dark:bg-gray-700 flex items-center justify-center text-white text-xs font-medium flex-shrink-0">
+          <div className="w-6 h-6 rounded-full bg-gradient-to-br from-indigo-500 to-purple-600 flex items-center justify-center text-white text-xs font-bold flex-shrink-0 shadow-md">
             {activeProfile ? activeProfile.name.charAt(0).toUpperCase() : "P"}
           </div>
           <span className="truncate">
@@ -126,7 +126,7 @@ export default function ProfileSwitcher() {
                       className="w-5 h-5 rounded-full object-cover"
                     />
                   ) : (
-                    <div className="w-5 h-5 rounded-full bg-gray-900 dark:bg-gray-700 flex items-center justify-center text-white text-xs font-medium">
+                    <div className="w-6 h-6 rounded-full bg-gradient-to-br from-purple-500 to-pink-600 flex items-center justify-center text-white text-xs font-bold shadow-md">
                       {profile.name.charAt(0).toUpperCase()}
                     </div>
                   )}
