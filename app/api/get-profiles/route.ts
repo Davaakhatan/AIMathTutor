@@ -205,12 +205,29 @@ export async function POST(request: NextRequest) {
     }
 
     // Get active profile ID
-    // For students: default to their first profile if none selected
-    // For parents/teachers: default to null (Personal view) - they must explicitly select a student
+    // CRITICAL FIX: Students should NEVER have activeProfileId set
+    // Students always use user-level data (profileId = null in XP/Streak queries)
+    // Only parents/teachers use activeProfileId for switching between linked students
     let activeProfileId: string | null = null;
     if (typedProfile && typedProfile.role === "student") {
-      activeProfileId = typedProfile.current_student_profile_id || 
-        (studentProfiles.length > 0 ? studentProfiles[0].id : null);
+      // Students ALWAYS use null (user-level data)
+      activeProfileId = null;
+      
+      // If database has a current_student_profile_id set for a student, clear it
+      if (typedProfile.current_student_profile_id) {
+        console.log("[API] Clearing incorrectly set activeProfileId for student", { userId });
+        (supabase
+          .from("profiles") as any)
+          .update({ current_student_profile_id: null })
+          .eq("id", userId)
+          .then((result: { error?: any }) => {
+            if (result.error) {
+              console.error("[API] Error clearing student activeProfileId", { error: result.error.message });
+            } else {
+              console.log("[API] Cleared student activeProfileId in database");
+            }
+          });
+      }
     } else if (typedProfile) {
       // Parents/teachers: use current_student_profile_id if set AND it exists in linked profiles
       // Otherwise, default to null (Personal view)
