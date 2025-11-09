@@ -190,10 +190,13 @@ export default function StudentAccessView() {
   }
 
   return (
-    <div className="space-y-2">
-      <p className="text-xs font-medium text-gray-700 dark:text-gray-300 mb-2">
-        Who Can View Your Profile:
-      </p>
+    <div className="space-y-3">
+      <div className="flex items-center gap-2 mb-3">
+        <div className="w-1 h-5 rounded-full bg-gradient-to-b from-blue-500 to-cyan-500"></div>
+        <p className="text-sm font-semibold text-gray-900 dark:text-gray-100">
+          Who Can View Your Profile
+        </p>
+      </div>
       <div className="space-y-2 max-h-96 overflow-y-auto">
         {linkedParents.map((linked) => (
           <div
