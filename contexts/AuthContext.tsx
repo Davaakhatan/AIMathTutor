@@ -173,13 +173,10 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
                 });
               }
             } else {
-              // If activeProfileId is null, only default to first profile for students
-              if (result.userRole === "student" && profilesList.length > 0) {
-                active = profilesList[0];
-              } else {
-                // Parents/teachers default to null (Personal view)
-                active = null;
-              }
+              // CRITICAL FIX: Students should NEVER have activeProfile set
+              // Students always use user-level data (profileId = null in XP/Streak queries)
+              // Only parents/teachers use activeProfile to switch between linked students
+              active = null;
             }
             
             // Update userRole if provided
@@ -241,7 +238,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
           // Fallback to getStudentProfiles (which also uses API route now)
           getStudentProfiles()
             .then((profilesList) => {
-              const active = profilesList.length > 0 ? profilesList[0] : null;
+              // CRITICAL FIX: Never set activeProfile (students use profileId = null)
+              const active = null;
               setProfiles(profilesList);
               setActiveProfileState(active);
               profilesLoadedForUserRef.current = userId;
