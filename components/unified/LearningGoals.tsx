@@ -332,7 +332,16 @@ export default function LearningGoals({ isGuestMode = false, onSignUpClick }: Le
   const pausedGoals = goals.filter((g) => g.status === "paused");
 
   return (
-    <div className="p-4 space-y-4">
+    <div className="p-6 space-y-6 max-h-[700px] overflow-y-auto">
+      {/* Header */}
+      <div className="text-center">
+        <h2 className="text-2xl font-bold bg-gradient-to-r from-green-600 to-emerald-600 dark:from-green-400 dark:to-emerald-400 bg-clip-text text-transparent mb-2">
+          Learning Goals
+        </h2>
+        <p className="text-sm text-gray-600 dark:text-gray-400">
+          Set goals and track your progress automatically
+        </p>
+      </div>
       {/* Recommendations Modal */}
       {showRecommendations && recommendations.length > 0 && (
         <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
