@@ -172,11 +172,15 @@ export default function ProfileManager() {
   // For parents/teachers: Show linking UI instead of profile creation
   if (userRole === "parent" || userRole === "teacher") {
     return (
-      <div className="space-y-4">
-        <div className="flex justify-between items-center mb-2">
-          <h3 className="text-sm font-medium text-gray-900 dark:text-gray-100">
-            Linked Students
-          </h3>
+      <div className="space-y-4 max-h-[700px] overflow-y-auto p-4">
+        {/* Header */}
+        <div className="text-center mb-6">
+          <h2 className="text-2xl font-bold bg-gradient-to-r from-blue-600 to-cyan-600 dark:from-blue-400 dark:to-cyan-400 bg-clip-text text-transparent mb-2">
+            Student Profiles
+          </h2>
+          <p className="text-sm text-gray-600 dark:text-gray-400">
+            Link and manage student accounts
+          </p>
         </div>
 
         {/* Connect via Link Code (easier method) */}
@@ -203,7 +207,16 @@ export default function ProfileManager() {
 
   // For students: Show their own profile management
   return (
-    <div className="space-y-4 pb-2">
+    <div className="space-y-4 pb-2 max-h-[700px] overflow-y-auto p-4">
+      {/* Header */}
+      <div className="text-center mb-6">
+        <h2 className="text-2xl font-bold bg-gradient-to-r from-purple-600 to-pink-600 dark:from-purple-400 dark:to-pink-400 bg-clip-text text-transparent mb-2">
+          My Profile
+        </h2>
+        <p className="text-sm text-gray-600 dark:text-gray-400">
+          Manage your learning profile
+        </p>
+      </div>
       {/* Show connection link for students */}
       {activeProfile && (
         <>
