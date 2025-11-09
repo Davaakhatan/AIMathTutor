@@ -9,14 +9,15 @@ import { eventBus } from "@/lib/eventBus";
 import { orchestrator } from "@/services/orchestrator";
 
 // Ensure orchestrator is initialized (in case module load didn't trigger it)
-if (typeof window === "undefined") {
-  // Force initialization check
-  const handlerCount = eventBus.getHandlerCount("problem_completed");
-  if (handlerCount === 0) {
-    console.log("⚠️ Orchestrator not initialized, initializing now...");
-    orchestrator.initialize();
-  }
-}
+// TEMPORARILY DISABLED - causing 500 errors
+// if (typeof window === "undefined") {
+//   // Force initialization check
+//   const handlerCount = eventBus.getHandlerCount("problem_completed");
+//   if (!orchestrator.isInitialized() || handlerCount === 0) {
+//     console.log("⚠️ Orchestrator not initialized, initializing now...");
+//     orchestrator.initialize();
+//   }
+// }
 
 export async function POST(request: NextRequest) {
   try {
@@ -228,24 +229,25 @@ export async function POST(request: NextRequest) {
         });
 
         // Emit session_started event
-        if (userId && body.problem) {
-          eventBus.emit({
-            type: "session_started",
-            userId,
-            profileId: body.profileId,
-            data: {
-              sessionId: session.id,
-              problem: {
-                text: body.problem.text,
-                type: body.problem.type,
-                difficulty: difficultyMode,
-              },
-            },
-            timestamp: new Date(),
-          }).catch((error) => {
-            logger.error("Error emitting session_started event", { error });
-          });
-        }
+        // TEMPORARILY DISABLED - event bus not working
+        // if (userId && body.problem) {
+        //   eventBus.emit({
+        //     type: "session_started",
+        //     userId,
+        //     profileId: body.profileId,
+        //     data: {
+        //       sessionId: session.id,
+        //       problem: {
+        //         text: body.problem.text,
+        //         type: body.problem.type,
+        //         difficulty: difficultyMode,
+        //       },
+        //     },
+        //     timestamp: new Date(),
+        //   }).catch((error) => {
+        //     logger.error("Error emitting session_started event", { error });
+        //   });
+        // }
 
         return NextResponse.json({
           success: true,
@@ -463,28 +465,29 @@ export async function POST(request: NextRequest) {
           responseText: responseText.substring(0, 100),
         });
         
-        eventBus.emit({
-          type: "problem_completed",
-          userId,
-          profileId: body.profileId,
-          data: {
-            problem: {
-              text: session.problem.text,
-              type: session.problem.type,
-              difficulty: difficultyMode,
-            },
-            sessionId: body.sessionId,
-            timeSpent: Date.now() - session.createdAt,
-            hintsUsed: session.messages.filter(m => m.role === "tutor" && m.content.toLowerCase().includes("hint")).length,
-            attempts: session.messages.filter(m => m.role === "user").length,
-          },
-          timestamp: new Date(),
-        }).then(() => {
-          console.log("✅ problem_completed event emitted successfully");
-        }).catch((error) => {
-          logger.error("Error emitting problem_completed event", { error });
-          console.error("❌ Failed to emit problem_completed event:", error);
-        });
+        // TEMPORARILY DISABLED - event bus not working
+        // eventBus.emit({
+        //   type: "problem_completed",
+        //   userId,
+        //   profileId: body.profileId,
+        //   data: {
+        //     problem: {
+        //       text: session.problem.text,
+        //       type: session.problem.type,
+        //       difficulty: difficultyMode,
+        //     },
+        //     sessionId: body.sessionId,
+        //     timeSpent: Date.now() - session.createdAt,
+        //     hintsUsed: session.messages.filter(m => m.role === "tutor" && m.content.toLowerCase().includes("hint")).length,
+        //     attempts: session.messages.filter(m => m.role === "user").length,
+        //   },
+        //   timestamp: new Date(),
+        // }).then(() => {
+        //   console.log("✅ problem_completed event emitted successfully");
+        // }).catch((error) => {
+        //   logger.error("Error emitting problem_completed event", { error });
+        //   console.error("❌ Failed to emit problem_completed event:", error);
+        // });
       } else if (isCompleted) {
         // Log why event wasn't emitted
         console.warn("⚠️ Problem completed but event NOT emitted:", {
@@ -764,28 +767,29 @@ async function handleStreamingResponse(
               });
               
               // Emit problem_completed event
-              eventBus.emit({
-                type: "problem_completed",
-                userId,
-                profileId: profileId || undefined,
-                data: {
-                  problem: {
-                    text: session.problem.text,
-                    type: session.problem.type,
-                    difficulty: difficultyMode,
-                  },
-                  sessionId: sessionId,
-                  timeSpent: Date.now() - session.createdAt,
-                  hintsUsed: session.messages.filter(m => m.role === "tutor" && m.content.toLowerCase().includes("hint")).length,
-                  attempts: session.messages.filter(m => m.role === "user").length,
-                },
-                timestamp: new Date(),
-              }).then(() => {
-                console.log("✅ [STREAMING] problem_completed event emitted successfully");
-              }).catch((error) => {
-                console.error("❌ [STREAMING] Failed to emit problem_completed event:", error);
-                logger.error("Error emitting problem_completed event from streaming", { error });
-              });
+              // TEMPORARILY DISABLED - event bus not working
+              // eventBus.emit({
+              //   type: "problem_completed",
+              //   userId,
+              //   profileId: profileId || undefined,
+              //   data: {
+              //     problem: {
+              //       text: session.problem.text,
+              //       type: session.problem.type,
+              //       difficulty: difficultyMode,
+              //     },
+              //     sessionId: sessionId,
+              //     timeSpent: Date.now() - session.createdAt,
+              //     hintsUsed: session.messages.filter(m => m.role === "tutor" && m.content.toLowerCase().includes("hint")).length,
+              //     attempts: session.messages.filter(m => m.role === "user").length,
+              //   },
+              //   timestamp: new Date(),
+              // }).then(() => {
+              //   console.log("✅ [STREAMING] problem_completed event emitted successfully");
+              // }).catch((error) => {
+              //   console.error("❌ [STREAMING] Failed to emit problem_completed event:", error);
+              //   logger.error("Error emitting problem_completed event from streaming", { error });
+              // });
             } else {
               console.log("⏳ [STREAMING] Problem not completed yet (no completion phrases found)");
             }

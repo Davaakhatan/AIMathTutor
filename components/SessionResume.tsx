@@ -15,6 +15,7 @@ interface SessionResumeProps {
 /**
  * Component to resume previous sessions
  * Shows a prompt if a recent session is found
+ * TEMPORARILY DISABLED - will fix session management later
  */
 export default function SessionResume({ onResume }: SessionResumeProps) {
   const [savedSession, setSavedSession] = useState<SavedSession | null>(null);
@@ -23,6 +24,10 @@ export default function SessionResume({ onResume }: SessionResumeProps) {
   const [showPrompt, setShowPrompt] = useState(false);
 
   useEffect(() => {
+    // TEMPORARILY DISABLED - causing issues with cross-user sessions
+    // Will be re-enabled with proper user scoping
+    return;
+    
     try {
       const sessionData = localStorage.getItem("aitutor-session");
       const problemData = localStorage.getItem("aitutor-problem");
