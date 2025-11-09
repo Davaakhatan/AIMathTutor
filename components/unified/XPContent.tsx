@@ -30,26 +30,12 @@ export default function XPContent({ onXPDataChange }: XPContentProps) {
     return Math.max(0, xpForNextLevel - xpInCurrentLevel);
   };
 
-  // Update XP to next level (use ref to prevent infinite loop)
-  const prevXPDataRef = useRef({ totalXP: xpData.totalXP, level: xpData.level });
-  
-  useEffect(() => {
-    // Only update if totalXP or level actually changed
-    if (prevXPDataRef.current.totalXP !== xpData.totalXP || 
-        prevXPDataRef.current.level !== xpData.level) {
-      const xpToNext = calculateXPToNext(xpData.totalXP, xpData.level);
-      if (xpToNext !== xpData.xpToNextLevel) {
-        updateXP({
-          xp_to_next_level: xpToNext,
-        });
-      }
-      prevXPDataRef.current = { totalXP: xpData.totalXP, level: xpData.level };
-    }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [xpData.totalXP, xpData.level, xpData.xpToNextLevel]); // calculateXPToNext and updateXP are stable functions
+  // Calculate XP to next level (don't update database - just display)
+  // This was causing infinite loops by calling updateXP() on every render
+  const xpToNextLevel = calculateXPToNext(xpData.totalXP, xpData.level);
 
-  const progressPercentage = xpData.xpToNextLevel > 0
-    ? ((calculateXPForLevel(xpData.level) - xpData.xpToNextLevel) / calculateXPForLevel(xpData.level)) * 100
+  const progressPercentage = xpToNextLevel > 0
+    ? ((calculateXPForLevel(xpData.level) - xpToNextLevel) / calculateXPForLevel(xpData.level)) * 100
     : 100;
 
   const problemsSolved = xpData.xpHistory.filter(h => h.reason.includes("Problem solved") || h.reason.includes("Solved")).length;

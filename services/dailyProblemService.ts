@@ -3,7 +3,6 @@
  * Handles storing and retrieving daily problems and completion status in database
  */
 
-import { getSupabaseClient } from "@/lib/supabase";
 import { getSupabaseAdmin } from "@/lib/supabase-admin";
 import { getEffectiveProfileId } from "@/services/studentProfileService";
 import { logger } from "@/lib/logger";
@@ -27,9 +26,9 @@ export async function isDailyProblemSolved(
   try {
     logger.debug("isDailyProblemSolved called", { userId, problemDate, profileId });
     
-    const supabase = await getSupabaseClient();
+    const supabase = getSupabaseAdmin();
     if (!supabase) {
-      logger.warn("Supabase client not available, checking localStorage only");
+      logger.warn("Supabase admin client not available");
       return false;
     }
 
@@ -106,11 +105,9 @@ export async function markDailyProblemSolved(
   try {
     logger.debug("markDailyProblemSolved called", { userId, problemDate, profileId, problemTextLength: problemText.length });
     
-    // Profile existence is guaranteed by ensure_all_users_have_profiles migration
-    // No need to call ensureProfileExists from client-side code here
-    const supabase = await getSupabaseClient();
+    const supabase = getSupabaseAdmin();
     if (!supabase) {
-      logger.warn("Supabase client not available, cannot save to database");
+      logger.warn("Supabase admin client not available");
       return false;
     }
 
@@ -182,9 +179,9 @@ export async function getDailyProblem(problemDate: string): Promise<DailyProblem
     });
 
     const dbQuery = async (): Promise<DailyProblemData | null> => {
-      const supabase = await getSupabaseClient();
+      const supabase = getSupabaseAdmin();
       if (!supabase) {
-        logger.warn("Supabase client not available");
+        logger.warn("Supabase admin client not available");
         return null;
       }
 
