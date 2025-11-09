@@ -26,24 +26,26 @@ export function useXPData() {
   useEffect(() => {
     let isMounted = true;
     
+    // OPTIMISTIC LOADING: Show localStorage data immediately
+    const localData = {
+      total_xp: localXPData.totalXP || 0,
+      level: localXPData.level || 1,
+      xp_to_next_level: localXPData.xpToNextLevel || 100,
+      xp_history: localXPData.xpHistory || [],
+      recent_gains: localXPData.recentGains || [],
+    };
+    setXPData(localData);
+    setIsLoading(false); // Show immediately
+    
     if (!user) {
-      // Guest mode - use localStorage only
-      const localData = {
-        total_xp: localXPData.totalXP || 0,
-        level: localXPData.level || 1,
-        xp_to_next_level: localXPData.xpToNextLevel || 100,
-        xp_history: localXPData.xpHistory || [],
-        recent_gains: localXPData.recentGains || [],
-      };
-      setXPData(localData);
-      setIsLoading(false);
+      // Guest mode - localStorage only, already set above
       return;
     }
 
-    // For authenticated users: Load from database (with loading state)
+    // For authenticated users: Load from database in BACKGROUND
     const loadFromDatabase = async () => {
       try {
-        setIsLoading(true);
+        // Don't set loading true - we already showed localStorage data
         
         // CRITICAL: For student users, ALWAYS use user-level XP (profileId = null)
         // For parents/teachers, use activeProfile if set
@@ -77,33 +79,16 @@ export function useXPData() {
             recentGains: data.recent_gains || [],
           });
         } else {
-          // Fallback to localStorage if database fails
-          logger.warn("Failed to load XP from database, using localStorage", { userId: user.id });
-          const localData = {
-            total_xp: localXPData.totalXP || 0,
-            level: localXPData.level || 1,
-            xp_to_next_level: localXPData.xpToNextLevel || 100,
-            xp_history: localXPData.xpHistory || [],
-            recent_gains: localXPData.recentGains || [],
-          };
-          setXPData(localData);
+          // No database data - keep showing localStorage
+          logger.warn("No XP data in database, keeping localStorage", { userId: user.id });
         }
         
-        setIsLoading(false);
+        // isLoading already false from initial set
       } catch (error) {
         logger.error("Error loading XP data", { error, userId: user.id });
         if (!isMounted) return;
         
-        // Fallback to localStorage on error
-        const localData = {
-          total_xp: localXPData.totalXP || 0,
-          level: localXPData.level || 1,
-          xp_to_next_level: localXPData.xpToNextLevel || 100,
-          xp_history: localXPData.xpHistory || [],
-          recent_gains: localXPData.recentGains || [],
-        };
-        setXPData(localData);
-        setIsLoading(false);
+        // Already showing localStorage, no need to set again
       }
     };
     

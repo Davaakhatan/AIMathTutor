@@ -26,27 +26,29 @@ export function useStreakData() {
     lastStudyDate: null,
   });
 
-  // Load streak data - Database-first pattern with localStorage fallback
+  // Load streak data - Optimistic loading with background sync
   useEffect(() => {
     let isMounted = true;
     
+    // OPTIMISTIC LOADING: Show localStorage data immediately
+    const localData = {
+      current_streak: localStreakData.currentStreak || 0,
+      longest_streak: localStreakData.longestStreak || 0,
+      last_study_date: localStreakData.lastStudyDate
+        ? new Date(localStreakData.lastStudyDate).toISOString().split("T")[0]
+        : null,
+    };
+    setStreakData(localData);
+    setIsLoading(false); // Show immediately
+    
     if (!user) {
-      // Guest mode - use localStorage only
-      const localData = {
-        current_streak: localStreakData.currentStreak || 0,
-        longest_streak: localStreakData.longestStreak || 0,
-        last_study_date: localStreakData.lastStudyDate
-          ? new Date(localStreakData.lastStudyDate).toISOString().split("T")[0]
-          : null,
-      };
-      setStreakData(localData);
-      setIsLoading(false);
+      // Guest mode - localStorage only, already set above
       return;
     }
 
-    // For logged-in users: Database-first pattern
+    // For logged-in users: Load from database in BACKGROUND
     const loadFromDatabase = async () => {
-      setIsLoading(true);
+      // Don't set loading true - we already showed localStorage data
       
       try {
         // CRITICAL: For student users, ALWAYS use user-level streaks (profileId = null)
@@ -71,33 +73,16 @@ export function useStreakData() {
               : null,
           });
         } else {
-          // Fallback to localStorage if database fails
-          logger.warn("Failed to load streaks from database, using localStorage", { userId: user.id });
-          const localData = {
-            current_streak: localStreakData.currentStreak || 0,
-            longest_streak: localStreakData.longestStreak || 0,
-            last_study_date: localStreakData.lastStudyDate
-              ? new Date(localStreakData.lastStudyDate).toISOString().split("T")[0]
-              : null,
-          };
-          setStreakData(localData);
+          // No database data - keep showing localStorage
+          logger.warn("No streak data in database, keeping localStorage", { userId: user.id });
         }
         
-        setIsLoading(false);
+        // isLoading already false from initial set
       } catch (error) {
         logger.error("Error loading streak data", { error, userId: user.id });
         if (!isMounted) return;
         
-        // Fallback to localStorage on error
-        const localData = {
-          current_streak: localStreakData.currentStreak || 0,
-          longest_streak: localStreakData.longestStreak || 0,
-          last_study_date: localStreakData.lastStudyDate
-            ? new Date(localStreakData.lastStudyDate).toISOString().split("T")[0]
-            : null,
-        };
-        setStreakData(localData);
-        setIsLoading(false);
+        // Already showing localStorage, no need to set again
       }
     };
     
