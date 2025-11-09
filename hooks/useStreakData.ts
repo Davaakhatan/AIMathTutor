@@ -49,9 +49,46 @@ export function useStreakData() {
       setIsLoading(true);
       
       try {
-        // TEMPORARY FIX: Skip database, use localStorage only to unblock chat
-        logger.info("Loading streaks from localStorage (database disabled temporarily)", { userId: user.id });
+        // CRITICAL: For student users, ALWAYS use user-level streaks (profileId = null)
+        // For parents/teachers, use activeProfile if set
+        const profileIdToUse = (userRole === "student") ? null : (activeProfile?.id || null);
         
+        logger.info("Loading streaks from database", { userId: user.id, profileId: profileIdToUse, userRole });
+        
+        const data = await getStreakData(user.id, profileIdToUse);
+        
+        if (!isMounted) return;
+        
+        if (data) {
+          setStreakData(data);
+          
+          // Also update localStorage cache
+          setLocalStreakData({
+            currentStreak: data.current_streak || 0,
+            longestStreak: data.longest_streak || 0,
+            lastStudyDate: data.last_study_date
+              ? new Date(data.last_study_date).getTime()
+              : null,
+          });
+        } else {
+          // Fallback to localStorage if database fails
+          logger.warn("Failed to load streaks from database, using localStorage", { userId: user.id });
+          const localData = {
+            current_streak: localStreakData.currentStreak || 0,
+            longest_streak: localStreakData.longestStreak || 0,
+            last_study_date: localStreakData.lastStudyDate
+              ? new Date(localStreakData.lastStudyDate).toISOString().split("T")[0]
+              : null,
+          };
+          setStreakData(localData);
+        }
+        
+        setIsLoading(false);
+      } catch (error) {
+        logger.error("Error loading streak data", { error, userId: user.id });
+        if (!isMounted) return;
+        
+        // Fallback to localStorage on error
         const localData = {
           current_streak: localStreakData.currentStreak || 0,
           longest_streak: localStreakData.longestStreak || 0,
@@ -59,13 +96,7 @@ export function useStreakData() {
             ? new Date(localStreakData.lastStudyDate).toISOString().split("T")[0]
             : null,
         };
-        
         setStreakData(localData);
-        setIsLoading(false);
-        
-        // TODO: Re-enable database loading after fixing timeout issue
-      } catch (error) {
-        logger.error("Error loading streaks from localStorage", { error, userId: user.id });
         setIsLoading(false);
       }
     };

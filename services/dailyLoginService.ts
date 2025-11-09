@@ -16,19 +16,11 @@ const FIRST_LOGIN_KEY = "aitutor-first-login-bonus-claimed";
  * Check if user should receive daily login XP
  * Awards XP if it's a new day since last login
  * Also awards bonus XP on first login after signup
- * TEMPORARILY DISABLED - causing duplicate key errors
  */
 export async function checkAndAwardDailyLoginXP(
   userId: string,
   profileId?: string | null
 ): Promise<{ awarded: boolean; xp: number; message: string }> {
-  // TEMPORARILY DISABLED - will fix XP system properly
-  return {
-    awarded: false,
-    xp: 0,
-    message: "Daily login XP temporarily disabled",
-  };
-  
   try {
     const today = new Date().toISOString().split("T")[0]; // YYYY-MM-DD
     

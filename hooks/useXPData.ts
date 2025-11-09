@@ -45,10 +45,46 @@ export function useXPData() {
       try {
         setIsLoading(true);
         
-        // TEMPORARY FIX: Skip database, use localStorage only to unblock chat
-        // TODO: Fix XP query timeout issue properly
-        logger.info("Loading XP from localStorage (database disabled temporarily)", { userId: user.id });
+        // CRITICAL: For student users, ALWAYS use user-level XP (profileId = null)
+        // For parents/teachers, use activeProfile if set
+        const profileIdToUse = (userRole === "student") ? null : (activeProfile?.id || null);
         
+        logger.info("Loading XP from database", { userId: user.id, profileId: profileIdToUse, userRole });
+        
+        const data = await getXPData(user.id, profileIdToUse);
+        
+        if (!isMounted) return;
+        
+        if (data) {
+          setXPData(data);
+          
+          // Also update localStorage cache
+          setLocalXPData({
+            totalXP: data.total_xp,
+            level: data.level,
+            xpToNextLevel: data.xp_to_next_level,
+            xpHistory: data.xp_history || [],
+            recentGains: data.recent_gains || [],
+          });
+        } else {
+          // Fallback to localStorage if database fails
+          logger.warn("Failed to load XP from database, using localStorage", { userId: user.id });
+          const localData = {
+            total_xp: localXPData.totalXP || 0,
+            level: localXPData.level || 1,
+            xp_to_next_level: localXPData.xpToNextLevel || 100,
+            xp_history: localXPData.xpHistory || [],
+            recent_gains: localXPData.recentGains || [],
+          };
+          setXPData(localData);
+        }
+        
+        setIsLoading(false);
+      } catch (error) {
+        logger.error("Error loading XP data", { error, userId: user.id });
+        if (!isMounted) return;
+        
+        // Fallback to localStorage on error
         const localData = {
           total_xp: localXPData.totalXP || 0,
           level: localXPData.level || 1,
@@ -56,13 +92,7 @@ export function useXPData() {
           xp_history: localXPData.xpHistory || [],
           recent_gains: localXPData.recentGains || [],
         };
-        
         setXPData(localData);
-        setIsLoading(false);
-        
-        // TODO: Re-enable database loading after fixing timeout issue
-      } catch (error) {
-        logger.error("Error loading XP from localStorage", { error, userId: user.id });
         setIsLoading(false);
       }
     };

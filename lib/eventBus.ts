@@ -179,15 +179,16 @@ class EventBus {
 }
 
 // Singleton instance
-const eventBus = new EventBus();
+const eventBusInstance = new EventBus();
 
-// Export singleton
-export default eventBus;
+// Export singleton (both as default and named for compatibility)
+export default eventBusInstance;
+export { eventBusInstance as eventBus };
 
 // Export class for testing
 export { EventBus };
 
 // Convenience functions
-export const emitEvent = eventBus.emit.bind(eventBus);
-export const onEvent = eventBus.on.bind(eventBus);
-export const getEventHistory = eventBus.getHistory.bind(eventBus);
+export const emitEvent = eventBusInstance.emit.bind(eventBusInstance);
+export const onEvent = eventBusInstance.on.bind(eventBusInstance);
+export const getEventHistory = eventBusInstance.getHistory.bind(eventBusInstance);

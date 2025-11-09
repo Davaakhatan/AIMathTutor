@@ -258,19 +258,16 @@ async function createDefaultXPData(userId: string, profileId?: string | null): P
 
 /**
  * Update XP data in Supabase
+ * Uses update-then-insert pattern to avoid duplicate key errors with partial indexes
  */
 export async function updateXPData(userId: string, xpData: Partial<XPData>, profileId?: string | null): Promise<boolean> {
   try {
-    // Profile existence is ensured by AuthContext - no need to check here
-    // await ensureProfileExists(userId); // DISABLED - causes 2s timeout
-    
     const supabase = await getSupabaseClient();
     if (!supabase) {
       logger.warn("Supabase client not available");
       return false;
     }
     
-    // Use profile ID if provided, otherwise use null (don't call getEffectiveProfileId - it hangs!)
     const effectiveProfileId = profileId !== undefined ? profileId : null;
     
     // Filter out any fields that don't exist in the database schema
@@ -278,28 +275,53 @@ export async function updateXPData(userId: string, xpData: Partial<XPData>, prof
     
     const updateData: any = {
       ...dbFields,
-      user_id: userId, // ALWAYS include user_id (required by RLS and NOT NULL constraint)
+      user_id: userId,
+      student_profile_id: effectiveProfileId,
       updated_at: new Date().toISOString(),
     };
     
+    // SAFE PATTERN: Try UPDATE first (doesn't create duplicates)
+    let updateQuery = supabase
+      .from("xp_data")
+      .update(updateData)
+      .eq("user_id", userId);
+    
     if (effectiveProfileId) {
-      updateData.student_profile_id = effectiveProfileId; // Profile-level: include both
+      updateQuery = updateQuery.eq("student_profile_id", effectiveProfileId);
     } else {
-      updateData.student_profile_id = null; // User-level: profile_id is null
+      updateQuery = updateQuery.is("student_profile_id", null);
     }
     
-    // Use the composite unique constraint: (user_id, student_profile_id)
-    const { error } = await supabase
-      .from("xp_data")
-      .upsert(updateData, {
-        onConflict: "user_id,student_profile_id",
-      });
-
-    if (error) {
-      logger.error("Error updating XP data", { error: error.message, userId });
-      return false;
+    const { data: updated, error: updateError } = await updateQuery.select();
+    
+    // If update succeeded, we're done
+    if (updated && updated.length > 0) {
+      logger.debug("XP data updated successfully", { userId, profileId: effectiveProfileId });
+      return true;
     }
-
+    
+    // If no rows were updated, record doesn't exist - INSERT it
+    if (!updated || updated.length === 0) {
+      logger.debug("No existing XP record, inserting new", { userId, profileId: effectiveProfileId });
+      
+      const { error: insertError } = await supabase
+        .from("xp_data")
+        .insert(updateData);
+      
+      if (insertError) {
+        // If duplicate key (race condition - another request inserted between our update and insert)
+        if (insertError.code === "23505") {
+          logger.debug("XP record created by concurrent request (race condition handled)", { userId });
+          return true; // Another request created it, that's fine
+        }
+        logger.error("Error inserting XP data", { error: insertError.message, userId });
+        return false;
+      }
+      
+      logger.debug("XP data inserted successfully", { userId, profileId: effectiveProfileId });
+      return true;
+    }
+    
     return true;
   } catch (error) {
     logger.error("Error in updateXPData", { error, userId });
@@ -454,45 +476,67 @@ async function createDefaultStreakData(userId: string, profileId?: string | null
 
 /**
  * Update streak data in Supabase
+ * Uses update-then-insert pattern to avoid duplicate key errors with partial indexes
  */
 export async function updateStreakData(userId: string, streakData: Partial<StreakData>, profileId?: string | null): Promise<boolean> {
   try {
-    // Profile existence is ensured by AuthContext - no need to check here
-    // await ensureProfileExists(userId); // DISABLED - causes 2s timeout
-    
     const supabase = await getSupabaseClient();
     if (!supabase) {
       logger.warn("Supabase client not available");
       return false;
     }
     
-    // Use profile ID if provided, otherwise use null (don't call getEffectiveProfileId - it hangs!)
     const effectiveProfileId = profileId !== undefined ? profileId : null;
     
     const updateData: any = {
       ...streakData,
-      user_id: userId, // ALWAYS include user_id (required by RLS and NOT NULL constraint)
+      user_id: userId,
+      student_profile_id: effectiveProfileId,
       updated_at: new Date().toISOString(),
     };
     
+    // SAFE PATTERN: Try UPDATE first (doesn't create duplicates)
+    let updateQuery = supabase
+      .from("streaks")
+      .update(updateData)
+      .eq("user_id", userId);
+    
     if (effectiveProfileId) {
-      updateData.student_profile_id = effectiveProfileId; // Profile-level: include both
+      updateQuery = updateQuery.eq("student_profile_id", effectiveProfileId);
     } else {
-      updateData.student_profile_id = null; // User-level: profile_id is null
+      updateQuery = updateQuery.is("student_profile_id", null);
     }
     
-    // Use the composite unique constraint: (user_id, student_profile_id)
-    const { error } = await supabase
-      .from("streaks")
-      .upsert(updateData, {
-        onConflict: "user_id,student_profile_id",
-      });
-
-    if (error) {
-      logger.error("Error updating streak data", { error: error.message, userId });
-      return false;
+    const { data: updated, error: updateError } = await updateQuery.select();
+    
+    // If update succeeded, we're done
+    if (updated && updated.length > 0) {
+      logger.debug("Streak data updated successfully", { userId, profileId: effectiveProfileId });
+      return true;
     }
-
+    
+    // If no rows were updated, record doesn't exist - INSERT it
+    if (!updated || updated.length === 0) {
+      logger.debug("No existing streak record, inserting new", { userId, profileId: effectiveProfileId });
+      
+      const { error: insertError } = await supabase
+        .from("streaks")
+        .insert(updateData);
+      
+      if (insertError) {
+        // If duplicate key (race condition - another request inserted between our update and insert)
+        if (insertError.code === "23505") {
+          logger.debug("Streak record created by concurrent request (race condition handled)", { userId });
+          return true; // Another request created it, that's fine
+        }
+        logger.error("Error inserting streak data", { error: insertError.message, userId });
+        return false;
+      }
+      
+      logger.debug("Streak data inserted successfully", { userId, profileId: effectiveProfileId });
+      return true;
+    }
+    
     return true;
   } catch (error) {
     logger.error("Error in updateStreakData", { error, userId });
