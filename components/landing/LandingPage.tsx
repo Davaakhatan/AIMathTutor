@@ -286,18 +286,18 @@ export default function LandingPage({ onGetStarted }: LandingPageProps) {
               </button>
             </div>
 
-            {/* Premium Tier (Coming Soon) */}
+            {/* Premium Tier (Free During Beta) */}
             <div className="relative bg-gradient-to-br from-indigo-600 to-purple-600 rounded-2xl p-8 shadow-2xl">
-              <div className="absolute top-4 right-4 bg-yellow-400 text-yellow-900 px-3 py-1 rounded-full text-xs font-bold">
-                Coming Soon
+              <div className="absolute top-4 right-4 bg-green-400 text-green-900 px-3 py-1 rounded-full text-xs font-bold">
+                Free Beta
               </div>
               <div className="text-center mb-6">
                 <h3 className="text-2xl font-bold text-white mb-2">Premium</h3>
                 <div className="text-4xl font-bold text-white mb-4">
-                  $9
+                  $0
                   <span className="text-lg font-normal text-indigo-200">/month</span>
                 </div>
-                <p className="text-sm text-indigo-100">For serious learners</p>
+                <p className="text-sm text-indigo-100">Free during beta testing</p>
               </div>
               <ul className="space-y-3 mb-8">
                 <li className="flex items-center gap-2 text-sm text-white">
@@ -326,10 +326,13 @@ export default function LandingPage({ onGetStarted }: LandingPageProps) {
                 </li>
               </ul>
               <button
-                disabled
-                className="w-full py-3 bg-white text-indigo-600 font-bold rounded-xl opacity-60 cursor-not-allowed"
+                onClick={() => {
+                  setAuthMode("signup");
+                  setAuthModalOpen(true);
+                }}
+                className="w-full py-3 bg-white text-indigo-600 font-bold rounded-xl hover:bg-gray-50 active:scale-95 transition-all shadow-lg"
               >
-                Coming Soon
+                Get Started Free
               </button>
             </div>
           </div>

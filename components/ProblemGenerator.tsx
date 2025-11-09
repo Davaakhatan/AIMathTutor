@@ -151,9 +151,14 @@ export default function ProblemGenerator({
   ];
 
   return (
-    <div className="bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-700 rounded-lg p-4 transition-colors">
-      <div className="flex items-center justify-between mb-3">
-        <h3 className="text-sm font-medium text-gray-900 dark:text-gray-100 transition-colors">Generate Practice Problem</h3>
+    <div className="bg-gradient-to-br from-white to-blue-50 dark:from-gray-900 dark:to-blue-950/20 border-2 border-blue-200 dark:border-blue-800 rounded-2xl p-6 shadow-lg">
+      <div className="flex items-center gap-2 mb-4">
+        <div className="p-2 bg-gradient-to-br from-blue-500 to-cyan-600 rounded-lg shadow-lg">
+          <svg className="w-5 h-5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 10V3L4 14h7v7l9-11h-7z" />
+          </svg>
+        </div>
+        <h3 className="text-lg font-bold text-gray-900 dark:text-gray-100">Generate Practice Problem</h3>
       </div>
       
       {/* Difficulty Selector */}
