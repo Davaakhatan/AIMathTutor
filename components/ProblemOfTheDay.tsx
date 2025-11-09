@@ -952,6 +952,7 @@ export default function ProblemOfTheDay({
         
         {/* Enhanced button with gradient */}
         <button
+          type="button"
           onClick={handleStartProblem}
           disabled={isGenerating || isSolved || isLoading}
           className={`relative px-5 py-3 rounded-xl active:scale-95 disabled:cursor-not-allowed transition-all duration-300 font-semibold text-sm flex items-center gap-2.5 min-h-[44px] touch-device:min-h-[48px] shadow-lg hover:shadow-xl overflow-hidden group/btn ${
