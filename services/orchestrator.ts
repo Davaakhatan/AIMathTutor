@@ -233,11 +233,23 @@ function calculateLevel(totalXP: number): number {
   return level;
 }
 
+// Track if orchestrator is already initialized to prevent duplicate listeners
+let isInitialized = false;
+
 /**
  * Initialize orchestrator event listeners
  * Call this on app startup
+ * IDEMPOTENT: Safe to call multiple times, will only initialize once
  */
 export function initializeOrchestrator(): void {
+  // CRITICAL: Prevent duplicate listener registration
+  // React Strict Mode, HMR, or component remounting would otherwise
+  // register listeners multiple times, causing infinite loops!
+  if (isInitialized) {
+    logger.debug("Orchestrator already initialized, skipping");
+    return;
+  }
+
   logger.info("Initializing ecosystem orchestrator");
 
   // Listen to events and trigger orchestrations
@@ -253,5 +265,6 @@ export function initializeOrchestrator(): void {
     await onGoalCompleted(event.userId, event.data);
   });
 
+  isInitialized = true;
   logger.info("Orchestrator initialized - listening to events");
 }
