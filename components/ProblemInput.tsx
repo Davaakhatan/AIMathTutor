@@ -216,10 +216,10 @@ export default function ProblemInput({ onProblemParsed, apiKey }: ProblemInputPr
 
   return (
     <div className="w-full">
-      <div className="bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-700 rounded-lg p-6 sm:p-8 transition-colors">
+      <div className="bg-gradient-to-br from-white to-gray-50 dark:from-gray-900 dark:to-gray-800 border-2 border-gray-200 dark:border-gray-700 rounded-2xl p-6 sm:p-8 shadow-xl">
         {/* Text Input */}
         <form onSubmit={handleTextSubmit} className="mb-8">
-          <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2 transition-colors">
+          <label className="block text-base font-semibold text-gray-900 dark:text-gray-100 mb-3">
             Enter problem
           </label>
           <div className="flex gap-3">
@@ -246,10 +246,10 @@ export default function ProblemInput({ onProblemParsed, apiKey }: ProblemInputPr
             <button
               type="submit"
               disabled={isProcessing || !textInput.trim()}
-              className="px-6 py-3 bg-gray-900 dark:bg-gray-700 text-white rounded-lg hover:bg-gray-800 dark:hover:bg-gray-600 disabled:bg-gray-300 dark:disabled:bg-gray-800 disabled:text-gray-500 dark:disabled:text-gray-400 disabled:cursor-not-allowed transition-colors font-medium text-sm focus:outline-none focus:ring-2 focus:ring-gray-400 dark:focus:ring-gray-500 focus:ring-offset-2"
+              className="px-8 py-3 bg-gradient-to-r from-indigo-600 to-purple-600 hover:from-indigo-700 hover:to-purple-700 text-white rounded-xl font-semibold shadow-lg hover:shadow-xl active:scale-95 disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:shadow-lg disabled:active:scale-100 transition-all"
               aria-label="Submit problem"
             >
-              {isProcessing ? "Processing" : "Submit"}
+              {isProcessing ? "Processing..." : "Submit"}
             </button>
           </div>
         </form>
@@ -269,7 +269,7 @@ export default function ProblemInput({ onProblemParsed, apiKey }: ProblemInputPr
         {/* Whiteboard Option */}
         <div className="mb-8">
           <div className="flex items-center justify-between mb-3">
-            <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 transition-colors">
+            <label className="block text-base font-semibold text-gray-900 dark:text-gray-100">
               Draw problem
             </label>
             <button
@@ -304,7 +304,7 @@ export default function ProblemInput({ onProblemParsed, apiKey }: ProblemInputPr
 
         {/* Image Upload */}
         <div>
-          <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-3 transition-colors">
+          <label className="block text-base font-semibold text-gray-900 dark:text-gray-100 mb-3">
             Upload image
           </label>
           <ImageUpload onUpload={handleImageUpload} />
