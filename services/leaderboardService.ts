@@ -35,60 +35,33 @@ export async function getGlobalLeaderboard(
   limit: number = 100
 ): Promise<LeaderboardEntry[]> {
   try {
-    logger.debug("Fetching global leaderboard", { limit });
+    logger.debug("Fetching global leaderboard from materialized view", { limit });
     const supabase = await getSupabaseClient();
     if (!supabase) {
       logger.warn("Supabase client not available for leaderboard");
       return [];
     }
 
-    // Use Promise.all to fetch all data in parallel for speed
-    const [xpResult, streaksResult, profilesResult] = await Promise.all([
-      // Get XP data
-      supabase
-        .from("xp_data")
-        .select("user_id, total_xp, level, updated_at")
-        .is("student_profile_id", null)
-        .order("total_xp", { ascending: false })
-        .order("level", { ascending: false })
-        .limit(limit),
-      
-      // Get all streaks at once
-      supabase
-        .from("streaks")
-        .select("user_id, current_streak")
-        .is("student_profile_id", null),
-      
-      // Get all profiles at once
-      supabase
-        .from("profiles")
-        .select("id, username, display_name")
-    ]);
+    // Query the materialized view (FAST! Pre-computed)
+    const { data, error } = await supabase
+      .from("leaderboard_cache")
+      .select("*")
+      .limit(limit);
 
-    if (xpResult.error) {
-      logger.error("Error fetching XP data for leaderboard", { error: xpResult.error.message });
+    if (error) {
+      logger.error("Error fetching leaderboard from cache", { error: error.message });
       return [];
     }
 
-    if (!xpResult.data || xpResult.data.length === 0) {
-      logger.info("No XP data found for leaderboard");
+    if (!data || data.length === 0) {
+      logger.info("No leaderboard data found");
       return [];
     }
 
-    // Create maps for fast lookups
-    const streakMap = new Map(
-      (streaksResult.data || []).map((s: any) => [s.user_id, s.current_streak || 0])
-    );
+    // Get user IDs for problems query (still need this for problems_solved count)
+    const userIds = data.map((entry: any) => entry.user_id);
 
-    const profileMap = new Map(
-      (profilesResult.data || []).map((p: any) => [p.id, { username: p.username, displayName: p.display_name }])
-    );
-
-    // Get user IDs for problems query
-    const userIds = xpResult.data.map((entry: any) => entry.user_id);
-
-    // Fetch problems count (this is often the slowest query, so do it separately)
-    // Note: problems table doesn't have 'status' column, use 'solved_at IS NOT NULL' instead
+    // Fetch problems count (only for top players, much faster)
     const { data: problemsData, error: problemsError } = await supabase
       .from("problems")
       .select("user_id")
@@ -106,23 +79,22 @@ export async function getGlobalLeaderboard(
       problemsMap.set(p.user_id, (problemsMap.get(p.user_id) || 0) + 1);
     });
 
-    // Transform data
-    const leaderboard: LeaderboardEntry[] = xpResult.data.map((entry: any) => {
-      const rank = getRankForLevel(entry.level);
-      const profile = profileMap.get(entry.user_id);
+    // Transform materialized view data to leaderboard entries
+    const leaderboard: LeaderboardEntry[] = data.map((entry: any) => {
+      const rankInfo = getRankForLevel(entry.level);
       
       return {
         userId: entry.user_id,
-        username: profile?.username || "Anonymous",
-        displayName: profile?.displayName,
+        username: entry.username || "Anonymous",
+        displayName: entry.username,
         totalXP: entry.total_xp || 0,
         level: entry.level || 1,
-        rank: rank.title,
-        rankBadge: rank.badge,
-        rankColor: rank.color,
+        rank: rankInfo.title,
+        rankBadge: rankInfo.badge,
+        rankColor: rankInfo.color,
         problemsSolved: problemsMap.get(entry.user_id) || 0,
-        currentStreak: streakMap.get(entry.user_id) || 0,
-        lastActive: entry.updated_at,
+        currentStreak: entry.current_streak || 0,
+        lastActive: new Date().toISOString(),
       };
     });
 
