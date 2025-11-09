@@ -58,33 +58,23 @@ export async function getXPData(userId: string, profileId?: string | null): Prom
     // The hook should pass activeProfile?.id directly
     const effectiveProfileId = profileId !== undefined ? profileId : null;
     
+    // Simple, fast query
     let query = supabase
       .from("xp_data")
-      .select("*");
+      .select("*")
+      .eq("user_id", userId);
     
     if (effectiveProfileId) {
-      // Query by profile ID
       query = query.eq("student_profile_id", effectiveProfileId);
     } else {
-      // Query by user ID (no active profile)
-      query = query.eq("user_id", userId).is("student_profile_id", null);
+      query = query.is("student_profile_id", null);
     }
     
-    logger.info("Executing XP query", { userId, profileId: effectiveProfileId });
+    logger.debug("Executing XP query", { userId, profileId: effectiveProfileId });
     
-    // Add timeout to the query itself to prevent infinite hanging
-    const queryPromise = query;
-    const timeoutPromise = new Promise<any>((_, reject) => {
-      setTimeout(() => reject(new Error("XP query timeout after 10 seconds")), 10000);
-    });
+    const { data, error } = await query;
     
-    const { data, error } = await Promise.race([queryPromise, timeoutPromise])
-      .catch((err) => {
-        logger.error("XP query timeout or error", { error: err.message, userId, profileId: effectiveProfileId });
-        return { data: null, error: err };
-      });
-    
-    logger.info("XP query completed", { userId, profileId: effectiveProfileId, rowCount: data?.length, hasError: !!error });
+    logger.debug("XP query completed", { userId, profileId: effectiveProfileId, rowCount: data?.length, hasError: !!error });
 
     if (error) {
       logger.error("Error fetching XP data", { error: error.message, userId, profileId: effectiveProfileId });
@@ -356,17 +346,23 @@ export async function getStreakData(userId: string, profileId?: string | null): 
     // Use profile ID if provided, otherwise use null (don't call getEffectiveProfileId - it hangs!)
     const effectiveProfileId = profileId !== undefined ? profileId : null;
     
+    // Simple, fast query
     let query = supabase
       .from("streaks")
-      .select("*");
+      .select("*")
+      .eq("user_id", userId);
     
     if (effectiveProfileId) {
       query = query.eq("student_profile_id", effectiveProfileId);
     } else {
-      query = query.eq("user_id", userId).is("student_profile_id", null);
+      query = query.is("student_profile_id", null);
     }
     
+    logger.debug("Executing streak query", { userId, profileId: effectiveProfileId });
+    
     const { data, error } = await query;
+    
+    logger.debug("Streak query completed", { userId, profileId: effectiveProfileId, rowCount: data?.length, hasError: !!error });
 
     if (error) {
       logger.error("Error fetching streak data", { error: error.message, userId, profileId: effectiveProfileId });

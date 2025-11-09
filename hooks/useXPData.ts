@@ -51,7 +51,17 @@ export function useXPData() {
         
         logger.info("Loading XP from database", { userId: user.id, profileId: profileIdToUse, userRole });
         
-        const data = await getXPData(user.id, profileIdToUse);
+        // Add timeout wrapper to prevent hanging forever
+        const timeoutMs = 5000; // 5 seconds max
+        const dataPromise = getXPData(user.id, profileIdToUse);
+        const timeoutPromise = new Promise<null>((resolve) => 
+          setTimeout(() => {
+            logger.warn("XP query timeout, falling back to localStorage", { userId: user.id });
+            resolve(null);
+          }, timeoutMs)
+        );
+        
+        const data = await Promise.race([dataPromise, timeoutPromise]);
         
         if (!isMounted) return;
         

@@ -12,12 +12,38 @@ const FIRST_LOGIN_BONUS_XP = 50; // Bonus XP for first login after signup
 const STORAGE_KEY = "aitutor-last-login-date";
 const FIRST_LOGIN_KEY = "aitutor-first-login-bonus-claimed";
 
+// Track in-flight requests to prevent concurrent calls
+const inFlightRequests = new Map<string, Promise<{ awarded: boolean; xp: number; message: string }>>();
+
 /**
  * Check if user should receive daily login XP
  * Awards XP if it's a new day since last login
  * Also awards bonus XP on first login after signup
  */
 export async function checkAndAwardDailyLoginXP(
+  userId: string,
+  profileId?: string | null
+): Promise<{ awarded: boolean; xp: number; message: string }> {
+  // Prevent duplicate concurrent calls for same user
+  const cacheKey = profileId ? `${userId}-${profileId}` : userId;
+  
+  if (inFlightRequests.has(cacheKey)) {
+    logger.debug("Daily login check already in progress, waiting for result", { userId, profileId });
+    return await inFlightRequests.get(cacheKey)!;
+  }
+  
+  const promise = checkAndAwardDailyLoginXPInternal(userId, profileId);
+  inFlightRequests.set(cacheKey, promise);
+  
+  try {
+    const result = await promise;
+    return result;
+  } finally {
+    inFlightRequests.delete(cacheKey);
+  }
+}
+
+async function checkAndAwardDailyLoginXPInternal(
   userId: string,
   profileId?: string | null
 ): Promise<{ awarded: boolean; xp: number; message: string }> {
@@ -36,12 +62,40 @@ export async function checkAndAwardDailyLoginXP(
     const lastLoginDate = localStorage.getItem(storageKey);
     const firstLoginBonusClaimed = localStorage.getItem(firstLoginKey);
     
-    // Check if this is the first login (no last login date)
-    const isFirstLogin = !lastLoginDate && !firstLoginBonusClaimed;
+    // Also check XP history in database to see if bonuses were already claimed today
+    // This prevents awarding twice if localStorage was cleared OR if called multiple times
+    const currentXP = await getXPData(userId, profileId);
+    const xpHistory = (currentXP?.xp_history || []) as Array<{ date: string; xp: number; reason: string }>;
     
-    // If already logged in today (and not first login), no reward
+    // Check if first login bonus was already awarded (ever)
+    const hasFirstLoginInHistory = xpHistory.some(entry => 
+      entry.reason && entry.reason.includes("First Login Bonus")
+    );
+    
+    // Check if we already awarded login XP today
+    const hasLoginXPToday = xpHistory.some(entry =>
+      entry.date === today && entry.reason && (
+        entry.reason.includes("Daily Login") || 
+        entry.reason.includes("First Login")
+      )
+    );
+    
+    // If already awarded login XP today, skip
+    if (hasLoginXPToday) {
+      logger.debug("Daily login XP already awarded today (found in history)", { userId, today });
+      return {
+        awarded: false,
+        xp: 0,
+        message: "Already logged in today",
+      };
+    }
+    
+    // Check if this is the first login (no last login date AND no bonus in history)
+    const isFirstLogin = !lastLoginDate && !firstLoginBonusClaimed && !hasFirstLoginInHistory;
+    
+    // Double-check localStorage (backup check)
     if (lastLoginDate === today && !isFirstLogin) {
-      logger.debug("Daily login XP already awarded today", { userId, today });
+      logger.debug("Daily login XP already awarded today (localStorage)", { userId, today });
       return {
         awarded: false,
         xp: 0,
