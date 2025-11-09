@@ -49,7 +49,23 @@ export function useStreakData() {
       setIsLoading(true);
       
       try {
-        // CRITICAL: For student users, ALWAYS use user-level streaks (profileId = null)
+        // TEMPORARY FIX: Skip database, use localStorage only to unblock chat
+        logger.info("Loading streaks from localStorage (database disabled temporarily)", { userId: user.id });
+        
+        const localData = {
+          current_streak: localStreakData.currentStreak || 0,
+          longest_streak: localStreakData.longestStreak || 0,
+          last_study_date: localStreakData.lastStudyDate
+            ? new Date(localStreakData.lastStudyDate).toISOString().split("T")[0]
+            : null,
+        };
+        
+        setStreakData(localData);
+        setIsLoading(false);
+        return;
+        
+        // ORIGINAL CODE (DISABLED):
+        /*
         const profileIdToUse = (userRole === "student") ? null : (activeProfile?.id || null);
         
         logger.info("Loading streak data from database", { 

@@ -45,8 +45,24 @@ export function useXPData() {
       try {
         setIsLoading(true);
         
-        // CRITICAL: For student users, ALWAYS use user-level XP (profileId = null)
-        // Profile-level XP is only for parents/teachers viewing their children
+        // TEMPORARY FIX: Skip database, use localStorage only to unblock chat
+        // TODO: Fix XP query timeout issue properly
+        logger.info("Loading XP from localStorage (database disabled temporarily)", { userId: user.id });
+        
+        const localData = {
+          total_xp: localXPData.totalXP || 0,
+          level: localXPData.level || 1,
+          xp_to_next_level: localXPData.xpToNextLevel || 100,
+          xp_history: localXPData.xpHistory || [],
+          recent_gains: localXPData.recentGains || [],
+        };
+        
+        setXPData(localData);
+        setIsLoading(false);
+        return;
+        
+        // ORIGINAL CODE (DISABLED):
+        /*
         const profileIdToUse = (userRole === "student") ? null : (activeProfile?.id || null);
         
         logger.info("Loading XP data from database", { 
