@@ -505,7 +505,14 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
                     xp: dailyReward.xp,
                     message: dailyReward.message
                   });
-                  // You could show a toast notification here if desired
+                  
+                  // CRITICAL: Emit event so XP hook can refresh immediately!
+                  // This ensures the XP panel shows the updated XP right away
+                  if (typeof window !== "undefined") {
+                    window.dispatchEvent(new CustomEvent("xp-updated", {
+                      detail: { userId: session.user.id, profileId: null }
+                    }));
+                  }
                 }
               } catch (err) {
                 logger.error("Error loading profiles on sign in", { error: err });

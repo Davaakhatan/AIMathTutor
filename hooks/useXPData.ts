@@ -94,8 +94,25 @@ export function useXPData() {
     
     loadFromDatabase();
     
+    // CRITICAL: Listen for XP updates (e.g., from daily login rewards)
+    // This ensures the XP display refreshes when XP is awarded outside this hook
+    const handleXPUpdate = (event: any) => {
+      logger.debug("XP update event received, reloading from database", { 
+        userId: user.id,
+        detail: event.detail 
+      });
+      loadFromDatabase();
+    };
+    
+    if (typeof window !== "undefined") {
+      window.addEventListener("xp-updated", handleXPUpdate);
+    }
+    
     return () => {
       isMounted = false;
+      if (typeof window !== "undefined") {
+        window.removeEventListener("xp-updated", handleXPUpdate);
+      }
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [user?.id, userRole]); // Depend on user ID and role (not profile for students)
