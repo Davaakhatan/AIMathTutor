@@ -45,6 +45,10 @@ export function useXPData() {
     // For authenticated users: Load from database in BACKGROUND
     const loadFromDatabase = async () => {
       try {
+        // TEMPORARILY DISABLED - profileId bug causing infinite duplicates
+        logger.warn("XP database loading DISABLED - using localStorage only", { userId: user.id });
+        return;
+        
         // Don't set loading true - we already showed localStorage data
         
         // CRITICAL: For student users, ALWAYS use user-level XP (profileId = null)

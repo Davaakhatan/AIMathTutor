@@ -48,6 +48,10 @@ export function useStreakData() {
 
     // For logged-in users: Load from database in BACKGROUND
     const loadFromDatabase = async () => {
+      // TEMPORARILY DISABLED - profileId bug causing infinite duplicates
+      logger.warn("Streak database loading DISABLED - using localStorage only", { userId: user.id });
+      return;
+      
       // Don't set loading true - we already showed localStorage data
       
       try {
