@@ -129,6 +129,7 @@ export function useStreakData() {
         }
       }
     };
+    */
     
     loadFromDatabase();
     

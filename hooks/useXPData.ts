@@ -114,6 +114,7 @@ export function useXPData() {
         }
       }
     };
+    */
     
     loadFromDatabase();
     
