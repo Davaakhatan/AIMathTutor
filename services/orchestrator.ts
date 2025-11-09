@@ -34,47 +34,50 @@ export async function onProblemCompleted(
 
     const profileId = problemData.profileId || null;
 
-    // 1. Update XP
-    const currentXP = await getXPData(userId, profileId);
-    if (currentXP) {
-      const xpGained = calculateXPForProblem(problemData.difficulty, problemData.hintsUsed);
-      const newTotalXP = currentXP.total_xp + xpGained;
-      const newLevel = calculateLevel(newTotalXP);
-
-      await updateXPData(userId, {
-        total_xp: newTotalXP,
-        level: newLevel,
-        xp_history: [
-          ...(currentXP.xp_history || []),
-          {
-            date: new Date().toISOString(),
-            xp: xpGained,
-            reason: `Solved ${problemData.problemType} problem`,
-          },
-        ],
-      }, profileId);
-
-      logger.info("XP updated for problem completion", { userId, xpGained, newLevel });
-    }
-
-    // 2. Update Streak
-    const today = new Date().toISOString().split("T")[0];
-    const currentStreak = await getStreakData(userId, profileId);
-    if (currentStreak) {
-      const lastStudyDate = currentStreak.last_study_date;
-      const shouldIncrementStreak = !lastStudyDate || lastStudyDate !== today;
-
-      if (shouldIncrementStreak) {
-        const newStreak = (currentStreak.current_streak || 0) + 1;
-        await updateStreakData(userId, {
-          current_streak: newStreak,
-          longest_streak: Math.max(newStreak, currentStreak.longest_streak || 0),
-          last_study_date: today,
-        }, profileId);
-
-        logger.info("Streak updated for problem completion", { userId, newStreak });
-      }
-    }
+    // DISABLED: XP/Streak updates are handled by XPSystem component
+    // The orchestrator should NOT duplicate these updates
+    // 
+    // // 1. Update XP
+    // const currentXP = await getXPData(userId, profileId);
+    // if (currentXP) {
+    //   const xpGained = calculateXPForProblem(problemData.difficulty, problemData.hintsUsed);
+    //   const newTotalXP = currentXP.total_xp + xpGained;
+    //   const newLevel = calculateLevel(newTotalXP);
+    //
+    //   await updateXPData(userId, {
+    //     total_xp: newTotalXP,
+    //     level: newLevel,
+    //     xp_history: [
+    //       ...(currentXP.xp_history || []),
+    //       {
+    //         date: new Date().toISOString(),
+    //         xp: xpGained,
+    //         reason: `Solved ${problemData.problemType} problem`,
+    //       },
+    //     ],
+    //   }, profileId);
+    //
+    //   logger.info("XP updated for problem completion", { userId, xpGained, newLevel });
+    // }
+    //
+    // // 2. Update Streak
+    // const today = new Date().toISOString().split("T")[0];
+    // const currentStreak = await getStreakData(userId, profileId);
+    // if (currentStreak) {
+    //   const lastStudyDate = currentStreak.last_study_date;
+    //   const shouldIncrementStreak = !lastStudyDate || lastStudyDate !== today;
+    //
+    //   if (shouldIncrementStreak) {
+    //     const newStreak = (currentStreak.current_streak || 0) + 1;
+    //     await updateStreakData(userId, {
+    //       current_streak: newStreak,
+    //       longest_streak: Math.max(newStreak, currentStreak.longest_streak || 0),
+    //       last_study_date: today,
+    //     }, profileId);
+    //
+    //     logger.info("Streak updated for problem completion", { userId, newStreak });
+    //   }
+    // }
 
     // 3. Emit event for other systems to respond
     await eventBus.emit("problem_completed", userId, problemData, { profileId });
