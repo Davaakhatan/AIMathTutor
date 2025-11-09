@@ -640,7 +640,7 @@ function HomeContentInternal() {
                     problem={currentProblem}
                     difficultyMode={difficultyMode}
                     userId={user?.id}
-                    profileId={activeProfile?.id || null}
+                    profileId={userRole === "student" ? null : (activeProfile?.id || null)}
                   />
                 )}
 
