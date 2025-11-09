@@ -30,14 +30,16 @@ export default function LeaderboardContent({
 
   // Fetch leaderboard from database
   useEffect(() => {
+    // Show empty state immediately (no loading spinner)
+    setIsLoading(false);
+    
     if (!user?.id) {
-      setIsLoading(false);
       return;
     }
 
     const fetchLeaderboard = async () => {
       try {
-        setIsLoading(true);
+        // Don't show loading spinner - fetch in background
         logger.debug("Fetching leaderboard data from database", { userId: user.id });
         
         const data = await getLeaderboardData(user.id, 100);
@@ -53,11 +55,10 @@ export default function LeaderboardContent({
       } catch (error) {
         logger.error("Error fetching leaderboard", { error });
         // Keep empty state
-      } finally {
-        setIsLoading(false);
       }
     };
 
+    // Fetch immediately
     fetchLeaderboard();
     
     // Refresh leaderboard every 30 seconds
