@@ -94,28 +94,45 @@ export function useXPData() {
     
     loadFromDatabase();
     
-    // CRITICAL: Listen for XP updates (e.g., from daily login rewards)
-    // This ensures the XP display refreshes when XP is awarded outside this hook
-    const handleXPUpdate = (event: any) => {
-      logger.debug("XP update event received, reloading from database", { 
-        userId: user.id,
-        detail: event.detail 
-      });
-      loadFromDatabase();
-    };
-    
-    if (typeof window !== "undefined") {
-      window.addEventListener("xp-updated", handleXPUpdate);
-    }
-    
     return () => {
       isMounted = false;
-      if (typeof window !== "undefined") {
-        window.removeEventListener("xp-updated", handleXPUpdate);
-      }
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [user?.id, userRole]); // Depend on user ID and role (not profile for students)
+  
+  // SEPARATE EFFECT: Poll for XP updates periodically
+  // This is safer than event listeners which can cause infinite loops
+  useEffect(() => {
+    if (!user) return;
+    
+    const pollInterval = setInterval(async () => {
+      try {
+        const profileIdToUse = (userRole === "student") ? null : (activeProfile?.id || null);
+        const freshData = await getXPData(user.id, profileIdToUse);
+        
+        if (freshData && freshData.total_xp !== xpData.total_xp) {
+          logger.debug("XP changed, updating display", { 
+            old: xpData.total_xp, 
+            new: freshData.total_xp 
+          });
+          setXPData(freshData);
+          
+          // Update localStorage
+          setLocalXPData({
+            totalXP: freshData.total_xp,
+            level: freshData.level,
+            xpToNextLevel: freshData.xp_to_next_level,
+            xpHistory: freshData.xp_history || [],
+            recentGains: freshData.recent_gains || [],
+          });
+        }
+      } catch (error) {
+        // Silent fail - don't spam logs
+      }
+    }, 2000); // Poll every 2 seconds
+    
+    return () => clearInterval(pollInterval);
+  }, [user?.id, userRole, xpData.total_xp, activeProfile?.id, setLocalXPData]);
 
   // Update XP data
   const updateXP = useCallback(
