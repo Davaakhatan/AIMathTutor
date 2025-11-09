@@ -42,59 +42,63 @@ export async function getGlobalLeaderboard(
       return [];
     }
 
-    // Query the materialized view (FAST! Pre-computed)
-    const { data, error } = await supabase
-      .from("leaderboard_cache")
-      .select("*")
+    // Query XP data directly (materialized view removed due to trigger locks)
+    const { data: xpData, error: xpError } = await supabase
+      .from("xp_data")
+      .select("user_id, total_xp, level, updated_at")
+      .is("student_profile_id", null)
+      .order("total_xp", { ascending: false })
       .limit(limit);
 
-    if (error) {
-      logger.error("Error fetching leaderboard from cache", { error: error.message });
+    if (xpError) {
+      logger.error("Error fetching XP data for leaderboard", { error: xpError.message });
       return [];
     }
 
-    if (!data || data.length === 0) {
-      logger.info("No leaderboard data found");
+    if (!xpData || xpData.length === 0) {
+      logger.info("No XP data found for leaderboard");
       return [];
     }
 
-    // Get user IDs for problems query (still need this for problems_solved count)
-    const userIds = data.map((entry: any) => entry.user_id);
+    // Get user IDs
+    const userIds = xpData.map((entry: any) => entry.user_id);
 
-    // Fetch problems count (only for top players, much faster)
-    const { data: problemsData, error: problemsError } = await supabase
-      .from("problems")
-      .select("user_id")
-      .in("user_id", userIds)
-      .not("solved_at", "is", null)
-      .is("student_profile_id", null);
+    // Fetch profiles, streaks, and problems in parallel
+    const [profilesResult, streaksResult, problemsResult] = await Promise.all([
+      supabase.from("profiles").select("id, username, display_name").in("id", userIds),
+      supabase.from("streaks").select("user_id, current_streak").is("student_profile_id", null).in("user_id", userIds),
+      supabase.from("problems").select("user_id").not("solved_at", "is", null).is("student_profile_id", null).in("user_id", userIds),
+    ]);
 
-    if (problemsError) {
-      logger.warn("Error fetching problems for leaderboard", { error: problemsError.message });
-    }
-
-    // Count problems per user
+    // Create lookup maps
+    const profileMap = new Map(
+      (profilesResult.data || []).map((p: any) => [p.id, { username: p.username, displayName: p.display_name }])
+    );
+    const streakMap = new Map(
+      (streaksResult.data || []).map((s: any) => [s.user_id, s.current_streak || 0])
+    );
     const problemsMap = new Map<string, number>();
-    (problemsData || []).forEach((p: any) => {
+    (problemsResult.data || []).forEach((p: any) => {
       problemsMap.set(p.user_id, (problemsMap.get(p.user_id) || 0) + 1);
     });
 
-    // Transform materialized view data to leaderboard entries
-    const leaderboard: LeaderboardEntry[] = data.map((entry: any) => {
+    // Transform to leaderboard entries
+    const leaderboard: LeaderboardEntry[] = xpData.map((entry: any) => {
       const rankInfo = getRankForLevel(entry.level);
+      const profile = profileMap.get(entry.user_id);
       
       return {
         userId: entry.user_id,
-        username: entry.username || "Anonymous",
-        displayName: entry.username,
+        username: profile?.username || "Anonymous",
+        displayName: profile?.displayName,
         totalXP: entry.total_xp || 0,
         level: entry.level || 1,
         rank: rankInfo.title,
         rankBadge: rankInfo.badge,
         rankColor: rankInfo.color,
         problemsSolved: problemsMap.get(entry.user_id) || 0,
-        currentStreak: entry.current_streak || 0,
-        lastActive: new Date().toISOString(),
+        currentStreak: streakMap.get(entry.user_id) || 0,
+        lastActive: entry.updated_at || new Date().toISOString(),
       };
     });
 
