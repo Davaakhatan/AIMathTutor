@@ -433,7 +433,8 @@ function HomeContentInternal() {
       <div suppressHydrationWarning>
         <SkipLink />
         <OfflineIndicator />
-        <SyncingIndicator />
+        {/* TEMPORARY: Disabled to unblock chat - uses XP hooks that timeout */}
+        {/* <SyncingIndicator /> */}
         <PWAInstaller />
         <LandingPage
           onGetStarted={() => {
@@ -734,7 +735,8 @@ function HomeContentInternal() {
           />
 
           {/* Unified Progress Hub (Stats + Goals + Timer + Streak) */}
-          <ProgressHub
+          {/* TEMPORARY: Disabled - uses XP hooks */}
+          {/* <ProgressHub
             key={`progress-hub-${activeProfile?.id || 'none'}`}
             isStudyActive={isStudyActive}
             problemsSolvedToday={problemsSolvedToday}
@@ -749,7 +751,8 @@ function HomeContentInternal() {
 
           {/* XP System (hidden - tracking only, UI is in SettingsMenu) */}
           <div className="hidden">
-            <XPSystem 
+            {/* TEMPORARY: Disabled - uses XP hooks */}
+            {/* <XPSystem 
               messages={allMessages} 
               problem={currentProblem}
               onLevelUp={(newLevel) => {
@@ -769,7 +772,7 @@ function HomeContentInternal() {
                   return prev;
                 });
               }}
-            />
+            /> */}
           </div>
 
           {/* Unified Gamification Hub (Achievements + Leaderboard) */}
