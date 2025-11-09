@@ -287,6 +287,7 @@ export default function ProblemProgress({ messages, problem, difficultyMode = "m
     }
     
     // Emit event when problem becomes solved (state transition)
+    // CRITICAL: Only emit ONCE when transitioning from unsolved → solved
     if (!prevSolvedRef.current && isSolved && problem && userId) {
       // Problem just became solved - emit event to orchestrator
       console.log("🎉 Problem solved! Emitting completion event", { userId, problemType: problem.type });
@@ -304,7 +305,7 @@ export default function ProblemProgress({ messages, problem, difficultyMode = "m
     }
     
     prevSolvedRef.current = isSolved;
-  }, [isSolved, completionResult.score, stage, messages.length, forceCheck, problem]);
+  }, [isSolved, completionResult.score, stage, messages.length, forceCheck, problem?.text, problem?.type, userId, profileId]);
 
   if (messages.length === 0) return null;
 

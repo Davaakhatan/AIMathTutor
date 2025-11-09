@@ -95,7 +95,7 @@ export default function XPSystem({
         setPreviousProblemId(null);
       }
     }
-  }, [problem?.text, problem?.type, previousProblemId, problem]); // All dependencies are intentional
+  }, [problem?.text, problem?.type, previousProblemId]); // CRITICAL: Don't include problem object, only its primitives
 
   // Award XP when problem is solved
   useEffect(() => {
@@ -249,7 +249,7 @@ export default function XPSystem({
       setShowXPNotification(false);
     }, 3000);
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [messages, problem, previousProblemId, previousLevel, onLevelUp, solvedProblems]); // calculateLevel, calculateXPToNext, setXPData are stable functions. xpData properties are accessed directly and don't need to be in deps.
+  }, [messages, problem?.text, problem?.type, previousProblemId, previousLevel, onLevelUp]); // CRITICAL: Use problem?.text, problem?.type instead of problem object to avoid infinite loops. solvedProblems removed as it's managed internally.
 
   // Level up celebration
   useEffect(() => {
