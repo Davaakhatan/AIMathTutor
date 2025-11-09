@@ -59,11 +59,20 @@ export default function NotificationsContent() {
   const recentNotifications = notifications.slice(0, 10);
 
   return (
-    <div className="flex flex-col h-full">
+    <div className="flex flex-col h-full max-h-[700px]">
+      {/* Header */}
+      <div className="text-center py-4 border-b border-gray-200 dark:border-gray-700">
+        <h2 className="text-2xl font-bold bg-gradient-to-r from-red-600 to-orange-600 dark:from-red-400 dark:to-orange-400 bg-clip-text text-transparent">
+          Notifications
+        </h2>
+        <p className="text-sm text-gray-600 dark:text-gray-400 mt-1">
+          Stay updated on achievements and milestones
+        </p>
+      </div>
+      
       {/* Header Actions */}
       <div className="flex items-center justify-between p-4 border-b border-gray-200 dark:border-gray-700">
         <div className="flex items-center gap-2">
-          <h3 className="text-sm font-medium text-gray-900 dark:text-gray-100">Notifications</h3>
           {notifications.filter((n) => !n.read).length > 0 && (
             <span className="bg-red-500 text-white text-xs font-bold rounded-full px-2 py-0.5">
               {notifications.filter((n) => !n.read).length}
