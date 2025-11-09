@@ -64,8 +64,8 @@ async function checkAndAwardDailyLoginXPInternal(
     
     // Also check XP history in database to see if bonuses were already claimed today
     // This prevents awarding twice if localStorage was cleared OR if called multiple times
-    const currentXP = await getXPData(userId, profileId);
-    const xpHistory = (currentXP?.xp_history || []) as Array<{ date: string; xp: number; reason: string }>;
+    const existingXP = await getXPData(userId, profileId);
+    const xpHistory = (existingXP?.xp_history || []) as Array<{ date: string; xp: number; reason: string }>;
     
     // Check if first login bonus was already awarded (ever)
     const hasFirstLoginInHistory = xpHistory.some(entry => 
@@ -120,8 +120,8 @@ async function checkAndAwardDailyLoginXPInternal(
       logger.info("Awarding daily login XP", { userId, profileId, xp: DAILY_LOGIN_XP, today });
     }
     
-    // Get current XP data
-    const currentXP = await getXPData(userId, profileId);
+    // Use the existing XP data we already fetched
+    const currentXP = existingXP;
     if (!currentXP) {
       logger.warn("Could not get current XP data for daily login reward", { userId });
       return {
