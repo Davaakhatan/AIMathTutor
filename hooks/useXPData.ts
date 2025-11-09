@@ -59,62 +59,13 @@ export function useXPData() {
         
         setXPData(localData);
         setIsLoading(false);
-        return;
         
-        // ORIGINAL CODE (DISABLED):
-        /*
-        const profileIdToUse = (userRole === "student") ? null : (activeProfile?.id || null);
-        
-        logger.info("Loading XP data from database", { 
-          userId: user.id, 
-          profileId: profileIdToUse,
-          userRole,
-          reason: userRole === "student" ? "Student - using user-level XP" : "Parent/Teacher - using profile-level XP"
-        });
-        
-        const data = await getXPData(user.id, profileIdToUse);
-        
-        if (!isMounted) return;
-        
-        if (data) {
-          const dbData = {
-            total_xp: data.total_xp,
-            level: data.level,
-            xp_to_next_level: data.xp_to_next_level,
-            xp_history: data.xp_history || [],
-            recent_gains: data.recent_gains || [],
-          };
-          
-          logger.info("XP data loaded from database", { 
-            userId: user.id, 
-            totalXP: data.total_xp, 
-            level: data.level 
-          });
-          
-          // Update state with database data
-          setXPData(dbData);
-          
-          // Cache to localStorage for this user (store user ID too)
-          setLocalXPData({
-            userId: user.id, // Store user ID to detect user changes
-            totalXP: data.total_xp,
-            level: data.level,
-            xpToNextLevel: data.xp_to_next_level,
-            xpHistory: data.xp_history || [],
-            recentGains: data.recent_gains || [],
-          });
-        } else {
-          logger.warn("No XP data found in database", { userId: user.id });
-        }
+        // TODO: Re-enable database loading after fixing timeout issue
       } catch (error) {
-        logger.error("Error loading XP data from database", { error, userId: user.id });
-      } finally {
-        if (isMounted) {
-          setIsLoading(false);
-        }
+        logger.error("Error loading XP from localStorage", { error, userId: user.id });
+        setIsLoading(false);
       }
     };
-    */
     
     loadFromDatabase();
     

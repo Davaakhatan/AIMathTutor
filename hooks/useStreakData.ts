@@ -62,74 +62,13 @@ export function useStreakData() {
         
         setStreakData(localData);
         setIsLoading(false);
-        return;
         
-        // ORIGINAL CODE (DISABLED):
-        /*
-        const profileIdToUse = (userRole === "student") ? null : (activeProfile?.id || null);
-        
-        logger.info("Loading streak data from database", { 
-          userId: user.id, 
-          profileId: profileIdToUse,
-          userRole 
-        });
-        
-        // STEP 1: Load from database (source of truth)
-        const data = await getStreakData(user.id, profileIdToUse);
-        
-        if (!isMounted) return;
-        
-        if (data) {
-          logger.info("Streak data loaded from database", { 
-            userId: user.id, 
-            currentStreak: data.current_streak,
-            longestStreak: data.longest_streak
-          });
-          
-          // STEP 2: Update state with database data
-          setStreakData(data);
-          
-          // STEP 3: Cache to localStorage (with user ID)
-          setLocalStreakData({
-            userId: user.id, // Store user ID to detect user changes
-            currentStreak: data.current_streak || 0,
-            longestStreak: data.longest_streak || 0,
-            lastStudyDate: data.last_study_date
-              ? new Date(data.last_study_date).getTime()
-              : null,
-          });
-        } else {
-          logger.warn("No streak data found in database", { userId: user.id });
-          // No data in database, use localStorage defaults
-          const localData = {
-            current_streak: localStreakData.currentStreak || 0,
-            longest_streak: localStreakData.longestStreak || 0,
-            last_study_date: localStreakData.lastStudyDate
-              ? new Date(localStreakData.lastStudyDate).toISOString().split("T")[0]
-              : null,
-          };
-          setStreakData(localData);
-        }
-        
-        setIsLoading(false);
+        // TODO: Re-enable database loading after fixing timeout issue
       } catch (error) {
-        logger.error("Error loading streak data from database", { error, userId: user.id });
-        
-        // STEP 4: Fallback to localStorage if database fails (offline mode)
-        if (isMounted) {
-          const localData = {
-            current_streak: localStreakData.currentStreak || 0,
-            longest_streak: localStreakData.longestStreak || 0,
-            last_study_date: localStreakData.lastStudyDate
-              ? new Date(localStreakData.lastStudyDate).toISOString().split("T")[0]
-              : null,
-          };
-          setStreakData(localData);
-          setIsLoading(false);
-        }
+        logger.error("Error loading streaks from localStorage", { error, userId: user.id });
+        setIsLoading(false);
       }
     };
-    */
     
     loadFromDatabase();
     
