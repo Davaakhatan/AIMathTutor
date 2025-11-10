@@ -144,7 +144,7 @@ export default function ActivityFeedContent() {
           Activity Feed
         </h2>
         <p className="text-sm text-gray-600 dark:text-gray-400 mt-1">
-          See what's happening across the platform
+          See what&apos;s happening across the platform
         </p>
       </div>
 

@@ -345,7 +345,7 @@ export default function LandingPage({ onGetStarted }: LandingPageProps) {
               Our Vision & Roadmap
             </h2>
             <p className="text-lg text-gray-600 dark:text-gray-400">
-              We're building the future of personalized education
+              We&apos;re building the future of personalized education
             </p>
           </div>
 
@@ -593,14 +593,14 @@ export default function LandingPage({ onGetStarted }: LandingPageProps) {
             {/* FAQ 4 */}
             <details className="group bg-white dark:bg-gray-800 rounded-xl p-6 border border-gray-200 dark:border-gray-700 shadow-md hover:shadow-lg transition-all">
               <summary className="flex items-center justify-between cursor-pointer list-none">
-                <span className="font-semibold text-gray-900 dark:text-gray-100">Can parents track their child's progress?</span>
+                <span className="font-semibold text-gray-900 dark:text-gray-100">Can parents track their child&apos;s progress?</span>
                 <svg className="w-5 h-5 text-gray-500 group-open:rotate-180 transition-transform" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
                 </svg>
               </summary>
               <p className="mt-4 text-gray-600 dark:text-gray-400">
                 Yes! Parents and teachers can create accounts and link to student profiles. 
-                You'll see detailed progress including XP, goals, problems solved, and learning patterns.
+                You&apos;ll see detailed progress including XP, goals, problems solved, and learning patterns.
               </p>
             </details>
 
@@ -628,7 +628,7 @@ export default function LandingPage({ onGetStarted }: LandingPageProps) {
               <p className="mt-4 text-gray-600 dark:text-gray-400">
                 Unlike ChatGPT, we never give direct answers - we guide you to discover solutions yourself. 
                 Plus, we track your progress, set learning goals, generate personalized challenges, and remember your learning journey. 
-                It's a complete learning platform, not just a chatbot.
+                It&apos;s a complete learning platform, not just a chatbot.
               </p>
             </details>
           </div>
