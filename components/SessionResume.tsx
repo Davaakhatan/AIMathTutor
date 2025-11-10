@@ -34,9 +34,11 @@ export default function SessionResume({ onResume }: SessionResumeProps) {
       const messagesData = localStorage.getItem("aitutor-messages");
 
       if (sessionData && problemData && messagesData) {
-        const session = JSON.parse(sessionData);
-        const problem = JSON.parse(problemData);
-        const messages = JSON.parse(messagesData);
+        const session = JSON.parse(sessionData || "null") as any;
+        const problem = JSON.parse(problemData || "null") as any;
+        const messages = JSON.parse(messagesData || "[]") as any[];
+        
+        if (!session || !problem || !messages) return;
 
         // Check if session is recent (within 2 hours)
         const sessionAge = Date.now() - session.timestamp;

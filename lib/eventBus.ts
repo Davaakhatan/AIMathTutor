@@ -24,6 +24,7 @@ export type EcosystemEventType =
   // Companion events
   | "goal_created"
   | "goal_completed"
+  | "goal_achieved"
   | "goal_progress_updated"
   | "streak_at_risk"
   | "streak_saved"

@@ -85,12 +85,12 @@ export async function getGlobalLeaderboard(
     // Transform to leaderboard entries
     const leaderboard: LeaderboardEntry[] = xpData.map((entry: any) => {
       const rankInfo = getRankForLevel(entry.level);
-      const profile = profileMap.get(entry.user_id);
+      const profile = profileMap.get(entry.user_id) as any;
       
       return {
         userId: entry.user_id,
-        username: profile?.username || "Anonymous",
-        displayName: profile?.displayName,
+        username: profile?.username || profile?.name || "Anonymous",
+        displayName: profile?.display_name || profile?.name,
         totalXP: entry.total_xp || 0,
         level: entry.level || 1,
         rank: rankInfo.title,

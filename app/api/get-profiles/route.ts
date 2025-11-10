@@ -149,12 +149,11 @@ export async function POST(request: NextRequest) {
       if (studentProfiles.length === 0) {
         console.log("[API] No student profile found, creating default student profile", { userId });
         const defaultName = typedProfile.full_name || "Student";
-        const { data: newProfile, error: createError } = await supabase
-          .from("student_profiles")
+        const { data: newProfile, error: createError } = await (supabase.from("student_profiles") as any)
           .insert({
             owner_id: userId,
             name: defaultName,
-            grade_level: null,
+            grade_level: "middle",
           })
           .select()
           .single();
@@ -163,7 +162,7 @@ export async function POST(request: NextRequest) {
           console.error("[API] Error creating default student profile:", createError.message);
         } else if (newProfile) {
           studentProfiles = [newProfile as StudentProfile];
-          console.log("[API] Created default student profile", { profileId: newProfile.id, name: defaultName });
+          console.log("[API] Created default student profile", { profileId: (newProfile as any).id, name: defaultName });
         }
       }
     } else {

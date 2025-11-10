@@ -103,14 +103,14 @@ export function useXPData() {
   // SEPARATE EFFECT: Poll for XP updates periodically
   // This is safer than event listeners which can cause infinite loops
   useEffect(() => {
-    if (!user) return;
+    if (!user || !xpData) return;
     
     const pollInterval = setInterval(async () => {
       try {
         const profileIdToUse = (userRole === "student") ? null : (activeProfile?.id || null);
         const freshData = await getXPData(user.id, profileIdToUse);
         
-        if (freshData && freshData.total_xp !== xpData.total_xp) {
+        if (freshData && xpData && freshData.total_xp !== xpData.total_xp) {
           logger.debug("XP changed, updating display", { 
             old: xpData.total_xp, 
             new: freshData.total_xp 
@@ -132,7 +132,7 @@ export function useXPData() {
     }, 2000); // Poll every 2 seconds
     
     return () => clearInterval(pollInterval);
-  }, [user?.id, userRole, xpData.total_xp, activeProfile?.id, setLocalXPData]);
+  }, [user?.id, userRole, xpData?.total_xp, activeProfile?.id, setLocalXPData, xpData]);
 
   // Update XP data
   const updateXP = useCallback(

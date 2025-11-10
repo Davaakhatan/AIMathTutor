@@ -467,8 +467,8 @@ export default function DeepLinkPage() {
                   messages={allMessages}
                   problem={challengeProblem}
                   difficultyMode={difficultyMode}
-                  userId={user?.id}
-                  profileId={activeProfile?.id || null}
+                  userId={undefined}
+                  profileId={null}
                 />
               )}
             </div>

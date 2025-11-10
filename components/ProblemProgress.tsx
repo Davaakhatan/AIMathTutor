@@ -296,7 +296,7 @@ export default function ProblemProgress({ messages, problem, difficultyMode = "m
         eventBus.emit("problem_completed", userId, {
           problemText: problem.text || "",
           problemType: problem.type || "unknown",
-          difficulty: problem.difficulty,
+          difficulty: (problem as any).difficulty || "unknown",
           hintsUsed: 0, // TODO: Track from state
           timeSpent: 0, // TODO: Track from session start
           profileId: profileId,

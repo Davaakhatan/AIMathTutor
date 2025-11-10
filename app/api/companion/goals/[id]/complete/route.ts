@@ -48,17 +48,13 @@ export async function POST(
 
     // Emit goal_achieved event
     const { eventBus } = await import("@/lib/eventBus");
-    await eventBus.emit({
-      type: "goal_achieved",
-      userId,
+    eventBus.emit("goal_achieved", userId, {
+      goalId: goal.id,
+      goalType: goal.goal_type,
+      targetSubject: goal.target_subject,
+      progress: goal.progress,
+    }, {
       profileId: goal.student_profile_id || undefined,
-      data: {
-        goalId: goal.id,
-        goalType: goal.goal_type,
-        targetSubject: goal.target_subject,
-        progress: goal.progress,
-      },
-      timestamp: new Date(),
     });
 
     return NextResponse.json({

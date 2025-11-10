@@ -6,7 +6,7 @@ import { chatRateLimiter, getClientId, createRateLimitHeaders } from "@/lib/rate
 import { logger } from "@/lib/logger";
 import { getSupabaseAdmin } from "@/lib/supabase-admin";
 import { eventBus } from "@/lib/eventBus";
-import { orchestrator } from "@/services/orchestrator";
+import { initializeOrchestrator } from "@/services/orchestrator";
 
 // Ensure orchestrator is initialized (in case module load didn't trigger it)
 // TEMPORARILY DISABLED - causing 500 errors
@@ -696,6 +696,8 @@ async function handleStreamingResponse(
               // Don't wait for component event listener - it might be unmounted!
               const checkAndSaveDailyProblem = async () => {
                 try {
+                  if (!session.problem) return; // Guard against undefined problem
+                  
                   const today = new Date().toISOString().split("T")[0]; // YYYY-MM-DD
                   const problemText = session.problem.text;
                   
