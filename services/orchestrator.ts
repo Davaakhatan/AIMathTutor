@@ -36,14 +36,9 @@ export async function onProblemCompleted(
 
     // 1. Update XP (re-enabled because XPSystem detection is unreliable)
     try {
-      // Check if Supabase is configured before attempting XP update
-      const hasSupabase = !!(process.env.NEXT_PUBLIC_SUPABASE_URL && process.env.SUPABASE_SERVICE_ROLE_KEY);
-      if (!hasSupabase) {
-        logger.warn("Supabase not configured - skipping XP update", { userId });
-        // Don't fail - continue with other orchestration
-      } else {
-        const currentXP = await getXPData(userId, profileId);
-        if (currentXP) {
+      // Always try to update XP - getXPData will handle Supabase availability
+      const currentXP = await getXPData(userId, profileId);
+      if (currentXP) {
         // Check if XP was already awarded for this problem today
         const today = new Date().toISOString().split("T")[0];
         const todayHistory = (currentXP.xp_history || []).find((h: any) => h.date === today);
@@ -79,7 +74,6 @@ export async function onProblemCompleted(
       } else {
         logger.warn("No XP data found for user - cannot award XP", { userId, profileId });
       }
-      }
     } catch (error) {
       logger.error("Error updating XP for problem completion", { error, userId, errorMessage: error instanceof Error ? error.message : String(error) });
       // Don't fail the whole orchestration if this fails
@@ -87,14 +81,9 @@ export async function onProblemCompleted(
 
     // 2. Update Streak
     try {
-      // Check if Supabase is configured before attempting streak update
-      const hasSupabase = !!(process.env.NEXT_PUBLIC_SUPABASE_URL && process.env.SUPABASE_SERVICE_ROLE_KEY);
-      if (!hasSupabase) {
-        logger.warn("Supabase not configured - skipping streak update", { userId });
-        // Don't fail - continue with other orchestration
-      } else {
-        const today = new Date().toISOString().split("T")[0];
-        let currentStreak = await getStreakData(userId, profileId);
+      // Always try to update streak - getStreakData will handle Supabase availability
+      const today = new Date().toISOString().split("T")[0];
+      let currentStreak = await getStreakData(userId, profileId);
       
       // If no streak exists, create default (getStreakData should create it, but ensure it exists)
       if (!currentStreak) {
@@ -123,7 +112,6 @@ export async function onProblemCompleted(
           logger.debug("Streak already updated today", { userId, lastStudyDate });
         }
       }
-      }
     } catch (error) {
       logger.error("Error updating streak for problem completion", { error, userId, errorMessage: error instanceof Error ? error.message : String(error) });
       // Don't fail the whole orchestration if this fails
@@ -131,15 +119,10 @@ export async function onProblemCompleted(
 
     // 3. Mark problem as solved in database (update solved_at)
     try {
-      // Check if Supabase is configured before attempting problem update
-      const hasSupabase = !!(process.env.NEXT_PUBLIC_SUPABASE_URL && process.env.SUPABASE_SERVICE_ROLE_KEY);
-      if (!hasSupabase) {
-        logger.warn("Supabase not configured - skipping problem solved_at update", { userId });
-        // Don't fail - continue with other orchestration
-      } else {
-        const { updateProblem, getProblems } = await import("@/services/supabaseDataService");
-        // Find the problem by text and user_id to update it
-        const problems = await getProblems(userId, 100, profileId);
+      // Always try to mark problem as solved - updateProblem will handle Supabase availability
+      const { updateProblem, getProblems } = await import("@/services/supabaseDataService");
+      // Find the problem by text and user_id to update it
+      const problems = await getProblems(userId, 100, profileId);
       
       // Try exact match first
       let matchingProblem = problems.find(p => 
@@ -199,7 +182,6 @@ export async function onProblemCompleted(
           problemsCount: problems.length,
           allProblemTexts: problems.map(p => p.text.substring(0, 30))
         });
-      }
       }
     } catch (error) {
       logger.error("Error marking problem as solved", { error, userId, errorMessage: error instanceof Error ? error.message : String(error) });
