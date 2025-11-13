@@ -121,14 +121,44 @@ async function checkAndAwardDailyLoginXPInternal(
     }
     
     // Use the existing XP data we already fetched
-    const currentXP = existingXP;
+    // If XP data doesn't exist, create it first (for new users)
+    let currentXP = existingXP;
     if (!currentXP) {
-      logger.warn("Could not get current XP data for daily login reward", { userId });
-      return {
-        awarded: false,
-        xp: 0,
-        message: "Could not fetch XP data",
-      };
+      logger.info("No XP data found, creating default XP data for new user", { userId, profileId });
+      try {
+        const { createDefaultXPData } = await import("./supabaseDataService");
+        // Create default XP data (0 XP, level 1) for new user
+        currentXP = await createDefaultXPData(userId, profileId);
+        if (!currentXP) {
+          logger.error("Failed to create default XP data for new user", { userId });
+          return {
+            awarded: false,
+            xp: 0,
+            message: "Could not create XP data",
+          };
+        }
+        logger.info("Default XP data created for new user", { userId, totalXP: currentXP.total_xp, level: currentXP.level });
+      } catch (error) {
+        logger.error("Error creating default XP data", { error, userId });
+        // Try one more time with getXPData which should also create it
+        try {
+          currentXP = await getXPData(userId, profileId);
+          if (!currentXP) {
+            return {
+              awarded: false,
+              xp: 0,
+              message: "Could not create XP data",
+            };
+          }
+        } catch (retryError) {
+          logger.error("Retry also failed to create XP data", { error: retryError, userId });
+          return {
+            awarded: false,
+            xp: 0,
+            message: "Could not create XP data",
+          };
+        }
+      }
     }
     
     // Calculate new XP and level

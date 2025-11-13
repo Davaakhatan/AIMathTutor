@@ -45,18 +45,79 @@ export interface XPData {
  */
 export async function getXPData(userId: string, profileId?: string | null): Promise<XPData | null> {
   try {
-    // Profile existence is ensured by AuthContext - no need to check here
-    // await ensureProfileExists(userId); // DISABLED - causes 5s timeout
+    // Use API route as fallback if client-side query fails
+    // This bypasses client-side authentication issues
+    const effectiveProfileId = profileId !== undefined ? profileId : null;
     
+    logger.debug("Fetching XP data", { userId, profileId: effectiveProfileId, method: "api-route" });
+    
+    // Try API route first (server-side with admin client - more reliable)
+    try {
+      const baseUrl = typeof window !== "undefined" 
+        ? window.location.origin 
+        : process.env.NEXT_PUBLIC_SITE_URL || "http://localhost:3002";
+      
+      const apiUrl = new URL("/api/xp", baseUrl);
+      apiUrl.searchParams.set("userId", userId);
+      if (effectiveProfileId) {
+        apiUrl.searchParams.set("profileId", effectiveProfileId);
+      }
+      
+      // Get auth token from Supabase client to include in request
+      let authHeaders: HeadersInit = { "Content-Type": "application/json" };
+      try {
+        const supabase = await getSupabaseClient();
+        if (supabase) {
+          const { data: { session } } = await supabase.auth.getSession();
+          if (session?.access_token) {
+            authHeaders = {
+              ...authHeaders,
+              "Authorization": `Bearer ${session.access_token}`,
+            };
+          }
+        }
+      } catch (authError) {
+        // Continue without auth token - API route will handle it
+        logger.debug("Could not get auth token for API request", { error: authError });
+      }
+      
+      const response = await fetch(apiUrl.toString(), {
+        method: "GET",
+        headers: authHeaders,
+      });
+      
+      if (response.ok) {
+        const result = await response.json();
+        if (result.success && result.xpData) {
+          logger.info("XP data loaded via API route", { 
+            userId, 
+            totalXP: result.xpData.total_xp, 
+            level: result.xpData.level 
+          });
+          return result.xpData;
+        } else if (result.success && !result.xpData) {
+          // No XP data found - will create default below
+          logger.debug("No XP data found via API route", { userId });
+        }
+      } else {
+        logger.warn("API route failed, falling back to direct query", { 
+          status: response.status, 
+          userId 
+        });
+      }
+    } catch (apiError) {
+      logger.warn("API route error, falling back to direct query", { 
+        error: apiError instanceof Error ? apiError.message : String(apiError), 
+        userId 
+      });
+    }
+    
+    // Fallback: Try direct client-side query (original method)
     const supabase = await getSupabaseClient();
     if (!supabase) {
       logger.warn("Supabase client not available");
       return null;
     }
-    
-    // Use profile ID if provided, otherwise use null (don't call getEffectiveProfileId - it hangs!)
-    // The hook should pass activeProfile?.id directly
-    const effectiveProfileId = profileId !== undefined ? profileId : null;
     
     // Simple, fast query
     let query = supabase
@@ -70,21 +131,48 @@ export async function getXPData(userId: string, profileId?: string | null): Prom
       query = query.is("student_profile_id", null);
     }
     
-    logger.debug("Executing XP query", { userId, profileId: effectiveProfileId });
+    logger.debug("Executing XP query (fallback)", { userId, profileId: effectiveProfileId });
     
-    const { data, error } = await query;
+    // Add timeout to prevent hanging
+    const queryPromise = query;
+    const timeoutPromise = new Promise<{ data: null; error: { message: string; code: string } }>((resolve) => {
+      setTimeout(() => {
+        logger.warn("XP query timeout after 3 seconds", { userId, profileId: effectiveProfileId });
+        resolve({ data: null, error: { message: "Query timeout", code: "TIMEOUT" } });
+      }, 3000); // Shorter timeout since API route is primary
+    });
     
-    logger.debug("XP query completed", { userId, profileId: effectiveProfileId, rowCount: data?.length, hasError: !!error });
+    const result = await Promise.race([queryPromise, timeoutPromise]);
+    const { data, error } = result;
+    
+    logger.debug("XP query completed", { userId, profileId: effectiveProfileId, rowCount: data?.length, hasError: !!error, errorCode: error?.code });
 
     if (error) {
-      logger.error("Error fetching XP data", { error: error.message, userId, profileId: effectiveProfileId });
-      return await createDefaultXPData(userId, effectiveProfileId);
+      logger.error("Error fetching XP data", { error: error.message, errorCode: error.code, userId, profileId: effectiveProfileId });
+      
+      // If timeout, return null so hook can retry or use localStorage
+      if (error.code === "TIMEOUT") {
+        logger.warn("XP query timed out - returning null to allow retry", { userId });
+        return null;
+      }
+      
+      try {
+        return await createDefaultXPData(userId, effectiveProfileId);
+      } catch (createError) {
+        logger.error("Failed to create default XP data after fetch error", { error: createError, userId });
+        return null;
+      }
     }
     
     // If no data (empty array), create default
     if (!data || data.length === 0) {
       logger.info("No XP data found, creating default", { userId, profileId: effectiveProfileId });
-      return await createDefaultXPData(userId, effectiveProfileId);
+      try {
+        return await createDefaultXPData(userId, effectiveProfileId);
+      } catch (createError) {
+        logger.error("Failed to create default XP data", { error: createError, userId });
+        return null;
+      }
     }
     
     // CRITICAL: Check for duplicates and warn
@@ -144,8 +232,9 @@ export async function getXPData(userId: string, profileId?: string | null): Prom
 
 /**
  * Create default XP data for new user or profile
+ * Exported so it can be called directly when needed
  */
-async function createDefaultXPData(userId: string, profileId?: string | null): Promise<XPData> {
+export async function createDefaultXPData(userId: string, profileId?: string | null): Promise<XPData> {
   try {
     const supabase = await getSupabaseClient();
     if (!supabase) {
@@ -223,8 +312,11 @@ async function createDefaultXPData(userId: string, profileId?: string | null): P
           };
         }
       }
-      logger.error("Error creating default XP data", { error: error.message, userId });
-      return defaultData;
+      logger.error("Error creating default XP data", { error: error.message, userId, errorCode: error.code });
+      // Don't return defaultData - it's not saved to DB
+      // Instead, throw or return null so caller knows it failed
+      // But for backward compatibility, return defaultData structure (caller should handle null)
+      throw new Error(`Failed to create XP data: ${error.message}`);
     }
 
     return {
@@ -566,15 +658,8 @@ export interface ProblemData {
 export async function getProblems(userId: string, limit = 100, profileId?: string | null): Promise<ProblemData[]> {
   try {
     // CRITICAL: Ensure profile exists before querying (foreign keys point to profiles.id)
-    // Add timeout to prevent hanging
-    const profileExistsPromise = ensureProfileExists(userId);
-    const profileTimeout = new Promise<boolean>((resolve) => {
-      setTimeout(() => {
-        logger.warn("ensureProfileExists timeout - continuing anyway", { userId });
-        resolve(false);
-      }, 2000);
-    });
-    await Promise.race([profileExistsPromise, profileTimeout]);
+    // ensureProfileExists now returns immediately (no timeout needed)
+    await ensureProfileExists(userId);
     
     const supabase = await getSupabaseClient();
     if (!supabase) {
@@ -953,15 +1038,8 @@ export interface AchievementData {
 export async function getAchievements(userId: string, profileId?: string | null): Promise<AchievementData[]> {
   try {
     // CRITICAL: Ensure profile exists before querying (foreign keys point to profiles.id)
-    // Add timeout to prevent hanging
-    const profileExistsPromise = ensureProfileExists(userId);
-    const profileTimeout = new Promise<boolean>((resolve) => {
-      setTimeout(() => {
-        logger.warn("ensureProfileExists timeout - continuing anyway", { userId });
-        resolve(false);
-      }, 2000);
-    });
-    await Promise.race([profileExistsPromise, profileTimeout]);
+    // ensureProfileExists now returns immediately (no timeout needed)
+    await ensureProfileExists(userId);
     
     const supabase = await getSupabaseClient();
     if (!supabase) {
@@ -1094,15 +1172,8 @@ export interface StudySession {
 export async function getStudySessions(userId: string, limit = 100, profileId?: string | null): Promise<StudySession[]> {
   try {
     // CRITICAL: Ensure profile exists before querying (foreign keys point to profiles.id)
-    // Add timeout to prevent hanging
-    const profileExistsPromise = ensureProfileExists(userId);
-    const profileTimeout = new Promise<boolean>((resolve) => {
-      setTimeout(() => {
-        logger.warn("ensureProfileExists timeout - continuing anyway", { userId });
-        resolve(false);
-      }, 2000);
-    });
-    await Promise.race([profileExistsPromise, profileTimeout]);
+    // ensureProfileExists now returns immediately (no timeout needed)
+    await ensureProfileExists(userId);
     
     const supabase = await getSupabaseClient();
     if (!supabase) {
@@ -1224,15 +1295,8 @@ export interface DailyGoal {
 export async function getDailyGoals(userId: string, limit = 30, profileId?: string | null): Promise<DailyGoal[]> {
   try {
     // CRITICAL: Ensure profile exists before querying (foreign keys point to profiles.id)
-    // Add timeout to prevent hanging
-    const profileExistsPromise = ensureProfileExists(userId);
-    const profileTimeout = new Promise<boolean>((resolve) => {
-      setTimeout(() => {
-        logger.warn("ensureProfileExists timeout - continuing anyway", { userId });
-        resolve(false);
-      }, 2000);
-    });
-    await Promise.race([profileExistsPromise, profileTimeout]);
+    // ensureProfileExists now returns immediately (no timeout needed)
+    await ensureProfileExists(userId);
     
     const supabase = await getSupabaseClient();
     if (!supabase) {

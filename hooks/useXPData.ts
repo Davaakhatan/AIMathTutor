@@ -21,10 +21,43 @@ export function useXPData() {
     xpHistory: [],
     recentGains: [],
   });
+  
+  // Listen for manual sync events from XPContent
+  useEffect(() => {
+    const handleXPSync = (event: CustomEvent) => {
+      const syncedData = event.detail;
+      if (syncedData) {
+        logger.info("XP sync event received, updating state", { 
+          totalXP: syncedData.totalXP, 
+          level: syncedData.level 
+        });
+        // Update internal state directly
+        setXPData({
+          total_xp: syncedData.totalXP,
+          level: syncedData.level,
+          xp_to_next_level: syncedData.xpToNextLevel || 100,
+          xp_history: syncedData.xpHistory || [],
+          recent_gains: syncedData.recentGains || [],
+        });
+        // Also update localStorage (should already be updated, but ensure it)
+        setLocalXPData(syncedData);
+      }
+    };
+    
+    window.addEventListener('xp-sync-complete', handleXPSync as EventListener);
+    return () => window.removeEventListener('xp-sync-complete', handleXPSync as EventListener);
+  }, [setLocalXPData]);
 
   // Load XP data - Fetch from database for authenticated users
   useEffect(() => {
     let isMounted = true;
+    
+    logger.debug("useXPData hook effect running", { 
+      hasUser: !!user, 
+      userId: user?.id, 
+      userRole,
+      localXPTotal: localXPData.totalXP 
+    });
     
     // OPTIMISTIC LOADING: Show localStorage data immediately
     const localData = {
@@ -39,6 +72,7 @@ export function useXPData() {
     
     if (!user) {
       // Guest mode - localStorage only, already set above
+      logger.debug("No user - using localStorage only", { localXPTotal: localData.total_xp });
       return;
     }
 
@@ -51,7 +85,18 @@ export function useXPData() {
         // For parents/teachers, use activeProfile if set
         const profileIdToUse = (userRole === "student") ? null : (activeProfile?.id || null);
         
-        logger.info("Loading XP from database", { userId: user.id, profileId: profileIdToUse, userRole });
+        logger.info("Loading XP from database", { 
+          userId: user.id, 
+          profileId: profileIdToUse, 
+          userRole,
+          currentLocalXP: localXPData.totalXP 
+        });
+        
+        // If localStorage has 0 XP, try to fetch immediately (don't wait for timeout)
+        // This ensures we get the correct XP even if the first query is slow
+        if (localXPData.totalXP === 0 && localXPData.level === 1) {
+          logger.info("localStorage has default values (0 XP) - fetching immediately", { userId: user.id });
+        }
         
         // Add timeout wrapper to prevent hanging forever
         const timeoutMs = 5000; // 5 seconds max
@@ -68,6 +113,11 @@ export function useXPData() {
         if (!isMounted) return;
         
         if (data) {
+          logger.info("XP data loaded from database", { 
+            userId: user.id, 
+            totalXP: data.total_xp, 
+            level: data.level 
+          });
           setXPData(data);
           
           // Also update localStorage cache
@@ -79,8 +129,43 @@ export function useXPData() {
             recentGains: data.recent_gains || [],
           });
         } else {
-          // No database data - keep showing localStorage
-          logger.warn("No XP data in database, keeping localStorage", { userId: user.id });
+          // Query timed out or no data - check if we should retry or use localStorage
+          logger.warn("XP query timed out or no data - checking if we should retry", { userId: user.id });
+          
+          // If localStorage has old data (0 XP), try to fetch once more without timeout wrapper
+          // This handles the case where the first query times out but a retry might work
+          if (localXPData.totalXP === 0 && localXPData.level === 1) {
+            logger.info("localStorage has default values, attempting one more fetch", { userId: user.id });
+            try {
+              // Try one more time with a shorter timeout (3 seconds)
+              const retryPromise = getXPData(user.id, profileIdToUse);
+              const retryTimeout = new Promise<null>((resolve) => 
+                setTimeout(() => resolve(null), 3000)
+              );
+              const retryData = await Promise.race([retryPromise, retryTimeout]);
+              
+              if (retryData) {
+                logger.info("Retry succeeded! Loading XP from database", { 
+                  userId: user.id, 
+                  totalXP: retryData.total_xp 
+                });
+                setXPData(retryData);
+                setLocalXPData({
+                  totalXP: retryData.total_xp,
+                  level: retryData.level,
+                  xpToNextLevel: retryData.xp_to_next_level,
+                  xpHistory: retryData.xp_history || [],
+                  recentGains: retryData.recent_gains || [],
+                });
+              } else {
+                logger.warn("Retry also timed out - keeping localStorage", { userId: user.id });
+              }
+            } catch (retryError) {
+              logger.error("Retry failed", { error: retryError, userId: user.id });
+            }
+          } else {
+            logger.warn("No XP data in database, keeping localStorage", { userId: user.id });
+          }
         }
         
         // isLoading already false from initial set

@@ -2,6 +2,7 @@
 
 import { useEffect, useState, useRef } from "react";
 import { useXPData } from "@/hooks/useXPData";
+import { useAuth } from "@/contexts/AuthContext";
 import { getRankForLevel, getNextRank, getLevelsToNextRank } from "@/services/rankingService";
 
 interface XPContentProps {
@@ -13,6 +14,63 @@ interface XPContentProps {
  */
 export default function XPContent({ onXPDataChange }: XPContentProps) {
   const { xpData, updateXP, isLoading } = useXPData();
+  const { user } = useAuth();
+  
+  // Debug: Log XP data whenever it changes
+  useEffect(() => {
+    console.log("[XPContent] XP data updated:", {
+      totalXP: xpData.totalXP,
+      level: xpData.level,
+      isLoading,
+      userId: user?.id
+    });
+  }, [xpData.totalXP, xpData.level, isLoading, user?.id]);
+  
+  // Manual sync: If XP is 0 and user is logged in, try to sync from API
+  useEffect(() => {
+    if (user && xpData.totalXP === 0 && xpData.level === 1 && !isLoading) {
+      console.log("[XPContent] XP is 0, attempting manual sync from API...", { userId: user.id });
+      const syncXP = async () => {
+        try {
+          const response = await fetch(`/api/xp/sync?userId=${user.id}`);
+          if (response.ok) {
+            const result = await response.json();
+            if (result.success && result.xpData) {
+              console.log("[XPContent] Manual sync successful!", { 
+                totalXP: result.xpData.totalXP, 
+                level: result.xpData.level 
+              });
+              // Update localStorage directly - this will be picked up by the hook
+              localStorage.setItem("aitutor-xp", JSON.stringify(result.xpData));
+              
+              // Dispatch custom event to notify the hook
+              window.dispatchEvent(new CustomEvent('xp-sync-complete', {
+                detail: result.xpData
+              }));
+              
+              // Also try to call updateXP (in case xpData exists)
+              // The hook's updateXP expects XPData format (with underscores)
+              updateXP({
+                total_xp: result.xpData.totalXP,
+                level: result.xpData.level,
+                xp_to_next_level: result.xpData.xpToNextLevel,
+                xp_history: result.xpData.xpHistory || [],
+                recent_gains: result.xpData.recentGains || [],
+              }).catch((error) => {
+                // If updateXP fails, that's okay - the event listener will handle it
+                console.log("[XPContent] updateXP failed, but event dispatched - hook will sync", { error });
+              });
+            }
+          }
+        } catch (error) {
+          console.error("[XPContent] Manual sync failed:", error);
+        }
+      };
+      // Delay sync slightly to avoid race conditions
+      const timeoutId = setTimeout(syncXP, 1000);
+      return () => clearTimeout(timeoutId);
+    }
+  }, [user, xpData.totalXP, xpData.level, isLoading, updateXP]);
 
   // Calculate XP needed for next level
   const calculateXPForLevel = (level: number): number => {
