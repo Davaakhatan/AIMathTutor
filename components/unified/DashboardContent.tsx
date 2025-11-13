@@ -5,6 +5,7 @@ import { useLocalStorage } from "@/hooks/useLocalStorage";
 import { useProblemHistory } from "@/hooks/useProblemHistory";
 import { useXPData } from "@/hooks/useXPData";
 import { useStreakData } from "@/hooks/useStreakData";
+import { useAuth } from "@/contexts/AuthContext";
 import { ProblemType } from "@/types";
 import { getAllConcepts, getConceptsByCategory, getConceptsNeedingPractice, ConceptTrackingData } from "@/services/conceptTracker";
 import ProgressVisualization from "../ProgressVisualization";
@@ -65,8 +66,74 @@ export default function DashboardContent({ onDifficultyChange }: DashboardConten
   const { problems: savedProblems } = useProblemHistory();
   const { xpData } = useXPData();
   const { streakData } = useStreakData();
+  const { user, activeProfile, userRole } = useAuth();
   const [conceptData] = useLocalStorage<ConceptTrackingData>("aitutor-concepts", { concepts: {}, lastUpdated: Date.now() });
   const [stats, setStats] = useState<ProblemStats | null>(null);
+  const [solvedCount, setSolvedCount] = useState<number>(0);
+  const [databaseStats, setDatabaseStats] = useState<{ totalTime: number; totalHints: number } | null>(null);
+
+  // Fetch solved problems count and database stats
+  useEffect(() => {
+    if (!user) return;
+
+    const fetchSolvedCount = async () => {
+      try {
+        const profileIdForQuery = userRole === "student" ? null : (activeProfile?.id || null);
+        const profileIdParam = profileIdForQuery ? `&profileId=${profileIdForQuery}` : "";
+        const apiUrl = `/api/problems/solved?userId=${user.id}&limit=100${profileIdParam}`;
+        
+        const response = await fetch(apiUrl);
+        if (response.ok) {
+          const result = await response.json();
+          if (result.success && Array.isArray(result.problems)) {
+            setSolvedCount(result.problems.length);
+          }
+        }
+      } catch (error) {
+        console.error("[DashboardContent] Error fetching solved count:", error);
+      }
+    };
+
+    const fetchDatabaseStats = async () => {
+      try {
+        const profileIdForQuery = userRole === "student" ? null : (activeProfile?.id || null);
+        const profileIdParam = profileIdForQuery ? `&profileId=${profileIdForQuery}` : "";
+        const apiUrl = `/api/problems?userId=${user.id}&limit=100${profileIdParam}`;
+        
+        const response = await fetch(apiUrl);
+        if (response.ok) {
+          const result = await response.json();
+          if (result.success && Array.isArray(result.problems)) {
+            // Calculate total time and hints from database
+            let totalTimeSeconds = 0;
+            let totalHints = 0;
+            
+            result.problems.forEach((p: any) => {
+              if (p.time_spent) {
+                totalTimeSeconds += p.time_spent; // time_spent is in seconds
+              }
+              if (p.hints_used) {
+                totalHints += p.hints_used;
+              }
+            });
+            
+            // Convert seconds to minutes
+            const totalTimeMinutes = Math.round(totalTimeSeconds / 60);
+            
+            setDatabaseStats({
+              totalTime: totalTimeMinutes,
+              totalHints: totalHints,
+            });
+          }
+        }
+      } catch (error) {
+        console.error("[DashboardContent] Error fetching database stats:", error);
+      }
+    };
+
+    fetchSolvedCount();
+    fetchDatabaseStats();
+  }, [user?.id, userRole, activeProfile?.id]);
 
   useEffect(() => {
     if (savedProblems.length === 0) {
@@ -83,7 +150,8 @@ export default function DashboardContent({ onDifficultyChange }: DashboardConten
     let totalTime = 0;
     let totalExchanges = 0;
     let totalHints = 0;
-    let problemsSolved = 0;
+    // Use solvedCount from database instead of counting all problems
+    let problemsSolved = solvedCount;
 
     // Filter out problems with invalid dates and sort by date to calculate trends
     const validProblems = savedProblems.filter(p => {
@@ -125,17 +193,23 @@ export default function DashboardContent({ onDifficultyChange }: DashboardConten
       else if (hour >= 17 && hour < 22) timeDistribution.evening++;
       else timeDistribution.night++;
 
-      // Estimate time (rough estimate: 5 minutes per problem)
-      totalTime += 5;
+      // Use database time if available, otherwise estimate (5 minutes per problem)
+      // Note: We'll use databaseStats.totalTime if available, calculated separately
+      totalTime += 5; // Fallback estimate (will be overridden by databaseStats)
       totalExchanges += (problem as any).exchanges || 5;
       totalHints += (problem as any).hintsUsed || 0;
-      problemsSolved++;
+      // problemsSolved is already set from solvedCount
     });
+
+    // Use database stats if available, otherwise use calculated values
+    const finalTotalTime = databaseStats?.totalTime || totalTime;
+    const finalTotalHints = databaseStats?.totalHints || totalHints;
+    const finalProblemsSolved = problemsSolved || validProblems.length; // Fallback to all problems if solvedCount not loaded yet
 
     // Calculate efficiency score (0-100)
     // Higher score = fewer hints, fewer exchanges, faster solving
-    const avgExchanges = totalExchanges / Math.max(1, problemsSolved);
-    const avgHints = totalHints / Math.max(1, problemsSolved);
+    const avgExchanges = totalExchanges / Math.max(1, finalProblemsSolved);
+    const avgHints = finalTotalHints / Math.max(1, finalProblemsSolved);
     const efficiencyScore = Math.max(0, Math.min(100, 
       100 - (avgExchanges * 5) - (avgHints * 10)
     ));
@@ -157,20 +231,20 @@ export default function DashboardContent({ onDifficultyChange }: DashboardConten
       totalProblems: validProblems.length,
       problemsByType,
       problemsByDifficulty,
-      totalTime,
-      averageExchanges: totalExchanges / Math.max(1, problemsSolved),
-      problemsSolved,
+      totalTime: finalTotalTime,
+      averageExchanges: totalExchanges / Math.max(1, finalProblemsSolved),
+      problemsSolved: finalProblemsSolved,
       dailyActivity,
       weeklyActivity,
       hintsUsage: {
-        total: totalHints,
-        average: totalHints / Math.max(1, problemsSolved),
+        total: finalTotalHints,
+        average: finalTotalHints / Math.max(1, finalProblemsSolved),
       },
       efficiencyScore,
       improvementTrend,
       timeDistribution,
     });
-  }, [savedProblems]);
+  }, [savedProblems, solvedCount, databaseStats]);
 
   const typeLabels: Record<string, string> = {
     ARITHMETIC: "Arithmetic",
