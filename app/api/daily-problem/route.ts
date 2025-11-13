@@ -9,6 +9,7 @@ import { getSupabaseServer } from "@/lib/supabase-server";
 import { logger } from "@/lib/logger";
 import { ProblemType } from "@/types";
 import eventBus from "@/lib/eventBus";
+import { saveProblem } from "@/services/supabaseDataService";
 
 /**
  * Generate a deterministic daily problem based on the date
@@ -300,7 +301,7 @@ export async function POST(request: NextRequest) {
             .eq("date", date)
             .single();
           
-          if (dailyProblemError || !dailyProblemData) {
+          if (dailyProblemError || !dailyProblemData || !(dailyProblemData as any).id) {
             logger.error("Failed to find daily problem for completion", { 
               error: dailyProblemError, 
               date, 
@@ -315,7 +316,7 @@ export async function POST(request: NextRequest) {
           // Use 'date' column (NOT NULL) - completion table doesn't have 'problem_date'
           const insertData: any = {
             user_id: userId,
-            daily_problem_id: dailyProblemData.id, // REQUIRED: NOT NULL column
+            daily_problem_id: (dailyProblemData as any).id, // REQUIRED: NOT NULL column
             date: date, // Use 'date' column, not 'problem_date'
             problem_text: problemText,
             completed_at: new Date().toISOString(),
@@ -354,8 +355,42 @@ export async function POST(request: NextRequest) {
 
         logger.info("Daily problem marked as solved successfully", { date, userId, data, recordId: data?.[0]?.id });
         
-        // Award XP for daily problem completion
+        // Save Problem of the Day to problem history (for achievements tracking)
         const effectiveProfileId = profileId && profileId !== "null" ? profileId : null;
+        try {
+          // Get the daily problem details to save to problem history
+          const { data: dailyProblemDetails, error: dailyProblemError } = await supabase
+            .from("daily_problems")
+            .select("problem_text, problem_type, difficulty")
+            .eq("date", date)
+            .single();
+          
+          if (!dailyProblemError && dailyProblemDetails) {
+            // Save to problems table so it shows up in problem history
+            const details = dailyProblemDetails as any;
+            await saveProblem(userId, {
+              text: problemText, // Use the solved problem text
+              type: details.problem_type || ProblemType.WORD_PROBLEM,
+              difficulty: details.difficulty || "middle school",
+              image_url: undefined,
+              parsed_data: {
+                text: problemText,
+                type: details.problem_type || ProblemType.WORD_PROBLEM,
+                confidence: 1.0,
+              },
+              is_bookmarked: false,
+              is_generated: false,
+              source: "daily_problem",
+            }, effectiveProfileId);
+            
+            logger.debug("Problem of the Day saved to problem history", { userId, date });
+          }
+        } catch (historyError) {
+          // Don't fail the request if saving to history fails
+          logger.warn("Failed to save Problem of the Day to problem history", { error: historyError, userId, date });
+        }
+        
+        // Award XP for daily problem completion
         try {
           logger.debug("Attempting to award XP for daily problem", { userId, effectiveProfileId, date });
           
@@ -386,11 +421,12 @@ export async function POST(request: NextRequest) {
             return NextResponse.json({ success: true, data, xpAwarded: null });
           }
           
+          const xpRow = xpRows[0] as any;
           const currentXP = {
-            total_xp: xpRows[0].total_xp || 0,
-            level: xpRows[0].level || 1,
-            xp_to_next_level: xpRows[0].xp_to_next_level || 100,
-            xp_history: (xpRows[0].xp_history as any) || [],
+            total_xp: xpRow.total_xp || 0,
+            level: xpRow.level || 1,
+            xp_to_next_level: xpRow.xp_to_next_level || 100,
+            xp_history: (xpRow.xp_history as any) || [],
           };
           
           logger.debug("XP data fetched", { 
@@ -434,7 +470,7 @@ export async function POST(request: NextRequest) {
               { date: today, xp: xpGained, reason: "Problem of the Day solved" }
             ];
             
-            let updateQuery = supabase
+            let updateQuery = (supabase as any)
               .from("xp_data")
               .update({
                 total_xp: newTotalXP,

@@ -571,7 +571,7 @@ export default function ProblemOfTheDay({
             } else if (data.xpError) {
               // XP award failed but completion was saved
               console.warn("[ProblemOfTheDay] Completion saved but XP award failed:", data.xpError);
-              showToast("Problem completed! (XP award failed - check console)", "warning");
+              showToast("Problem completed! (XP award failed - check console)", "error");
             } else {
               // No XP info - completion saved but no XP awarded
               console.log("[ProblemOfTheDay] Completion saved (no XP info)", { data });
