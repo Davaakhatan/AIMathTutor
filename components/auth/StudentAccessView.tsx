@@ -19,22 +19,25 @@ interface LinkedParent {
  * Component for students to see who has access to their profile
  */
 export default function StudentAccessView() {
-  const { activeProfile, user } = useAuth();
+  const { activeProfile, user, userRole, profiles } = useAuth();
   const [linkedParents, setLinkedParents] = useState<LinkedParent[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const { showToast } = useToast();
 
+  // For students: use first profile from profiles array (activeProfile is always null for students)
+  const studentProfile = userRole === "student" && profiles.length > 0 ? profiles[0] : activeProfile;
+
   useEffect(() => {
-    if (activeProfile && user) {
+    if (studentProfile && user) {
       loadLinkedParents();
     } else {
       setLinkedParents([]);
       setIsLoading(false);
     }
-  }, [activeProfile, user]);
+  }, [studentProfile, user]);
 
   const loadLinkedParents = async () => {
-    if (!activeProfile || !user) {
+    if (!studentProfile || !user) {
       setLinkedParents([]);
       setIsLoading(false);
       return;
@@ -56,7 +59,7 @@ export default function StudentAccessView() {
             "Content-Type": "application/json",
           },
           body: JSON.stringify({
-            studentProfileId: activeProfile.id,
+            studentProfileId: studentProfile.id,
             userId: user.id,
           }),
           signal: controller.signal,

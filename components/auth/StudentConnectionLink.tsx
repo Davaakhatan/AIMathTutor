@@ -9,23 +9,26 @@ import { logger } from "@/lib/logger";
  * Component for students to generate and share their connection link
  */
 export default function StudentConnectionLink() {
-  const { activeProfile, userRole } = useAuth();
+  const { activeProfile, userRole, profiles } = useAuth();
   const [connectionLink, setConnectionLink] = useState<string>("");
   const [connectionCode, setConnectionCode] = useState<string>("");
   const [copied, setCopied] = useState(false);
   const { showToast } = useToast();
 
+  // For students: use first profile from profiles array (activeProfile is always null for students)
+  const studentProfile = userRole === "student" && profiles.length > 0 ? profiles[0] : activeProfile;
+
   useEffect(() => {
-    if (activeProfile && userRole === "student") {
+    if (studentProfile && userRole === "student") {
       // Generate connection link
       const baseUrl = typeof window !== "undefined" ? window.location.origin : "";
-      const link = `${baseUrl}/connect/${activeProfile.id}`;
+      const link = `${baseUrl}/connect/${studentProfile.id}`;
       setConnectionLink(link);
       
       // Connection code is just the profile ID (can be encrypted later)
-      setConnectionCode(activeProfile.id);
+      setConnectionCode(studentProfile.id);
     }
-  }, [activeProfile, userRole]);
+  }, [studentProfile, userRole]);
 
   const handleCopyLink = async () => {
     try {
@@ -51,7 +54,7 @@ export default function StudentConnectionLink() {
     }
   };
 
-  if (userRole !== "student" || !activeProfile) {
+  if (userRole !== "student" || !studentProfile) {
     return null;
   }
 
