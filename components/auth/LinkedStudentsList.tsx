@@ -21,6 +21,8 @@ export default function LinkedStudentsList({ onStudentSelect }: { onStudentSelec
   const [linkedStudents, setLinkedStudents] = useState<LinkedStudent[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [isUnlinking, setIsUnlinking] = useState<string | null>(null);
+  const [copiedCode, setCopiedCode] = useState<string | null>(null);
+  const [expandedStudent, setExpandedStudent] = useState<string | null>(null);
   const { showToast } = useToast();
 
   useEffect(() => {
@@ -129,6 +131,38 @@ export default function LinkedStudentsList({ onStudentSelect }: { onStudentSelec
     }
   };
 
+  const handleCopyConnectionCode = async (studentProfileId: string) => {
+    try {
+      const baseUrl = typeof window !== "undefined" ? window.location.origin : "";
+      const connectionCode = studentProfileId;
+      const connectionLink = `${baseUrl}/connect/${studentProfileId}`;
+      
+      // Copy the code (shorter, easier to share)
+      await navigator.clipboard.writeText(connectionCode);
+      setCopiedCode(studentProfileId);
+      showToast("Connection code copied to clipboard!", "success");
+      setTimeout(() => setCopiedCode(null), 2000);
+    } catch (error) {
+      logger.error("Error copying connection code", { error });
+      showToast("Failed to copy code. Please copy manually.", "error");
+    }
+  };
+
+  const handleCopyConnectionLink = async (studentProfileId: string) => {
+    try {
+      const baseUrl = typeof window !== "undefined" ? window.location.origin : "";
+      const connectionLink = `${baseUrl}/connect/${studentProfileId}`;
+      
+      await navigator.clipboard.writeText(connectionLink);
+      setCopiedCode(studentProfileId);
+      showToast("Connection link copied to clipboard!", "success");
+      setTimeout(() => setCopiedCode(null), 2000);
+    } catch (error) {
+      logger.error("Error copying connection link", { error });
+      showToast("Failed to copy link. Please copy manually.", "error");
+    }
+  };
+
   if (isLoading) {
     return (
       <div className="p-4 text-center text-gray-500 dark:text-gray-400">
@@ -204,14 +238,90 @@ export default function LinkedStudentsList({ onStudentSelect }: { onStudentSelec
                     </div>
                   </div>
                 </button>
-                <button
-                  onClick={() => handleUnlink(linked.relationship.id, linked.student_profile.name)}
-                  disabled={isUnlinking === linked.relationship.id}
-                  className="px-2.5 py-1 text-xs font-medium bg-gray-100 dark:bg-gray-700 hover:bg-gray-200 dark:hover:bg-gray-600 text-gray-700 dark:text-gray-300 rounded transition-colors disabled:opacity-50"
-                >
-                  {isUnlinking === linked.relationship.id ? "Unlinking..." : "Unlink"}
-                </button>
+                <div className="flex items-center gap-2">
+                  <button
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      setExpandedStudent(expandedStudent === linked.student_profile.id ? null : linked.student_profile.id);
+                    }}
+                    className="px-2.5 py-1 text-xs font-medium bg-blue-100 dark:bg-blue-900/30 hover:bg-blue-200 dark:hover:bg-blue-900/50 text-blue-700 dark:text-blue-300 rounded transition-colors"
+                    title="Show connection code"
+                  >
+                    {expandedStudent === linked.student_profile.id ? "Hide" : "Code"}
+                  </button>
+                  <button
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      handleUnlink(linked.relationship.id, linked.student_profile.name);
+                    }}
+                    disabled={isUnlinking === linked.relationship.id}
+                    className="px-2.5 py-1 text-xs font-medium bg-gray-100 dark:bg-gray-700 hover:bg-gray-200 dark:hover:bg-gray-600 text-gray-700 dark:text-gray-300 rounded transition-colors disabled:opacity-50"
+                  >
+                    {isUnlinking === linked.relationship.id ? "Unlinking..." : "Unlink"}
+                  </button>
+                </div>
               </div>
+              
+              {/* Connection Code Section */}
+              {expandedStudent === linked.student_profile.id && (
+                <div className="mt-3 pt-3 border-t border-gray-200 dark:border-gray-700 space-y-2">
+                  <p className="text-xs font-medium text-gray-700 dark:text-gray-300 mb-2">
+                    Connection Code & Link
+                  </p>
+                  
+                  {/* Connection Code */}
+                  <div>
+                    <label className="block text-xs font-medium text-gray-600 dark:text-gray-400 mb-1">
+                      Connection Code
+                    </label>
+                    <div className="flex gap-2">
+                      <input
+                        type="text"
+                        value={linked.student_profile.id}
+                        readOnly
+                        className="flex-1 px-2 py-1.5 text-xs font-mono border border-gray-300 dark:border-gray-600 rounded bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100"
+                      />
+                      <button
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          handleCopyConnectionCode(linked.student_profile.id);
+                        }}
+                        className="px-3 py-1.5 text-xs font-medium bg-gray-900 dark:bg-gray-700 text-white rounded hover:bg-gray-800 dark:hover:bg-gray-600 transition-colors"
+                      >
+                        {copiedCode === linked.student_profile.id ? "Copied!" : "Copy"}
+                      </button>
+                    </div>
+                  </div>
+
+                  {/* Connection Link */}
+                  <div>
+                    <label className="block text-xs font-medium text-gray-600 dark:text-gray-400 mb-1">
+                      Connection Link
+                    </label>
+                    <div className="flex gap-2">
+                      <input
+                        type="text"
+                        value={typeof window !== "undefined" ? `${window.location.origin}/connect/${linked.student_profile.id}` : ""}
+                        readOnly
+                        className="flex-1 px-2 py-1.5 text-xs border border-gray-300 dark:border-gray-600 rounded bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100"
+                      />
+                      <button
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          handleCopyConnectionLink(linked.student_profile.id);
+                        }}
+                        className="px-3 py-1.5 text-xs font-medium bg-gray-900 dark:bg-gray-700 text-white rounded hover:bg-gray-800 dark:hover:bg-gray-600 transition-colors"
+                      >
+                        {copiedCode === linked.student_profile.id ? "Copied!" : "Copy"}
+                      </button>
+                    </div>
+                  </div>
+                  
+                  <p className="text-xs text-gray-500 dark:text-gray-400 mt-2">
+                    Share this code or link with other parents/teachers to let them connect to this student.
+                  </p>
+                </div>
+              )}
             </div>
           );
         })}
