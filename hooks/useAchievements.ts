@@ -48,7 +48,7 @@ export function useAchievements() {
 
         let query = supabase
           .from("achievements")
-          .select("achievement_type")
+          .select("achievement_id, achievement_name")
           .eq("user_id", user.id);
 
         if (profileIdToUse) {
@@ -63,7 +63,8 @@ export function useAchievements() {
           throw error;
         }
 
-        const achievementIds = (data || []).map((a: any) => a.achievement_type).filter(Boolean);
+        // Use achievement_id (NOT NULL) instead of achievement_type (nullable)
+        const achievementIds = (data || []).map((a: any) => a.achievement_id).filter(Boolean);
         setUnlockedAchievements(achievementIds);
 
         // Also update localStorage for offline support
@@ -108,18 +109,49 @@ export function useAchievements() {
         // CRITICAL: For students, always use user-level (profileId = null)
         const profileIdToUse = (userRole === "student") ? null : (activeProfile?.id || null);
 
+        // Get achievement name from ALL_ACHIEVEMENTS
+        const { ALL_ACHIEVEMENTS } = await import("@/services/achievementService");
+        const achievement = ALL_ACHIEVEMENTS.find(a => a.id === achievementId);
+        const achievementName = achievement?.name || achievementId;
+
         const insertData: any = {
           user_id: user.id,
-          achievement_type: achievementId,
+          achievement_id: achievementId, // Use achievement_id (NOT NULL) instead of achievement_type
+          achievement_name: achievementName, // Required NOT NULL field
           unlocked_at: new Date().toISOString(),
           student_profile_id: profileIdToUse,
         };
+
+        // Check if achievement already exists to avoid duplicates
+        let checkQuery = supabase
+          .from("achievements")
+          .select("id")
+          .eq("user_id", user.id)
+          .eq("achievement_id", achievementId);
+        
+        if (profileIdToUse) {
+          checkQuery = checkQuery.eq("student_profile_id", profileIdToUse);
+        } else {
+          checkQuery = checkQuery.is("student_profile_id", null);
+        }
+
+        const { data: existing } = await checkQuery.maybeSingle();
+
+        if (existing) {
+          logger.debug("Achievement already exists in database", { achievementId, userId: user.id });
+          return; // Already exists, no need to insert
+        }
 
         const { error } = await supabase
           .from("achievements")
           .insert(insertData);
 
         if (error) {
+          // If it's a unique constraint violation, that's okay - achievement already exists
+          if (error.code === '23505') {
+            logger.debug("Achievement already exists (unique constraint)", { achievementId, userId: user.id });
+            return;
+          }
           throw error;
         }
 

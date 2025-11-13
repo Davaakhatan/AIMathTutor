@@ -26,20 +26,25 @@ export default function XPContent({ onXPDataChange }: XPContentProps) {
     });
   }, [xpData.totalXP, xpData.level, isLoading, user?.id]);
   
-  // Manual sync: If XP is 0 and user is logged in, try to sync from API
+  // Manual sync: Always sync once on mount to ensure we have latest data from database
+  // This fixes cases where localStorage has stale data
   useEffect(() => {
-    if (user && xpData.totalXP === 0 && xpData.level === 1 && !isLoading) {
-      console.log("[XPContent] XP is 0, attempting manual sync from API...", { userId: user.id });
-      const syncXP = async () => {
-        try {
-          const response = await fetch(`/api/xp/sync?userId=${user.id}`);
-          if (response.ok) {
-            const result = await response.json();
-            if (result.success && result.xpData) {
-              console.log("[XPContent] Manual sync successful!", { 
-                totalXP: result.xpData.totalXP, 
-                level: result.xpData.level 
-              });
+    if (!user || isLoading) return;
+    
+    // Use a ref to track if we've synced to avoid multiple syncs
+    const syncXP = async () => {
+      try {
+        const currentXP = xpData.totalXP; // Capture current value
+        console.log("[XPContent] Syncing XP from API to check for updates...", { userId: user.id, currentXP });
+        const response = await fetch(`/api/xp/sync?userId=${user.id}`);
+        if (response.ok) {
+          const result = await response.json();
+          if (result.success && result.xpData) {
+            const dbXP = result.xpData.totalXP;
+            
+            // Update if database has different XP (database is source of truth)
+            if (dbXP !== currentXP) {
+              console.log("[XPContent] XP mismatch detected! Updating from", currentXP, "to", dbXP);
               // Update localStorage directly - this will be picked up by the hook
               localStorage.setItem("aitutor-xp", JSON.stringify(result.xpData));
               
@@ -60,17 +65,21 @@ export default function XPContent({ onXPDataChange }: XPContentProps) {
                 // If updateXP fails, that's okay - the event listener will handle it
                 console.log("[XPContent] updateXP failed, but event dispatched - hook will sync", { error });
               });
+            } else {
+              console.log("[XPContent] XP matches database, no update needed", { currentXP, dbXP });
             }
           }
-        } catch (error) {
-          console.error("[XPContent] Manual sync failed:", error);
         }
-      };
-      // Delay sync slightly to avoid race conditions
-      const timeoutId = setTimeout(syncXP, 1000);
-      return () => clearTimeout(timeoutId);
-    }
-  }, [user, xpData.totalXP, xpData.level, isLoading, updateXP]);
+      } catch (error) {
+        console.error("[XPContent] Manual sync failed:", error);
+      }
+    };
+    
+    // Sync once on mount with a short delay to avoid race conditions
+    // Only sync if we have a user and data is loaded
+    const timeoutId = setTimeout(syncXP, 1500);
+    return () => clearTimeout(timeoutId);
+  }, [user?.id, isLoading]); // Sync when user changes or loading completes
 
   // Calculate XP needed for next level
   const calculateXPForLevel = (level: number): number => {

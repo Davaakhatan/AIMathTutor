@@ -36,11 +36,12 @@ export async function isDailyProblemSolved(
     const effectiveProfileId = profileId !== undefined ? profileId : null;
     logger.debug("Using profileId for completion check", { effectiveProfileId });
 
+    // Use 'date' column (NOT NULL) - completion table doesn't have 'problem_date'
     let query = supabase
       .from("daily_problems_completion")
       .select("id")
       .eq("user_id", userId)
-      .eq("problem_date", problemDate);
+      .eq("date", problemDate);
 
     if (effectiveProfileId) {
       query = query.eq("student_profile_id", effectiveProfileId);
@@ -115,11 +116,30 @@ export async function markDailyProblemSolved(
     const effectiveProfileId = profileId !== undefined ? profileId : null;
     logger.debug("Using profileId for saving completion", { effectiveProfileId });
 
+    // CRITICAL: daily_problem_id is NOT NULL, so we must fetch it first
+    const { data: dailyProblemData, error: dailyProblemError } = await supabase
+      .from("daily_problems")
+      .select("id")
+      .eq("date", problemDate)
+      .single();
+    
+    if (dailyProblemError || !dailyProblemData) {
+      logger.error("Failed to find daily problem for completion", { 
+        error: dailyProblemError, 
+        problemDate, 
+        userId 
+      });
+      return false;
+    }
+    
+    // Use 'date' column (NOT NULL) - completion table doesn't have 'problem_date'
     const insertData: any = {
       user_id: userId,
-      problem_date: problemDate,
+      daily_problem_id: dailyProblemData.id, // REQUIRED: NOT NULL column
+      date: problemDate, // Use 'date' column, not 'problem_date'
       problem_text: problemText,
-      solved_at: new Date().toISOString(),
+      completed_at: new Date().toISOString(),
+      is_solved: true,
     };
 
     if (effectiveProfileId) {
@@ -131,11 +151,11 @@ export async function markDailyProblemSolved(
     logger.debug("Inserting completion data", { insertData: { ...insertData, problem_text: insertData.problem_text.substring(0, 50) + "..." } });
 
     // Use upsert to handle case where completion already exists
-    // The unique index handles NULL profile_id properly via COALESCE
+    // The unique constraint is on (user_id, daily_problem_id, student_profile_id)
     const { data, error } = await supabase
       .from("daily_problems_completion")
       .upsert(insertData, {
-        onConflict: "user_id,student_profile_id,problem_date",
+        onConflict: "user_id,daily_problem_id,student_profile_id", // Actual unique constraint
         ignoreDuplicates: false, // Update if exists
       })
       .select();
@@ -186,10 +206,11 @@ export async function getDailyProblem(problemDate: string): Promise<DailyProblem
         return null;
       }
 
+      // Use 'date' column (NOT NULL, unique) instead of 'problem_date' (nullable)
       const { data, error } = await supabase
         .from("daily_problems")
         .select("*")
-        .eq("problem_date", problemDate)
+        .eq("date", problemDate)
         .single();
 
       if (error) {
@@ -213,7 +234,7 @@ export async function getDailyProblem(problemDate: string): Promise<DailyProblem
           type: data.problem_type as ProblemType,
           confidence: 1.0,
         },
-        date: data.problem_date,
+        date: data.date || data.problem_date, // Use 'date' if available, fallback to 'problem_date'
         difficulty: data.difficulty as "elementary" | "middle school" | "high school" | "advanced",
         topic: data.topic || data.problem_type.replace("_", " "),
       };
@@ -240,16 +261,19 @@ export async function saveDailyProblem(problemData: DailyProblemData): Promise<b
       return true;
     }
 
+    // Use 'date' column (NOT NULL, unique) as the primary key
+    // Also set 'problem_date' for backward compatibility
     const { error } = await supabase
       .from("daily_problems")
       .upsert({
-        problem_date: problemData.date,
+        date: problemData.date, // Primary key column
+        problem_date: problemData.date, // For backward compatibility
         problem_text: problemData.problem.text,
         problem_type: problemData.problem.type || "UNKNOWN",
         difficulty: problemData.difficulty,
         topic: problemData.topic,
       }, {
-        onConflict: "problem_date",
+        onConflict: "date", // Use 'date' as the conflict column (unique constraint)
         ignoreDuplicates: false,
       });
 

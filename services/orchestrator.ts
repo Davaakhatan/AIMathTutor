@@ -79,8 +79,10 @@ export async function onProblemCompleted(
     //   }
     // }
 
-    // 3. Emit event for other systems to respond
-    await eventBus.emit("problem_completed", userId, problemData, { profileId });
+    // 3. NOTE: Do NOT emit "problem_completed" event here - that would cause infinite recursion!
+    // The orchestrator is already listening to "problem_completed" events, so emitting here
+    // would cause this function to be called again, creating an infinite loop.
+    // Other systems should listen to the original event emission (from ProblemProgress, etc.)
 
     // 4. Check and update goals (Week 2) - IMPLEMENTED
     await checkGoalsForProblem(userId, problemData.problemType, profileId);

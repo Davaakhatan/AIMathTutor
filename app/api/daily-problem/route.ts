@@ -8,6 +8,7 @@ import { saveDailyProblem, getDailyProblem, DailyProblemData } from "@/services/
 import { getSupabaseServer } from "@/lib/supabase-server";
 import { logger } from "@/lib/logger";
 import { ProblemType } from "@/types";
+import eventBus from "@/lib/eventBus";
 
 /**
  * Generate a deterministic daily problem based on the date
@@ -168,10 +169,11 @@ export async function GET(request: NextRequest) {
       
       // Simplified query - just check if a record exists
       // Use count() for faster performance than selecting all fields
+      // Use 'date' column (NOT NULL) - completion table doesn't have 'problem_date'
       const query = supabase
         .from("daily_problems_completion")
         .select("id, problem_text, user_id", { count: 'exact', head: false })
-        .eq("problem_date", date)
+        .eq("date", date)
         .eq("user_id", userId)
         .limit(1);
       
@@ -259,11 +261,12 @@ export async function POST(request: NextRequest) {
         const supabase = getSupabaseServer();
         
         // First, check if record exists
+        // Use 'date' column (NOT NULL) - completion table doesn't have 'problem_date'
         let checkQuery = supabase
           .from("daily_problems_completion")
           .select("id")
           .eq("user_id", userId)
-          .eq("problem_date", date);
+          .eq("date", date);
 
         if (profileId && profileId !== "null") {
           checkQuery = checkQuery.eq("student_profile_id", profileId);
@@ -281,18 +284,42 @@ export async function POST(request: NextRequest) {
             .from("daily_problems_completion")
             .update({
               problem_text: problemText,
-              solved_at: new Date().toISOString(),
+              completed_at: new Date().toISOString(),
+              is_solved: true,
             })
             .eq("id", (existing as any).id)
             .select();
         } else {
           // Insert new record
           logger.debug("Inserting new completion");
+          
+          // CRITICAL: daily_problem_id is NOT NULL, so we must fetch it first
+          const { data: dailyProblemData, error: dailyProblemError } = await supabase
+            .from("daily_problems")
+            .select("id")
+            .eq("date", date)
+            .single();
+          
+          if (dailyProblemError || !dailyProblemData) {
+            logger.error("Failed to find daily problem for completion", { 
+              error: dailyProblemError, 
+              date, 
+              userId 
+            });
+            return NextResponse.json(
+              { success: false, error: "Daily problem not found for this date" },
+              { status: 404 }
+            );
+          }
+          
+          // Use 'date' column (NOT NULL) - completion table doesn't have 'problem_date'
           const insertData: any = {
             user_id: userId,
-            problem_date: date,
+            daily_problem_id: dailyProblemData.id, // REQUIRED: NOT NULL column
+            date: date, // Use 'date' column, not 'problem_date'
             problem_text: problemText,
-            solved_at: new Date().toISOString(),
+            completed_at: new Date().toISOString(),
+            is_solved: true,
           };
 
           if (profileId && profileId !== "null") {
@@ -326,7 +353,176 @@ export async function POST(request: NextRequest) {
         }
 
         logger.info("Daily problem marked as solved successfully", { date, userId, data, recordId: data?.[0]?.id });
-        return NextResponse.json({ success: true, data });
+        
+        // Award XP for daily problem completion
+        const effectiveProfileId = profileId && profileId !== "null" ? profileId : null;
+        try {
+          logger.debug("Attempting to award XP for daily problem", { userId, effectiveProfileId, date });
+          
+          // Use server client (has service role key if available, otherwise anon key)
+          const supabase = getSupabaseServer();
+          
+          // Fetch current XP directly using server client
+          let xpQuery = supabase
+            .from("xp_data")
+            .select("*")
+            .eq("user_id", userId);
+          
+          if (effectiveProfileId) {
+            xpQuery = xpQuery.eq("student_profile_id", effectiveProfileId);
+          } else {
+            xpQuery = xpQuery.is("student_profile_id", null);
+          }
+          
+          const { data: xpRows, error: xpFetchError } = await xpQuery;
+          
+          if (xpFetchError) {
+            logger.error("Error fetching XP data for award", { error: xpFetchError.message, userId });
+            throw new Error(`Failed to fetch XP data: ${xpFetchError.message}`);
+          }
+          
+          if (!xpRows || xpRows.length === 0) {
+            logger.warn("No XP data found for user, cannot award XP", { userId });
+            return NextResponse.json({ success: true, data, xpAwarded: null });
+          }
+          
+          const currentXP = {
+            total_xp: xpRows[0].total_xp || 0,
+            level: xpRows[0].level || 1,
+            xp_to_next_level: xpRows[0].xp_to_next_level || 100,
+            xp_history: (xpRows[0].xp_history as any) || [],
+          };
+          
+          logger.debug("XP data fetched", { 
+            totalXP: currentXP.total_xp, 
+            level: currentXP.level,
+            historyCount: currentXP.xp_history.length
+          });
+          
+          if (currentXP) {
+            // Daily problems are worth 30 XP (same as word problems)
+            const xpGained = 30;
+            const newTotalXP = currentXP.total_xp + xpGained;
+            
+            // Calculate new level (same formula as XPSystem)
+            const calculateLevel = (totalXP: number): number => {
+              let level = 1;
+              let xpNeeded = 0;
+              while (xpNeeded <= totalXP) {
+                xpNeeded += Math.round(100 * (level - 1) * 1.5 + 100);
+                if (xpNeeded <= totalXP) {
+                  level++;
+                }
+              }
+              return level;
+            };
+            
+            const newLevel = calculateLevel(newTotalXP);
+            const xpForNextLevel = Math.round(100 * (newLevel - 1) * 1.5 + 100);
+            const xpInCurrentLevel = newTotalXP - (newLevel > 1 ? Array.from({ length: newLevel - 1 }, (_, i) => 
+              Math.round(100 * i * 1.5 + 100)
+            ).reduce((a, b) => a + b, 0) : 0);
+            const xpToNextLevel = Math.max(0, xpForNextLevel - xpInCurrentLevel);
+            
+            const today = new Date().toISOString().split("T")[0];
+            const todayHistory = currentXP.xp_history?.find((h: any) => h.date === today);
+            
+            // Update XP directly using server client
+            // Add a new entry to xp_history instead of modifying existing one (cleaner)
+            const updatedXPHistory = [
+              ...(currentXP.xp_history || []),
+              { date: today, xp: xpGained, reason: "Problem of the Day solved" }
+            ];
+            
+            let updateQuery = supabase
+              .from("xp_data")
+              .update({
+                total_xp: newTotalXP,
+                level: newLevel,
+                xp_to_next_level: xpToNextLevel,
+                xp_history: updatedXPHistory,
+                updated_at: new Date().toISOString(),
+              })
+              .eq("user_id", userId);
+            
+            if (effectiveProfileId) {
+              updateQuery = updateQuery.eq("student_profile_id", effectiveProfileId);
+            } else {
+              updateQuery = updateQuery.is("student_profile_id", null);
+            }
+            
+            const { error: updateError } = await updateQuery;
+            
+            if (updateError) {
+              logger.error("Failed to update XP data directly", { 
+                error: updateError.message, 
+                errorCode: updateError.code,
+                userId, 
+                effectiveProfileId 
+              });
+              throw new Error(`Failed to update XP data: ${updateError.message}`);
+            }
+            
+            logger.info("XP update successful", { userId, xpGained, newTotalXP, newLevel });
+            
+            logger.info("XP awarded for daily problem completion", { 
+              userId, 
+              xpGained, 
+              newTotalXP, 
+              newLevel,
+              date 
+            });
+            
+            // Return XP information in response so frontend can show toast
+            return NextResponse.json({ 
+              success: true, 
+              data,
+              xpAwarded: {
+                xpGained,
+                newTotalXP,
+                newLevel,
+                leveledUp: newLevel > currentXP.level
+              }
+            });
+          } else {
+            // No XP data found - return success but no XP info
+            logger.warn("No XP data found for user, cannot award XP", { userId });
+            return NextResponse.json({ success: true, data, xpAwarded: null });
+          }
+        } catch (xpError) {
+          // Log full error details for debugging
+          logger.error("Failed to award XP for daily problem", { 
+            error: xpError instanceof Error ? xpError.message : String(xpError),
+            errorStack: xpError instanceof Error ? xpError.stack : undefined,
+            errorDetails: xpError,
+            userId, 
+            date,
+            effectiveProfileId
+          });
+          // Still return success for the completion, just without XP info
+          // Frontend will handle missing xpAwarded gracefully
+          return NextResponse.json({ success: true, data, xpAwarded: null, xpError: "XP award failed - check logs" });
+        }
+        
+        // Emit problem_completed event for other orchestration (goals, challenges, etc.)
+        try {
+          await eventBus.emit("problem_completed", userId, {
+            problemText: problemText,
+            problemType: "WORD_PROBLEM", // Daily problems are typically word problems
+            difficulty: "middle school", // Default difficulty for daily problems
+            hintsUsed: 0,
+            timeSpent: 0,
+            profileId: effectiveProfileId,
+          });
+          logger.debug("Problem completed event emitted for daily problem", { userId, date });
+        } catch (eventError) {
+          // Don't fail the request if event emission fails
+          logger.warn("Failed to emit problem_completed event for daily problem", { 
+            error: eventError, 
+            userId, 
+            date 
+          });
+        }
       } catch (err) {
         logger.error("Exception marking daily problem as solved", { error: err, date, userId });
         return NextResponse.json(

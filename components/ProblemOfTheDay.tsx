@@ -4,6 +4,8 @@ import { useState, useEffect } from "react";
 import { ParsedProblem, ProblemType } from "@/types";
 import { useAuth } from "@/contexts/AuthContext";
 import { isDailyProblemSolved, markDailyProblemSolved, getDailyProblem, type DailyProblemData } from "@/services/dailyProblemService";
+import { useToast } from "@/hooks/useToast";
+import Toast from "@/components/Toast";
 
 interface ProblemOfTheDayProps {
   onProblemSelected: (problem: ParsedProblem) => void;
@@ -28,6 +30,7 @@ export default function ProblemOfTheDay({
   apiKey 
 }: ProblemOfTheDayProps) {
   const { user, activeProfile } = useAuth();
+  const { toasts, showToast, removeToast } = useToast();
   
   // Get today's date in YYYY-MM-DD format
   const getTodayDate = () => {
@@ -518,12 +521,65 @@ export default function ProblemOfTheDay({
           problemText: dailyProblem.problem.text,
         }),
       })
-        .then((response) => response.json())
+        .then(async (response) => {
+          const data = await response.json();
+          console.log("[ProblemOfTheDay] API response received:", { 
+            success: data.success, 
+            hasXpAwarded: !!data.xpAwarded, 
+            xpAwarded: data.xpAwarded,
+            xpError: data.xpError,
+            fullResponse: data
+          });
+          return data;
+        })
         .then((data) => {
           if (data.success) {
-            console.log("[ProblemOfTheDay] ✅ Saved to database!");
+            console.log("[ProblemOfTheDay] ✅ Saved to database!", { xpAwarded: data.xpAwarded, xpError: data.xpError });
+            
+            // Show XP gain toast if XP was awarded
+            if (data.xpAwarded && data.xpAwarded.xpGained) {
+              const { xpGained, newLevel, leveledUp } = data.xpAwarded;
+              console.log("[ProblemOfTheDay] Showing XP toast:", { xpGained, newLevel, leveledUp });
+              
+              // Play XP gain sound
+              if (typeof window !== "undefined") {
+                import("@/lib/soundEffects").then(({ playXPGain, playLevelUp }) => {
+                  if (leveledUp) {
+                    playLevelUp();
+                    setTimeout(() => playXPGain(), 500);
+                  } else {
+                    playXPGain();
+                  }
+                }).catch((err) => {
+                  console.warn("[ProblemOfTheDay] Sound effects not available:", err);
+                  // Sound effects not available - continue without sound
+                });
+              }
+              
+              // Show toast notification
+              if (leveledUp) {
+                console.log("[ProblemOfTheDay] Showing level up toast");
+                showToast(`🎉 Level Up! You reached Level ${newLevel}!`, "success");
+                setTimeout(() => {
+                  console.log("[ProblemOfTheDay] Showing XP gain toast");
+                  showToast(`+${xpGained} XP - Problem of the Day solved!`, "success");
+                }, 2000);
+              } else {
+                console.log("[ProblemOfTheDay] Showing XP gain toast (no level up)");
+                showToast(`+${xpGained} XP - Problem of the Day solved!`, "success");
+              }
+            } else if (data.xpError) {
+              // XP award failed but completion was saved
+              console.warn("[ProblemOfTheDay] Completion saved but XP award failed:", data.xpError);
+              showToast("Problem completed! (XP award failed - check console)", "warning");
+            } else {
+              // No XP info - completion saved but no XP awarded
+              console.log("[ProblemOfTheDay] Completion saved (no XP info)", { data });
+              showToast("Problem of the Day completed!", "success");
+            }
           } else {
             console.error("[ProblemOfTheDay] ❌ Save failed:", data.error);
+            showToast("Failed to save completion. Please try again.", "error");
             // Revert on error
             setIsSolved(false);
             setDailyProblem((prev) => prev ? {
@@ -997,6 +1053,17 @@ export default function ProblemOfTheDay({
           )}
         </button>
       </div>
+      
+      {/* Toast Notifications */}
+      {toasts.map((toast) => (
+        <Toast
+          key={toast.id}
+          message={toast.message}
+          type={toast.type}
+          duration={toast.duration}
+          onClose={() => removeToast(toast.id)}
+        />
+      ))}
     </div>
   );
 }

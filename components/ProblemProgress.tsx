@@ -2,6 +2,7 @@
 
 import { Message, ParsedProblem } from "@/types";
 import { useState, useRef, useEffect } from "react";
+import { useRouter } from "next/navigation";
 import { useConceptTracking } from "@/hooks/useConceptTracking";
 import { useDifficultyTracking } from "@/hooks/useDifficultyTracking";
 import { DifficultyLevel } from "@/services/difficultyTracker";
@@ -20,6 +21,7 @@ interface ProblemProgressProps {
  * Based on conversation length and hints used
  */
 export default function ProblemProgress({ messages, problem, difficultyMode = "middle", userId, profileId }: ProblemProgressProps) {
+  const router = useRouter();
   const [showDetails, setShowDetails] = useState(false);
   
   const userMessages = messages.filter(m => m.role === "user");
@@ -389,8 +391,8 @@ export default function ProblemProgress({ messages, problem, difficultyMode = "m
                 console.error("Error clearing session:", error);
               }
               
-              // Navigate to home page with a fresh start
-              window.location.href = "/";
+              // Navigate to home page using Next.js router (avoids webpack errors)
+              router.push("/");
             }}
             className="w-full py-2 px-4 bg-gray-900 dark:bg-gray-700 hover:bg-gray-800 dark:hover:bg-gray-600 text-white rounded-lg transition-all duration-200 font-medium text-sm flex items-center justify-center gap-2"
           >
