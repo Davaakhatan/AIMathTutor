@@ -34,77 +34,135 @@ export async function onProblemCompleted(
 
     const profileId = problemData.profileId || null;
 
-    // DISABLED: XP/Streak updates are handled by XPSystem component
-    // The orchestrator should NOT duplicate these updates
-    // 
-    // // 1. Update XP
-    // const currentXP = await getXPData(userId, profileId);
-    // if (currentXP) {
-    //   const xpGained = calculateXPForProblem(problemData.difficulty, problemData.hintsUsed);
-    //   const newTotalXP = currentXP.total_xp + xpGained;
-    //   const newLevel = calculateLevel(newTotalXP);
-    //
-    //   await updateXPData(userId, {
-    //     total_xp: newTotalXP,
-    //     level: newLevel,
-    //     xp_history: [
-    //       ...(currentXP.xp_history || []),
-    //       {
-    //         date: new Date().toISOString(),
-    //         xp: xpGained,
-    //         reason: `Solved ${problemData.problemType} problem`,
-    //       },
-    //     ],
-    //   }, profileId);
-    //
-    //   logger.info("XP updated for problem completion", { userId, xpGained, newLevel });
-    // }
-    //
-    // // 2. Update Streak
-    // const today = new Date().toISOString().split("T")[0];
-    // const currentStreak = await getStreakData(userId, profileId);
-    // if (currentStreak) {
-    //   const lastStudyDate = currentStreak.last_study_date;
-    //   const shouldIncrementStreak = !lastStudyDate || lastStudyDate !== today;
-    //
-    //   if (shouldIncrementStreak) {
-    //     const newStreak = (currentStreak.current_streak || 0) + 1;
-    //     await updateStreakData(userId, {
-    //       current_streak: newStreak,
-    //       longest_streak: Math.max(newStreak, currentStreak.longest_streak || 0),
-    //       last_study_date: today,
-    //     }, profileId);
-    //
-    //     logger.info("Streak updated for problem completion", { userId, newStreak });
-    //   }
-    // }
+    // 1. Update XP (re-enabled because XPSystem detection is unreliable)
+    try {
+      const currentXP = await getXPData(userId, profileId);
+      if (currentXP) {
+        // Check if XP was already awarded for this problem today
+        const today = new Date().toISOString().split("T")[0];
+        const todayHistory = (currentXP.xp_history || []).find((h: any) => h.date === today);
+        const problemAlreadyAwarded = todayHistory?.reason?.includes(problemData.problemText.substring(0, 30));
+        
+        if (!problemAlreadyAwarded) {
+          const xpGained = calculateXPForProblem(problemData.difficulty, problemData.hintsUsed);
+          const newTotalXP = currentXP.total_xp + xpGained;
+          const newLevel = calculateLevel(newTotalXP);
+          const xpToNextLevel = calculateXPForLevel(newLevel + 1) - newTotalXP;
+
+          // Update XP history - always add a new entry for problem completion
+          const updatedHistory = [
+            ...(currentXP.xp_history || []),
+            {
+              date: today,
+              xp: xpGained,
+              reason: `Solved ${problemData.problemType} problem`,
+            },
+          ];
+
+          await updateXPData(userId, {
+            total_xp: newTotalXP,
+            level: newLevel,
+            xp_to_next_level: xpToNextLevel,
+            xp_history: updatedHistory,
+          }, profileId);
+
+          logger.info("XP updated for problem completion", { userId, xpGained, newLevel, newTotalXP });
+        } else {
+          logger.debug("XP already awarded for this problem today", { userId, problemText: problemData.problemText.substring(0, 30) });
+        }
+      }
+    } catch (error) {
+      logger.error("Error updating XP for problem completion", { error, userId });
+      // Don't fail the whole orchestration if this fails
+    }
+
+    // 2. Update Streak
+    try {
+      const today = new Date().toISOString().split("T")[0];
+      const currentStreak = await getStreakData(userId, profileId);
+      if (currentStreak) {
+        const lastStudyDate = currentStreak.last_study_date;
+        const shouldIncrementStreak = !lastStudyDate || lastStudyDate !== today;
+
+        if (shouldIncrementStreak) {
+          const newStreak = (currentStreak.current_streak || 0) + 1;
+          await updateStreakData(userId, {
+            current_streak: newStreak,
+            longest_streak: Math.max(newStreak, currentStreak.longest_streak || 0),
+            last_study_date: today,
+          }, profileId);
+
+          logger.info("Streak updated for problem completion", { userId, newStreak });
+        }
+      }
+    } catch (error) {
+      logger.error("Error updating streak for problem completion", { error, userId });
+      // Don't fail the whole orchestration if this fails
+    }
 
     // 3. Mark problem as solved in database (update solved_at)
     try {
-      const { updateProblem } = await import("@/services/supabaseDataService");
+      const { updateProblem, getProblems } = await import("@/services/supabaseDataService");
       // Find the problem by text and user_id to update it
-      const { getProblems } = await import("@/services/supabaseDataService");
       const problems = await getProblems(userId, 100, profileId);
-      const matchingProblem = problems.find(p => 
+      
+      // Try exact match first
+      let matchingProblem = problems.find(p => 
         p.text === problemData.problemText || 
         p.text.trim() === problemData.problemText.trim()
       );
       
-      if (matchingProblem && matchingProblem.id) {
-        // Update the problem to mark it as solved
-        await updateProblem(userId, matchingProblem.id, {
-          solved_at: new Date().toISOString(),
-        });
-        logger.info("Problem marked as solved in database", { 
-          userId, 
-          problemId: matchingProblem.id,
+      // If no exact match, try fuzzy match (first 50 characters)
+      if (!matchingProblem) {
+        const problemTextStart = problemData.problemText.substring(0, 50).trim();
+        matchingProblem = problems.find(p => 
+          p.text.substring(0, 50).trim() === problemTextStart
+        );
+      }
+      
+      // If still no match, try finding the most recent unsolved problem
+      if (!matchingProblem) {
+        const unsolvedProblems = problems
+          .filter(p => !p.solved_at)
+          .sort((a, b) => {
+            // Use created_at from the database result (it's included in getProblems)
+            const aTime = new Date(a.created_at || 0).getTime();
+            const bTime = new Date(b.created_at || 0).getTime();
+            return bTime - aTime; // Most recent first
+          });
+        matchingProblem = unsolvedProblems[0]; // Use most recent unsolved problem
+        logger.debug("Using most recent unsolved problem as fallback", {
+          userId,
+          problemId: matchingProblem?.id,
           problemText: problemData.problemText.substring(0, 50)
         });
+      }
+      
+      if (matchingProblem && matchingProblem.id) {
+        // Check if already solved
+        if (matchingProblem.solved_at) {
+          logger.debug("Problem already marked as solved", {
+            userId,
+            problemId: matchingProblem.id,
+            solvedAt: matchingProblem.solved_at
+          });
+        } else {
+          // Update the problem to mark it as solved
+          await updateProblem(userId, matchingProblem.id, {
+            solved_at: new Date().toISOString(),
+          });
+          logger.info("Problem marked as solved in database", { 
+            userId, 
+            problemId: matchingProblem.id,
+            problemText: problemData.problemText.substring(0, 50)
+          });
+        }
       } else {
-        logger.debug("Problem not found in database to mark as solved", { 
+        logger.warn("Problem not found in database to mark as solved", { 
           userId, 
           problemText: problemData.problemText.substring(0, 50),
-          problemsCount: problems.length
+          problemsCount: problems.length,
+          allProblemTexts: problems.map(p => p.text.substring(0, 30))
         });
       }
     } catch (error) {
@@ -266,6 +324,15 @@ function calculateLevel(totalXP: number): number {
   }
 
   return level;
+}
+
+/**
+ * Calculate XP needed for a specific level
+ */
+function calculateXPForLevel(level: number): number {
+  // Level 1: 100, Level 2: 250, Level 3: 450, etc.
+  // Formula: base * (level - 1) * 1.5 + base
+  return Math.round(100 * (level - 1) * 1.5 + 100);
 }
 
 // Track if orchestrator is already initialized to prevent duplicate listeners

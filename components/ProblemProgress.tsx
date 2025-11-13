@@ -294,15 +294,45 @@ export default function ProblemProgress({ messages, problem, difficultyMode = "m
       // Problem just became solved - emit event to orchestrator
       console.log("🎉 Problem solved! Emitting completion event", { userId, problemType: problem.type });
       
+      // Map difficultyMode to difficulty string
+      const difficultyMap: Record<string, string> = {
+        "elementary": "elementary",
+        "middle": "middle",
+        "high": "high",
+        "advanced": "advanced",
+      };
+      const difficulty = (problem as any).difficulty || difficultyMap[difficultyMode] || "middle";
+      
+      const problemData = {
+        problemText: problem.text || "",
+        problemType: problem.type || "unknown",
+        difficulty: difficulty,
+        hintsUsed: hintsUsed, // Use actual hints count
+        timeSpent: 0, // TODO: Track from session start
+        profileId: profileId,
+      };
+      
+      // Emit via eventBus (for orchestrator)
       import("@/lib/eventBus").then(({ default: eventBus }) => {
-        eventBus.emit("problem_completed", userId, {
-          problemText: problem.text || "",
-          problemType: problem.type || "unknown",
-          difficulty: (problem as any).difficulty || "unknown",
-          hintsUsed: 0, // TODO: Track from state
-          timeSpent: 0, // TODO: Track from session start
-          profileId: profileId,
+        eventBus.emit("problem_completed", userId, problemData).catch((error) => {
+          console.error("[ProblemProgress] Error emitting problem_completed event:", error);
         });
+      }).catch((error) => {
+        console.error("[ProblemProgress] Error importing eventBus:", error);
+      });
+      
+      // Also dispatch window event as fallback (for other components)
+      window.dispatchEvent(new CustomEvent("problem_completed", {
+        detail: { userId, ...problemData }
+      }));
+      
+      // Directly call orchestrator as backup if eventBus fails
+      import("@/services/orchestrator").then(({ onProblemCompleted }) => {
+        onProblemCompleted(userId, problemData).catch((error) => {
+          console.error("[ProblemProgress] Error calling orchestrator directly:", error);
+        });
+      }).catch((error) => {
+        console.error("[ProblemProgress] Error importing orchestrator:", error);
       });
     }
     

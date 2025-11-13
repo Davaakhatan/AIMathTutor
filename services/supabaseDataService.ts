@@ -647,6 +647,7 @@ export interface ProblemData {
   is_generated?: boolean;
   source?: string;
   solved_at?: string;
+  created_at?: string;
   attempts?: number;
   hints_used?: number;
   time_spent?: number;
