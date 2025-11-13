@@ -17,7 +17,7 @@ function getOpenAIClient(providedApiKey?: string): OpenAI {
     // In production, provide a helpful error message
     const isProduction = process.env.NODE_ENV === "production";
     const errorMessage = isProduction
-      ? "OpenAI API key is not configured. Please add OPENAI_API_KEY to your AWS Amplify environment variables. Go to: Amplify Console → App Settings → Environment Variables → Add OPENAI_API_KEY. Then redeploy the app. Alternatively, you can enter your API key in Settings."
+      ? "OpenAI API key is not configured. Please add OPENAI_API_KEY to your deployment platform environment variables:\n\nFor Vercel: Project Settings → Environment Variables → Add OPENAI_API_KEY\nFor AWS Amplify: App Settings → Environment Variables → Add OPENAI_API_KEY\n\nThen redeploy the app. Alternatively, you can enter your API key in Settings."
       : "OPENAI API key is not set. Please:\n1. Create/update .env.local with: OPENAI_API_KEY=sk-your-key\n2. Restart your dev server (Next.js requires restart to load .env.local)\n3. Or enter your API key in Settings panel.";
     
     throw new Error(errorMessage);

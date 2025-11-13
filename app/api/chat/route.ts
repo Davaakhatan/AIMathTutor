@@ -118,7 +118,7 @@ export async function POST(request: NextRequest) {
       return NextResponse.json(
         {
           success: false,
-          error: "OpenAI API key is not configured. Please:\n1. Add OPENAI_API_KEY to your .env.local file\n2. Restart your dev server\n3. Or enter a valid API key in Settings (must start with 'sk-' or 'sk-proj-').",
+          error: "OpenAI API key is not configured. Please:\n1. Add OPENAI_API_KEY to your deployment platform (Vercel: Project Settings → Environment Variables, or .env.local for local dev)\n2. Redeploy/restart your server\n3. Or enter a valid API key in Settings (must start with 'sk-' or 'sk-proj-').",
         } as ChatResponse,
         { status: 500 }
       );
