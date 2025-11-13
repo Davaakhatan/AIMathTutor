@@ -16,6 +16,12 @@ export async function GET() {
     const apiKeyLength = process.env.OPENAI_API_KEY?.length || 0;
     const apiKeyPrefix = process.env.OPENAI_API_KEY?.substring(0, 3) || "N/A";
     
+    // Check Supabase configuration
+    const supabaseUrl = !!process.env.NEXT_PUBLIC_SUPABASE_URL;
+    const supabaseAnonKey = !!process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
+    const supabaseServiceKey = !!process.env.SUPABASE_SERVICE_ROLE_KEY;
+    const supabaseConfigured = supabaseUrl && supabaseAnonKey && supabaseServiceKey;
+    
     // Basic OpenAI API check (lightweight)
     let openaiAvailable = false;
     let openaiError: string | null = null;
@@ -26,6 +32,25 @@ export async function GET() {
     } catch (error) {
       openaiAvailable = false;
       openaiError = error instanceof Error ? error.message : "Unknown error";
+    }
+
+    // Check Supabase connection (lightweight test)
+    let supabaseConnectionTest = false;
+    let supabaseError: string | null = null;
+    if (supabaseConfigured) {
+      try {
+        const { getSupabaseServer } = await import("@/lib/supabase-server");
+        const supabase = getSupabaseServer();
+        // Try a simple query to test connection
+        const { error } = await supabase.from("profiles").select("id").limit(1);
+        supabaseConnectionTest = !error;
+        if (error) {
+          supabaseError = error.message;
+        }
+      } catch (error) {
+        supabaseConnectionTest = false;
+        supabaseError = error instanceof Error ? error.message : "Unknown error";
+      }
     }
 
     const health = {
@@ -40,12 +65,18 @@ export async function GET() {
         apiKeyLength: apiKeyLength,
         apiKeyPrefix: apiKeyPrefix, // For debugging (safe to expose first 3 chars)
         openaiError: openaiError,
+        supabaseConfigured: supabaseConfigured,
+        supabaseUrl: supabaseUrl,
+        supabaseAnonKey: supabaseAnonKey,
+        supabaseServiceKey: supabaseServiceKey,
+        supabaseConnectionTest: supabaseConnectionTest,
+        supabaseError: supabaseError,
       },
       version: "1.0.0",
     };
 
     // Return 200 if healthy, 503 if unhealthy
-    const statusCode = health.environment.envVarsValid && health.environment.openaiConfigured 
+    const statusCode = health.environment.envVarsValid && health.environment.openaiConfigured && health.environment.supabaseConfigured
       ? 200 
       : 503;
 
