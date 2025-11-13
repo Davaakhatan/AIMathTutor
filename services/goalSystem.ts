@@ -54,14 +54,12 @@ export async function createGoal(
       student_profile_id: goalData.profileId,
       goal_type: goalData.goalType,
       target_subject: goalData.targetSubject,
-      target_date: goalData.targetDate || null,
+      target_date: goalData.targetDate ? goalData.targetDate.split('T')[0] : null, // Convert to date format
       status: "active",
       progress: 0,
       target_problems: goalData.targetProblems || 10,
       problems_completed: 0,
       metadata: {},
-      created_at: new Date().toISOString(),
-      updated_at: new Date().toISOString(),
     };
 
     const { data, error } = await supabase

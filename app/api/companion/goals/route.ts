@@ -104,8 +104,9 @@ export async function POST(request: NextRequest) {
     });
 
     if (!goal) {
+      logger.error("createGoal returned null", { userId, profileId, goal_type, target_subject });
       return NextResponse.json(
-        { error: "Failed to create goal" },
+        { error: "Failed to create goal. Check server logs for details." },
         { status: 500 }
       );
     }

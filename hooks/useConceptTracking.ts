@@ -6,6 +6,7 @@ import {
   updateConceptMastery,
   ConceptTrackingData,
 } from "@/services/conceptTracker";
+import { logger } from "@/lib/logger";
 
 /**
  * Hook to track concept mastery when problems are solved
@@ -25,6 +26,12 @@ export function useConceptTracking(
 
     // Extract concepts from problem
     const concepts = extractConcepts(problem);
+    logger.info("Problem solved - extracting concepts", {
+      problemText: problem.text?.substring(0, 100),
+      problemType: problem.type,
+      extractedConcepts: concepts,
+      conceptsCount: concepts.length,
+    });
 
     // Count hints used
     const hintsUsed = messages.filter(
@@ -54,9 +61,24 @@ export function useConceptTracking(
 
     // Only update if we actually tracked concepts
     if (concepts.length > 0) {
+      logger.debug("Updating concept mastery", {
+        concepts,
+        conceptsCount: concepts.length,
+        hintsUsed,
+        timeSpent,
+      });
       setConceptData({
         concepts: updatedConcepts,
         lastUpdated: Date.now(),
+      });
+      // Dispatch event to notify other components (like LearningPath)
+      window.dispatchEvent(new CustomEvent("concept_data_updated", {
+        detail: { concepts, lastUpdated: Date.now() }
+      }));
+    } else {
+      logger.debug("No concepts extracted from problem", {
+        problemText: problem.text?.substring(0, 50),
+        problemType: problem.type,
       });
     }
   }, [isSolved, problem?.text]); // Only run when problem is solved or problem changes

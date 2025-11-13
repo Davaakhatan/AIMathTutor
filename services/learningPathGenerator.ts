@@ -31,6 +31,8 @@ export interface LearningPath {
   createdAt: number;
   lastUpdated: number;
   progress: number; // 0-100
+  status?: "active" | "completed" | "archived"; // Path status
+  completedAt?: number; // Timestamp when path was completed
 }
 
 /**
@@ -130,12 +132,127 @@ const CONCEPT_SEQUENCES: Record<string, {
 };
 
 /**
- * Generate a learning path for a given goal
+ * Generate a learning path for a given goal using AI
  */
-export function generateLearningPath(
+export async function generateLearningPath(
   goal: string,
   conceptData?: ConceptTrackingData,
   apiKey?: string
+): Promise<LearningPath> {
+  // Try AI generation first
+  try {
+    const aiPath = await generateLearningPathWithAI(goal, conceptData, apiKey);
+    if (aiPath) {
+      return aiPath;
+    }
+  } catch (error) {
+    logger.warn("AI learning path generation failed, falling back to hardcoded logic", {
+      error: error instanceof Error ? error.message : String(error),
+    });
+  }
+
+  // Fallback to hardcoded logic if AI fails
+  return generateLearningPathHardcoded(goal, conceptData);
+}
+
+/**
+ * Generate learning path using AI
+ */
+async function generateLearningPathWithAI(
+  goal: string,
+  conceptData?: ConceptTrackingData,
+  apiKey?: string
+): Promise<LearningPath | null> {
+  try {
+    const response = await fetch("/api/learning-paths/generate", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({
+        goal,
+        conceptData,
+        apiKey,
+      }),
+    });
+
+    if (!response.ok) {
+      const errorData = await response.json().catch(() => ({}));
+      throw new Error(errorData.error || `API returned ${response.status}`);
+    }
+
+    const data = await response.json();
+    if (!data.success || !data.path) {
+      throw new Error("Invalid response from AI path generator");
+    }
+
+    const aiPath = data.path;
+    const steps: LearningPathStep[] = [];
+
+    // Convert AI response to LearningPathStep format
+    aiPath.targetConcepts.forEach((concept: any, index: number) => {
+      const mastery = conceptData?.concepts?.[concept.conceptId]?.masteryLevel || 0;
+      const isCompleted = mastery >= 70;
+
+      steps.push({
+        id: `step-${concept.conceptId}-${index}`,
+        stepNumber: index + 1,
+        conceptId: concept.conceptId,
+        conceptName: concept.conceptName || formatConceptName(concept.conceptId),
+        difficulty: concept.difficulty || "middle school",
+        problemType: Array.isArray(concept.problemTypes) && concept.problemTypes.length > 0
+          ? concept.problemTypes[0]
+          : ProblemType.ALGEBRA,
+        description: concept.description || `Learn ${concept.conceptName || concept.conceptId}`,
+        prerequisites: Array.isArray(concept.prerequisites) ? concept.prerequisites : [],
+        completed: isCompleted,
+        completedAt: isCompleted ? Date.now() : undefined,
+      });
+    });
+
+    // Build dependency-ordered sequence (topological sort)
+    const sortedSteps = topologicalSortSteps(steps);
+
+    // Calculate progress
+    const completedSteps = sortedSteps.filter(s => s.completed).length;
+    const progress = sortedSteps.length > 0 ? (completedSteps / sortedSteps.length) * 100 : 0;
+
+    // Find current step
+    const currentStepIndex = sortedSteps.findIndex(s => !s.completed);
+    const currentStep = currentStepIndex >= 0 ? currentStepIndex : sortedSteps.length - 1;
+
+    const path: LearningPath = {
+      id: `path-${Date.now()}`,
+      goal: aiPath.goal || goal,
+      targetConcepts: sortedSteps.map(s => s.conceptId),
+      steps: sortedSteps,
+      currentStep,
+      createdAt: Date.now(),
+      lastUpdated: Date.now(),
+      progress: Math.round(progress),
+    };
+
+    logger.info("Generated learning path with AI", {
+      goal,
+      stepsCount: sortedSteps.length,
+      progress,
+    });
+
+    return path;
+  } catch (error) {
+    logger.error("Error generating learning path with AI", {
+      error: error instanceof Error ? error.message : String(error),
+    });
+    return null;
+  }
+}
+
+/**
+ * Generate learning path using hardcoded logic (fallback)
+ */
+function generateLearningPathHardcoded(
+  goal: string,
+  conceptData?: ConceptTrackingData
 ): LearningPath {
   // Extract target concepts from goal
   const targetConcepts = extractConceptsFromGoal(goal);
@@ -162,7 +279,7 @@ export function generateLearningPath(
     progress: Math.round(progress),
   };
   
-  logger.info("Generated learning path", {
+  logger.info("Generated learning path (hardcoded fallback)", {
     goal,
     targetConcepts,
     stepsCount: steps.length,
@@ -170,6 +287,39 @@ export function generateLearningPath(
   });
   
   return path;
+}
+
+/**
+ * Topological sort for steps based on prerequisites
+ */
+function topologicalSortSteps(steps: LearningPathStep[]): LearningPathStep[] {
+  const visited = new Set<string>();
+  const result: LearningPathStep[] = [];
+  const stepMap = new Map<string, LearningPathStep>();
+  
+  // Create map for quick lookup
+  steps.forEach(step => stepMap.set(step.conceptId, step));
+
+  function visit(conceptId: string) {
+    if (visited.has(conceptId)) return;
+    
+    const step = stepMap.get(conceptId);
+    if (!step) return;
+
+    // Visit prerequisites first
+    step.prerequisites.forEach(prereq => visit(prereq));
+    
+    // Then visit this step
+    if (!result.find(s => s.conceptId === conceptId)) {
+      visited.add(conceptId);
+      result.push(step);
+    }
+  }
+
+  // Visit all steps
+  steps.forEach(step => visit(step.conceptId));
+
+  return result;
 }
 
 /**
@@ -366,6 +516,8 @@ export async function getNextProblemForStep(
       body: JSON.stringify({
         type: step.problemType,
         difficulty: step.difficulty,
+        conceptId: step.conceptId, // Pass concept ID to ensure problem matches
+        conceptName: step.conceptName, // Pass concept name for better prompts
         ...(apiKey && { apiKey }),
       }),
     });

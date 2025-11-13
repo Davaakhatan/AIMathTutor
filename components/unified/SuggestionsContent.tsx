@@ -34,6 +34,19 @@ export default function SuggestionsContent({ onSelectProblem }: SuggestionsConte
   const [suggestions, setSuggestions] = useState<ProblemType[]>([]);
   const [isGenerating, setIsGenerating] = useState(false);
 
+  // Helper function to normalize problem type (handle case inconsistencies)
+  const normalizeType = (type: string | undefined): ProblemType => {
+    if (!type) return ProblemType.UNKNOWN;
+    const normalized = type.toLowerCase().trim();
+    // Map common variations to enum values (after lowercasing, so we only check lowercase)
+    if (normalized === "arithmetic") return ProblemType.ARITHMETIC;
+    if (normalized === "algebra") return ProblemType.ALGEBRA;
+    if (normalized === "geometry") return ProblemType.GEOMETRY;
+    if (normalized === "word_problem" || normalized === "word problem") return ProblemType.WORD_PROBLEM;
+    if (normalized === "multi_step" || normalized === "multi-step") return ProblemType.MULTI_STEP;
+    return ProblemType.UNKNOWN;
+  };
+
   // Calculate suggestions based on learning history
   useEffect(() => {
     if (savedProblems.length === 0) {
@@ -42,11 +55,12 @@ export default function SuggestionsContent({ onSelectProblem }: SuggestionsConte
       return;
     }
 
-    // Count problems by type
+    // Count problems by type (normalized)
     const problemsByType: Record<string, number> = {};
     savedProblems.forEach((p) => {
-      const type = p.type || "UNKNOWN";
-      problemsByType[type] = (problemsByType[type] || 0) + 1;
+      const normalizedType = normalizeType(p.type);
+      const typeKey = normalizedType; // Use enum value as key
+      problemsByType[typeKey] = (problemsByType[typeKey] || 0) + 1;
     });
 
     // Find types with least practice
@@ -211,9 +225,13 @@ export default function SuggestionsContent({ onSelectProblem }: SuggestionsConte
                       {typeLabels[type] || type}
                     </p>
                     <p className="text-xs text-gray-600 dark:text-gray-400 mt-0.5 transition-colors">
-                      {savedProblems.filter((p) => p.type === type).length === 0
-                        ? "Not practiced yet"
-                        : `${savedProblems.filter((p) => p.type === type).length} problem${savedProblems.filter((p) => p.type === type).length === 1 ? "" : "s"} solved`}
+                      {(() => {
+                        const normalizedType = normalizeType(type);
+                        const count = savedProblems.filter((p) => normalizeType(p.type) === normalizedType).length;
+                        return count === 0
+                          ? "Not practiced yet"
+                          : `${count} problem${count === 1 ? "" : "s"} solved`;
+                      })()}
                     </p>
                   </div>
                   {isGenerating ? (

@@ -63,6 +63,15 @@ const CONCEPT_PATTERNS: Record<string, { patterns: RegExp[]; category: string }>
       /area\s+of\s+(circle|circle's?)/i,
       /πr\^2|πr²|pi\s*r\s*\^2/i,
       /radius.*area|area.*radius/i,
+      // Match circle area problems even when "circle" isn't explicitly mentioned
+      // Look for area calculations that result in decimal values (common for π calculations)
+      /area.*(?:is|equals?|=\s*)\s*\d+\.\d+/i,
+      /(?:is|equals?|=\s*)\s*\d+\.\d+\s+square\s+(?:meters?|feet|units?)/i,
+      // Match problems mentioning π (pi) in the solution or problem
+      /(?:using|with|π|pi).*area|area.*(?:using|with|π|pi)/i,
+      // Match garden/field problems that mention area with decimal results (likely circles)
+      /(?:garden|field|plot|region|circle).*area.*\d+\.\d+/i,
+      /area.*(?:garden|field|plot|region).*\d+\.\d+/i,
     ],
     category: "geometry",
   },
@@ -75,8 +84,13 @@ const CONCEPT_PATTERNS: Record<string, { patterns: RegExp[]; category: string }>
   },
   "area_rectangle": {
     patterns: [
-      /area\s+of\s+(rectangle|square|rect)/i,
+      /area\s+of\s+(?:the\s+)?(rectangle|square|rect)/i,
+      /(?:the\s+)?(rectangle|square|rect).*area|area.*(?:the\s+)?(rectangle|square|rect)/i,
       /length\s*\*\s*width|width\s*\*\s*length/i,
+      // Match rectangle/square/rect in geometry context - for perimeter, length, width problems
+      /(?:a|the)\s+(?:rectangular|rectangle|square)\s+(?:garden|field|room|box|shape|figure|object)/i,
+      /(?:rectangular|rectangle|square)\s+(?:has|is|with|measures|length|width|perimeter)/i,
+      /(?:length|width|long|wide).*(?:rectangular|rectangle|square)|(?:rectangular|rectangle|square).*(?:length|width|long|wide)/i,
     ],
     category: "geometry",
   },
@@ -165,20 +179,37 @@ export function extractConcepts(problem: ParsedProblem): string[] {
   const detectedConcepts: string[] = [];
   const problemText = problem.text.toLowerCase();
 
+  logger.debug("Extracting concepts from problem", {
+    problemText: problem.text?.substring(0, 100),
+    problemType: problem.type,
+  });
+
   // Check each concept pattern
   for (const [conceptId, { patterns }] of Object.entries(CONCEPT_PATTERNS)) {
     for (const pattern of patterns) {
       if (pattern.test(problemText)) {
         detectedConcepts.push(conceptId);
+        logger.debug("Concept matched", { conceptId, pattern: pattern.toString() });
         break; // Found this concept, no need to check more patterns
       }
     }
   }
 
-  // Also add problem type as a concept
+  // Also add problem type as a concept (but only if it's a valid concept ID)
+  // Don't add generic types like "geometry" or "algebra" as they're too broad
+  // Only add if it matches a known concept pattern
   if (problem.type) {
-    detectedConcepts.push(problem.type.toLowerCase());
+    const typeLower = problem.type.toLowerCase();
+    // Only add if it's a specific concept, not a generic category
+    if (CONCEPT_PATTERNS[typeLower]) {
+      detectedConcepts.push(typeLower);
+    }
   }
+
+  logger.debug("Extracted concepts", {
+    concepts: detectedConcepts,
+    count: detectedConcepts.length,
+  });
 
   return [...new Set(detectedConcepts)]; // Remove duplicates
 }

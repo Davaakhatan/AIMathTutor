@@ -3,7 +3,7 @@
  * Handles learning goal creation, tracking, and completion
  */
 
-import { getSupabaseAdmin } from "@/lib/supabase-admin";
+import { getSupabaseServer } from "@/lib/supabase-server";
 import { logger } from "@/lib/logger";
 
 export interface LearningGoal {
@@ -46,20 +46,22 @@ export async function createGoal(
   try {
     // Profile existence is guaranteed by ensure_all_users_have_profiles migration
     // No need to call ensureProfileExists from server-side code
-    const supabase = getSupabaseAdmin();
-    if (!supabase) {
-      logger.error("Supabase admin client not available for creating goal");
-      return null;
+    const supabase = getSupabaseServer();
+
+    // Convert target_date to date format if it's a full ISO string
+    let targetDateValue = input.target_date || null;
+    if (targetDateValue && targetDateValue.includes('T')) {
+      targetDateValue = targetDateValue.split('T')[0];
     }
 
-    const { data, error } = await supabase
+    const { data, error } = await (supabase as any)
       .from("learning_goals")
       .insert({
         user_id: userId,
         student_profile_id: profileId,
         goal_type: input.goal_type,
         target_subject: input.target_subject,
-        target_date: input.target_date || null,
+        target_date: targetDateValue,
         status: "active",
         progress: 0,
         metadata: input.metadata || {},
@@ -68,7 +70,18 @@ export async function createGoal(
       .single();
 
     if (error) {
-      logger.error("Error creating goal", { error: error.message, userId });
+      logger.error("Error creating goal", { 
+        error: error.message, 
+        errorCode: error.code,
+        errorDetails: error.details,
+        errorHint: error.hint,
+        userId,
+        input: {
+          goal_type: input.goal_type,
+          target_subject: input.target_subject,
+          target_date: targetDateValue,
+        }
+      });
       return null;
     }
 
@@ -97,13 +110,9 @@ export async function getGoals(
   try {
     // Profile existence is guaranteed by ensure_all_users_have_profiles migration
     // No need to call ensureProfileExists from server-side code
-    const supabase = getSupabaseAdmin();
-    if (!supabase) {
-      logger.error("Supabase admin client not available for fetching goals");
-      return [];
-    }
+    const supabase = getSupabaseServer();
 
-    let query = supabase
+    let query = (supabase as any)
       .from("learning_goals")
       .select("*")
       .eq("user_id", userId)
@@ -144,11 +153,7 @@ export async function updateGoal(
   input: UpdateGoalInput
 ): Promise<LearningGoal | null> {
   try {
-    const supabase = getSupabaseAdmin();
-    if (!supabase) {
-      logger.error("Supabase admin client not available for creating goal");
-      return null;
-    }
+    const supabase = getSupabaseServer();
 
     const updateData: any = {};
     if (input.progress !== undefined) updateData.progress = Math.max(0, Math.min(100, input.progress));
@@ -158,10 +163,17 @@ export async function updateGoal(
         updateData.completed_at = new Date().toISOString();
       }
     }
-    if (input.target_date !== undefined) updateData.target_date = input.target_date;
+    if (input.target_date !== undefined) {
+      // Convert target_date to date format if it's a full ISO string
+      let targetDateValue = input.target_date;
+      if (targetDateValue && typeof targetDateValue === 'string' && targetDateValue.includes('T')) {
+        targetDateValue = targetDateValue.split('T')[0];
+      }
+      updateData.target_date = targetDateValue;
+    }
     if (input.metadata !== undefined) updateData.metadata = input.metadata;
 
-    const { data, error } = await supabase
+    const { data, error } = await (supabase as any)
       .from("learning_goals")
       .update(updateData)
       .eq("id", goalId)
@@ -188,13 +200,9 @@ export async function updateGoal(
  */
 export async function deleteGoal(userId: string, goalId: string): Promise<boolean> {
   try {
-    const supabase = getSupabaseAdmin();
-    if (!supabase) {
-      logger.error("Supabase admin client not available for deleting goal");
-      return false;
-    }
+    const supabase = getSupabaseServer();
 
-    const { error } = await supabase
+    const { error } = await (supabase as any)
       .from("learning_goals")
       .delete()
       .eq("id", goalId)

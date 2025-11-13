@@ -38,7 +38,7 @@ interface SubjectRecommendation {
 }
 
 export default function LearningGoals({ isGuestMode = false, onSignUpClick }: LearningGoalsProps) {
-  const { user, activeProfile } = useAuth();
+  const { user, activeProfile, userRole } = useAuth();
   const { toasts, showToast, removeToast } = useToast();
   const [goals, setGoals] = useState<LearningGoal[]>([]);
   const [loading, setLoading] = useState(true);
@@ -63,7 +63,7 @@ export default function LearningGoals({ isGuestMode = false, onSignUpClick }: Le
     }
 
     loadGoals();
-  }, [user, activeProfile?.id, isGuestMode]);
+  }, [user, activeProfile?.id, userRole, isGuestMode]);
 
   const loadGoals = async () => {
     if (!user) return;
@@ -72,9 +72,11 @@ export default function LearningGoals({ isGuestMode = false, onSignUpClick }: Le
       setLoading(true);
       setError(null);
 
+      // For students, always use null for profileId
+      const profileIdToUse = userRole === "student" ? null : (activeProfile?.id || null);
       const params = new URLSearchParams({
         userId: user.id,
-        ...(activeProfile?.id && { profileId: activeProfile.id }),
+        ...(profileIdToUse && { profileId: profileIdToUse }),
       });
 
       const response = await fetch(`/api/companion/goals?${params}`);
@@ -124,9 +126,11 @@ export default function LearningGoals({ isGuestMode = false, onSignUpClick }: Le
     if (!user) return;
 
     try {
+      // For students, always use null for profileId
+      const profileIdToUse = userRole === "student" ? null : (activeProfile?.id || null);
       const params = new URLSearchParams({
         userId: user.id,
-        ...(activeProfile?.id && { profileId: activeProfile.id }),
+        ...(profileIdToUse && { profileId: profileIdToUse }),
         subject: goal.target_subject,
         goalType: goal.goal_type,
       });
@@ -150,12 +154,15 @@ export default function LearningGoals({ isGuestMode = false, onSignUpClick }: Le
       setIsCreating(true);
       setError(null);
 
+      // For students, always use null for profileId
+      const profileIdToUse = userRole === "student" ? null : (activeProfile?.id || null);
+      
       const response = await fetch("/api/companion/goals", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           userId: user.id,
-          profileId: activeProfile?.id || null,
+          profileId: profileIdToUse,
           goal_type: "subject_mastery",
           target_subject: subject,
           target_date: null,
@@ -194,12 +201,15 @@ export default function LearningGoals({ isGuestMode = false, onSignUpClick }: Le
       setIsCreating(true);
       setError(null);
 
+      // For students, always use null for profileId
+      const profileIdToUse = userRole === "student" ? null : (activeProfile?.id || null);
+      
       const response = await fetch("/api/companion/goals", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           userId: user.id,
-          profileId: activeProfile?.id || null,
+          profileId: profileIdToUse,
           goal_type: goalType,
           target_subject: targetSubject.trim(),
           target_date: targetDate || null,

@@ -6,7 +6,7 @@ import { ProblemType } from "@/types";
 export async function POST(request: NextRequest) {
   try {
     const body = await request.json();
-    const { type, difficulty, apiKey: clientApiKey } = body;
+    const { type, difficulty, conceptId, conceptName, apiKey: clientApiKey } = body;
 
     if (!type || !Object.values(ProblemType).includes(type)) {
       return NextResponse.json(
@@ -95,15 +95,35 @@ export async function POST(request: NextRequest) {
       );
     }
 
+    // Build concept-specific instruction if concept is provided
+    let conceptInstruction = "";
+    if (conceptId && conceptName) {
+      const conceptExamples: Record<string, string> = {
+        "decimals": "MUST involve decimal numbers (e.g., 3.5, 0.25, 2.75). Examples: 'Add 2.5 + 1.3' or 'Convert 0.75 to a fraction' or 'What is 4.2 × 0.5?'",
+        "fractions": "MUST involve fractions (e.g., 1/2, 3/4, 2/3). Examples: 'Add 1/2 + 1/4' or 'Simplify 6/8' or 'What is 2/3 of 12?'",
+        "area_rectangle": "MUST involve finding the area of a rectangle or square. Examples: 'Find the area of a rectangle with length 8 and width 5' or 'A square has side length 6. What is its area?'",
+        "area_triangle": "MUST involve finding the area of a triangle. Examples: 'Find the area of a triangle with base 10 and height 6' or 'A triangle has base 8 and height 4. What is its area?'",
+        "area_circle": "MUST involve finding the area of a circle. Examples: 'Find the area of a circle with radius 5' or 'A circle has radius 3. What is its area? (Use π = 3.14)'",
+        "perimeter": "MUST involve finding the perimeter of a shape. Examples: 'Find the perimeter of a rectangle with length 8 and width 5' or 'A square has side length 6. What is its perimeter?'",
+        "linear_equations": "MUST involve solving a linear equation with one variable. Examples: 'Solve for x: 2x + 5 = 13' or 'Find x if 3x - 7 = 14'",
+        "quadratic_equations": "MUST involve solving a quadratic equation. Examples: 'Solve: x² + 5x + 6 = 0' or 'Find x: 2x² - 8x + 6 = 0'",
+        "exponents": "MUST involve exponents or powers. Examples: 'What is 2³?' or 'Simplify 5² × 5³' or 'Evaluate 10²'",
+        "percentages": "MUST involve percentages. Examples: 'What is 25% of 80?' or 'A shirt costs $50 and is 20% off. What is the sale price?'",
+      };
+      
+      const example = conceptExamples[conceptId] || `MUST focus on ${conceptName.toLowerCase()}`;
+      conceptInstruction = `\n\nCRITICAL: This problem is for learning "${conceptName}" (concept: ${conceptId}). The problem ${example}.`;
+    }
+
     const systemPrompt = `You are a math problem generator. Generate a single, clear math problem of type ${type} appropriate for ${difficultyPrompt} level.
 
 IMPORTANT: The difficulty level is ${difficultyPrompt}. You MUST generate a problem that matches this specific difficulty level.
 
-${difficultyGuideline}
+${difficultyGuideline}${conceptInstruction}
 
 Requirements:
 - The problem MUST match the ${difficultyPrompt} difficulty level exactly
-- The problem should be solvable but appropriately challenging for ${difficultyPrompt} level
+- ${conceptId ? `The problem MUST involve ${conceptName.toLowerCase()} to match the learning concept` : 'The problem should be solvable but appropriately challenging for the difficulty level'}
 - Use clear, concise language
 - Include all necessary information
 - Return ONLY the problem statement, nothing else
@@ -126,7 +146,7 @@ Requirements:
           { role: "system", content: systemPrompt },
           {
             role: "user",
-            content: `Generate a ${type} problem specifically for ${difficultyPrompt} level. Make sure it is clearly ${difficultyPrompt} level difficulty, not easier or harder.`,
+            content: `Generate a ${type} problem specifically for ${difficultyPrompt} level.${conceptId && conceptName ? ` The problem MUST focus on ${conceptName.toLowerCase()} (${conceptId}).` : ''} Make sure it is clearly ${difficultyPrompt} level difficulty, not easier or harder.`,
           },
         ],
         temperature: 0.9, // Higher temperature for more variety
