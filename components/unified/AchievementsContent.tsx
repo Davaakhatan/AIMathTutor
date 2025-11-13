@@ -200,92 +200,92 @@ export default function AchievementsContent() {
   const locked = allAchievements.filter(a => !unlockedAchievements.includes(a.id));
 
   return (
-    <div className="flex-1 overflow-y-auto p-6 max-w-4xl mx-auto">
+    <div className="flex-1 overflow-y-auto p-4 max-w-5xl mx-auto">
       {/* Header */}
-      <div className="text-center mb-6">
-        <h2 className="text-2xl font-bold bg-gradient-to-r from-purple-600 to-pink-600 dark:from-purple-400 dark:to-pink-400 bg-clip-text text-transparent">
+      <div className="text-center mb-4">
+        <h2 className="text-xl font-bold bg-gradient-to-r from-purple-600 to-pink-600 dark:from-purple-400 dark:to-pink-400 bg-clip-text text-transparent">
           Achievements
         </h2>
-        <p className="text-sm text-gray-600 dark:text-gray-400 mt-1">
+        <p className="text-xs text-gray-600 dark:text-gray-400 mt-0.5">
           Unlock badges by completing challenges
         </p>
       </div>
 
       {/* New Achievement Toast */}
       {newAchievement && (
-        <div className="mb-6 bg-gradient-to-r from-purple-50 to-pink-50 dark:from-purple-950/30 dark:to-pink-950/30 border-2 border-purple-300 dark:border-purple-700 rounded-2xl shadow-xl p-5 animate-in fade-in slide-in-from-bottom-4 duration-500">
-          <div className="flex items-center gap-4">
-            <div className="w-16 h-16 bg-gradient-to-br from-purple-500 to-pink-600 rounded-2xl flex items-center justify-center shadow-lg animate-bounce">
-              <div className="w-12 h-12 text-white">
+        <div className="mb-4 bg-gradient-to-r from-purple-50 to-pink-50 dark:from-purple-950/30 dark:to-pink-950/30 border-2 border-purple-300 dark:border-purple-700 rounded-xl shadow-lg p-3 animate-in fade-in slide-in-from-bottom-4 duration-500">
+          <div className="flex items-center gap-3">
+            <div className="w-12 h-12 bg-gradient-to-br from-purple-500 to-pink-600 rounded-xl flex items-center justify-center shadow-md animate-bounce flex-shrink-0">
+              <div className="w-8 h-8 text-white">
                 <AchievementIcon achievementId={newAchievement.id} className="w-full h-full" />
               </div>
             </div>
-            <div className="flex-1">
-              <p className="font-bold text-purple-900 dark:text-purple-100 text-lg">🎉 Achievement Unlocked!</p>
-              <p className="text-base font-semibold text-gray-900 dark:text-gray-100 mt-1">{newAchievement.name}</p>
-              <p className="text-sm text-gray-600 dark:text-gray-400">{newAchievement.description}</p>
+            <div className="flex-1 min-w-0">
+              <p className="font-bold text-purple-900 dark:text-purple-100 text-sm">🎉 Achievement Unlocked!</p>
+              <p className="text-sm font-semibold text-gray-900 dark:text-gray-100 mt-0.5 truncate">{newAchievement.name}</p>
+              <p className="text-xs text-gray-600 dark:text-gray-400 line-clamp-1">{newAchievement.description}</p>
             </div>
           </div>
         </div>
       )}
 
       {/* Progress Card */}
-      <div className="mb-6 bg-gradient-to-br from-white to-gray-50 dark:from-gray-800 dark:to-gray-900 rounded-2xl shadow-lg border border-gray-200 dark:border-gray-700 p-5">
-        <div className="flex items-center justify-between mb-3">
+      <div className="mb-4 bg-gradient-to-br from-white to-gray-50 dark:from-gray-800 dark:to-gray-900 rounded-xl shadow-md border border-gray-200 dark:border-gray-700 p-3">
+        <div className="flex items-center justify-between mb-2">
           <div className="flex items-center gap-2">
-            <div className="p-2 bg-gradient-to-br from-purple-500 to-pink-600 rounded-lg shadow-lg">
-              <svg className="w-5 h-5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <div className="p-1.5 bg-gradient-to-br from-purple-500 to-pink-600 rounded-lg shadow-sm">
+              <svg className="w-4 h-4 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4M7.835 4.697a3.42 3.42 0 001.946-.806 3.42 3.42 0 014.438 0 3.42 3.42 0 001.946.806 3.42 3.42 0 013.138 3.138 3.42 3.42 0 00.806 1.946 3.42 3.42 0 010 4.438 3.42 3.42 0 00-.806 1.946 3.42 3.42 0 01-3.138 3.138 3.42 3.42 0 00-1.946.806 3.42 3.42 0 01-4.438 0 3.42 3.42 0 00-1.946-.806 3.42 3.42 0 01-3.138-3.138 3.42 3.42 0 00-.806-1.946 3.42 3.42 0 010-4.438 3.42 3.42 0 00.806-1.946 3.42 3.42 0 013.138-3.138z" />
               </svg>
             </div>
             <div>
-              <h3 className="text-lg font-semibold text-gray-900 dark:text-gray-100">Overall Progress</h3>
-              <p className="text-sm text-gray-600 dark:text-gray-400">
-                {unlocked.length} of {allAchievements.length} achievements unlocked
+              <h3 className="text-sm font-semibold text-gray-900 dark:text-gray-100">Overall Progress</h3>
+              <p className="text-xs text-gray-600 dark:text-gray-400">
+                {unlocked.length} of {allAchievements.length} unlocked
               </p>
             </div>
           </div>
           <div className="text-right">
-            <p className="text-2xl font-bold bg-gradient-to-r from-purple-600 to-pink-600 bg-clip-text text-transparent">
+            <p className="text-lg font-bold bg-gradient-to-r from-purple-600 to-pink-600 bg-clip-text text-transparent">
               {Math.round((unlocked.length / allAchievements.length) * 100)}%
             </p>
           </div>
         </div>
-        <div className="h-3 bg-gray-200 dark:bg-gray-700 rounded-full overflow-hidden shadow-inner">
+        <div className="h-2 bg-gray-200 dark:bg-gray-700 rounded-full overflow-hidden shadow-inner">
           <div
-            className="h-full bg-gradient-to-r from-purple-500 via-pink-500 to-purple-600 transition-all duration-500 ease-out shadow-lg"
+            className="h-full bg-gradient-to-r from-purple-500 via-pink-500 to-purple-600 transition-all duration-500 ease-out"
             style={{ width: `${(unlocked.length / allAchievements.length) * 100}%` }}
           />
         </div>
       </div>
 
-      <div className="space-y-6">
+      <div className="space-y-4">
         {/* Unlocked Achievements */}
         <div>
-          <div className="flex items-center gap-2 mb-4">
-            <div className="w-1 h-6 rounded-full bg-gradient-to-b from-purple-500 to-pink-500"></div>
-            <h4 className="text-lg font-semibold text-gray-900 dark:text-gray-100">Unlocked ({unlocked.length})</h4>
+          <div className="flex items-center gap-2 mb-3">
+            <div className="w-1 h-4 rounded-full bg-gradient-to-b from-purple-500 to-pink-500"></div>
+            <h4 className="text-sm font-semibold text-gray-900 dark:text-gray-100">Unlocked ({unlocked.length})</h4>
           </div>
-          <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
+          <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-4 xl:grid-cols-5 gap-3">
             {unlocked.length === 0 ? (
-              <div className="col-span-full bg-gradient-to-br from-white to-gray-50 dark:from-gray-800 dark:to-gray-900 border-2 border-dashed border-gray-300 dark:border-gray-700 rounded-2xl p-8 text-center">
-                <div className="w-16 h-16 mx-auto mb-3 bg-gray-200 dark:bg-gray-700 rounded-full flex items-center justify-center">
-                  <svg className="w-8 h-8 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <div className="col-span-full flex flex-col items-center justify-center py-6 px-4 border-2 border-dashed border-gray-300 dark:border-gray-600 rounded-lg bg-gray-50 dark:bg-gray-800/50">
+                <div className="w-12 h-12 text-gray-400 dark:text-gray-500 mb-2">
+                  <svg fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 6v6m0 0v6m0-6h6m-6 0H6" />
                   </svg>
                 </div>
-                <p className="text-gray-500 dark:text-gray-400 font-medium">No achievements yet</p>
-                <p className="text-sm text-gray-400 dark:text-gray-500 mt-1">Solve problems to unlock badges!</p>
+                <p className="text-xs font-medium text-gray-600 dark:text-gray-400">No achievements yet</p>
+                <p className="text-xs text-gray-500 dark:text-gray-500 mt-0.5">Solve problems to unlock badges!</p>
               </div>
             ) : (
               unlocked.map((achievement) => (
                 <div
                   key={achievement.id}
-                  className="bg-gradient-to-br from-white to-purple-50 dark:from-gray-800 dark:to-purple-950/20 border border-purple-200 dark:border-purple-800 rounded-lg shadow-md hover:shadow-lg transition-all duration-200"
+                  className="bg-gradient-to-br from-white to-purple-50 dark:from-gray-800 dark:to-purple-950/20 border border-purple-200 dark:border-purple-800 rounded-lg shadow-md hover:shadow-lg transition-all duration-200 flex flex-col"
                 >
-                  <div className="p-2.5 space-y-2">
+                  <div className="p-2.5 flex flex-col flex-1 min-h-0">
                     {/* Icon */}
-                    <div className="flex justify-center">
+                    <div className="flex justify-center mb-2 flex-shrink-0">
                       <div className="w-10 h-10 bg-gradient-to-br from-purple-500 to-pink-600 rounded-lg flex items-center justify-center shadow-md">
                         <div className="w-6 h-6 text-white">
                           <AchievementIcon achievementId={achievement.id} className="w-full h-full" />
@@ -293,22 +293,24 @@ export default function AchievementsContent() {
                       </div>
                     </div>
                     
-                    {/* Text */}
-                    <div className="text-center">
-                      <h5 className="text-[11px] font-bold text-gray-900 dark:text-gray-100 mb-0.5 leading-tight">{achievement.name}</h5>
-                      <p className="text-[9px] text-gray-600 dark:text-gray-400 line-clamp-2 leading-tight">{achievement.description}</p>
+                    {/* Text - flex-1 to take available space */}
+                    <div className="text-center flex-1 flex flex-col justify-center min-h-0 overflow-hidden">
+                      <h5 className="text-[11px] font-bold text-gray-900 dark:text-gray-100 mb-1 leading-tight line-clamp-1 break-words">{achievement.name}</h5>
+                      <p className="text-[9px] text-gray-600 dark:text-gray-400 line-clamp-2 leading-tight break-words">{achievement.description}</p>
                     </div>
                     
-                    {/* Share Button */}
+                    {/* Share Button - flex-shrink-0 to prevent compression */}
                     {user && (
-                      <ShareCard
-                        shareType="achievement"
-                        metadata={{
-                          achievement_title: achievement.name,
-                          achievement_type: achievement.id,
-                        }}
-                        className="text-[9px] px-2 py-0.5 w-full bg-gradient-to-r from-purple-500 to-pink-600 hover:from-purple-600 hover:to-pink-700 text-white border-0"
-                      />
+                      <div className="mt-2 flex-shrink-0">
+                        <ShareCard
+                          shareType="achievement"
+                          metadata={{
+                            achievement_title: achievement.name,
+                            achievement_type: achievement.id,
+                          }}
+                          className="text-[9px] px-2 py-1 w-full bg-gradient-to-r from-purple-500 to-pink-600 hover:from-purple-600 hover:to-pink-700 text-white border-0 rounded-md"
+                        />
+                      </div>
                     )}
                   </div>
                 </div>
@@ -320,11 +322,11 @@ export default function AchievementsContent() {
         {/* Locked Achievements */}
         {locked.length > 0 && (
           <div>
-          <div className="flex items-center gap-2 mb-4">
-            <div className="w-1 h-6 rounded-full bg-gradient-to-b from-gray-400 to-gray-500"></div>
-            <h4 className="text-lg font-semibold text-gray-900 dark:text-gray-100">Locked ({locked.length})</h4>
+          <div className="flex items-center gap-2 mb-3">
+            <div className="w-1 h-4 rounded-full bg-gradient-to-b from-gray-400 to-gray-500"></div>
+            <h4 className="text-sm font-semibold text-gray-900 dark:text-gray-100">Locked ({locked.length})</h4>
           </div>
-          <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
+          <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-4 xl:grid-cols-5 gap-3">
               {locked.map((achievement) => (
                 <div
                   key={achievement.id}
