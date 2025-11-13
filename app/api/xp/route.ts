@@ -1,5 +1,4 @@
 import { NextRequest, NextResponse } from "next/server";
-import { getSupabaseAdmin } from "@/lib/supabase-admin";
 import { getSupabaseServer } from "@/lib/supabase-server";
 import { logger } from "@/lib/logger";
 
@@ -23,9 +22,10 @@ export async function GET(request: NextRequest) {
     // TODO: Add proper auth verification using request headers
     // The client should send the auth token in the Authorization header
 
-    const supabase = getSupabaseAdmin();
+    // Use server client (service role) for reliable access
+    const supabase = getSupabaseServer();
     if (!supabase) {
-      logger.warn("Supabase admin client not available");
+      logger.warn("Supabase server client not available");
       return NextResponse.json({ error: "Database not configured" }, { status: 500 });
     }
 
@@ -54,24 +54,42 @@ export async function GET(request: NextRequest) {
     }
 
     // Get the latest record if duplicates exist
-    const xpRow = data.sort((a: any, b: any) => {
+    const xpRow = (data as any[]).sort((a: any, b: any) => {
       const dateA = new Date(a.updated_at || a.created_at);
       const dateB = new Date(b.updated_at || b.created_at);
       return dateB.getTime() - dateA.getTime();
-    })[0];
+    })[0] as any;
 
     // Convert to XPData format
-    const xpHistory = (xpRow.xp_history as any) || [];
-    const recentGains = xpHistory.map((entry: any) => ({
-      xp: entry.xp || 0,
-      reason: entry.reason || "XP gained",
-      timestamp: entry.date ? new Date(entry.date).getTime() : Date.now()
-    }));
+    const xpHistory = (xpRow?.xp_history as any) || [];
+    const recentGains = xpHistory
+      .map((entry: any) => {
+        // Handle timestamp - it might be a number, string, or need to be calculated from date
+        let timestamp: number;
+        if (entry.timestamp) {
+          // If timestamp exists, use it (convert to number if it's a string, floor if decimal)
+          timestamp = typeof entry.timestamp === 'string' ? parseInt(entry.timestamp) : Math.floor(entry.timestamp);
+        } else if (entry.date) {
+          // If no timestamp but has date, convert date to timestamp
+          timestamp = new Date(entry.date).getTime();
+        } else {
+          // Fallback to current time
+          timestamp = Date.now();
+        }
+        
+        return {
+          xp: entry.xp || 0,
+          reason: entry.reason || "XP gained",
+          timestamp: timestamp
+        };
+      })
+      .sort((a: any, b: any) => b.timestamp - a.timestamp) // Sort by timestamp descending (most recent first)
+      .slice(0, 10); // Limit to 10 most recent entries
 
     const xpData = {
-      total_xp: xpRow.total_xp || 0,
-      level: xpRow.level || 1,
-      xp_to_next_level: xpRow.xp_to_next_level || 100,
+      total_xp: (xpRow?.total_xp as number) || 0,
+      level: (xpRow?.level as number) || 1,
+      xp_to_next_level: (xpRow?.xp_to_next_level as number) || 100,
       xp_history: xpHistory,
       recent_gains: recentGains,
     };

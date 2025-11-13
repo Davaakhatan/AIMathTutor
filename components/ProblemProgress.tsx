@@ -312,9 +312,21 @@ export default function ProblemProgress({ messages, problem, difficultyMode = "m
         profileId: profileId,
       };
       
-      // Emit via eventBus (for orchestrator)
+      // Directly call orchestrator (primary method - more reliable)
+      import("@/services/orchestrator").then(({ onProblemCompleted }) => {
+        console.log("[ProblemProgress] Calling orchestrator directly", { userId, problemData });
+        onProblemCompleted(userId, problemData).then(() => {
+          console.log("[ProblemProgress] Orchestrator completed successfully");
+        }).catch((error) => {
+          console.error("[ProblemProgress] Error calling orchestrator directly:", error);
+        });
+      }).catch((error) => {
+        console.error("[ProblemProgress] Error importing orchestrator:", error);
+      });
+      
+      // Also emit via eventBus (for other systems that listen to events)
       import("@/lib/eventBus").then(({ default: eventBus }) => {
-        eventBus.emit("problem_completed", userId, problemData).catch((error) => {
+        eventBus.emit("problem_completed", userId, problemData, { profileId }).catch((error) => {
           console.error("[ProblemProgress] Error emitting problem_completed event:", error);
         });
       }).catch((error) => {
@@ -325,15 +337,6 @@ export default function ProblemProgress({ messages, problem, difficultyMode = "m
       window.dispatchEvent(new CustomEvent("problem_completed", {
         detail: { userId, ...problemData }
       }));
-      
-      // Directly call orchestrator as backup if eventBus fails
-      import("@/services/orchestrator").then(({ onProblemCompleted }) => {
-        onProblemCompleted(userId, problemData).catch((error) => {
-          console.error("[ProblemProgress] Error calling orchestrator directly:", error);
-        });
-      }).catch((error) => {
-        console.error("[ProblemProgress] Error importing orchestrator:", error);
-      });
     }
     
     prevSolvedRef.current = isSolved;

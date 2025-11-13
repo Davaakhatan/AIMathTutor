@@ -36,21 +36,54 @@ export async function onProblemCompleted(
 
     // 1. Update XP (re-enabled because XPSystem detection is unreliable)
     try {
-      // Always try to update XP - getXPData will handle Supabase availability
-      const currentXP = await getXPData(userId, profileId);
-      if (currentXP) {
-        // Check if XP was already awarded for this problem today
-        const today = new Date().toISOString().split("T")[0];
-        const todayHistory = (currentXP.xp_history || []).find((h: any) => h.date === today);
-        const problemAlreadyAwarded = todayHistory?.reason?.includes(problemData.problemText.substring(0, 30));
-        
-        if (!problemAlreadyAwarded) {
+      // First, check if problem is already solved in database (to prevent duplicate XP)
+      const { getProblems } = await import("@/services/supabaseDataService");
+      const problems = await getProblems(userId, 100, profileId);
+      
+      // Try to find the problem
+      let matchingProblem = problems.find(p => 
+        p.text === problemData.problemText || 
+        p.text.trim() === problemData.problemText.trim()
+      );
+      
+      // If no exact match, try fuzzy match (first 50 characters)
+      if (!matchingProblem) {
+        const problemTextStart = problemData.problemText.substring(0, 50).trim();
+        matchingProblem = problems.find(p => 
+          p.text.substring(0, 50).trim() === problemTextStart
+        );
+      }
+      
+      // If still no match, try finding the most recent unsolved problem
+      if (!matchingProblem) {
+        const unsolvedProblems = problems
+          .filter(p => !p.solved_at)
+          .sort((a, b) => {
+            const aTime = new Date(a.created_at || 0).getTime();
+            const bTime = new Date(b.created_at || 0).getTime();
+            return bTime - aTime; // Most recent first
+          });
+        matchingProblem = unsolvedProblems[0];
+      }
+      
+      // If problem is already solved, skip XP award (already awarded)
+      if (matchingProblem?.solved_at) {
+        logger.debug("Problem already solved - skipping XP award", {
+          userId,
+          problemId: matchingProblem.id,
+          solvedAt: matchingProblem.solved_at
+        });
+      } else {
+        // Problem not solved yet - award XP
+        const currentXP = await getXPData(userId, profileId);
+        if (currentXP) {
           const xpGained = calculateXPForProblem(problemData.difficulty, problemData.hintsUsed);
           const newTotalXP = currentXP.total_xp + xpGained;
           const newLevel = calculateLevel(newTotalXP);
           const xpToNextLevel = calculateXPForLevel(newLevel + 1) - newTotalXP;
 
           // Update XP history - always add a new entry for problem completion
+          const today = new Date().toISOString().split("T")[0];
           const updatedHistory = [
             ...(currentXP.xp_history || []),
             {
@@ -69,10 +102,8 @@ export async function onProblemCompleted(
 
           logger.info("XP updated for problem completion", { userId, xpGained, newLevel, newTotalXP });
         } else {
-          logger.debug("XP already awarded for this problem today", { userId, problemText: problemData.problemText.substring(0, 30) });
+          logger.warn("No XP data found for user - cannot award XP", { userId, profileId });
         }
-      } else {
-        logger.warn("No XP data found for user - cannot award XP", { userId, profileId });
       }
     } catch (error) {
       logger.error("Error updating XP for problem completion", { error, userId, errorMessage: error instanceof Error ? error.message : String(error) });
@@ -118,6 +149,7 @@ export async function onProblemCompleted(
     }
 
     // 3. Mark problem as solved in database (update solved_at)
+    // Note: We already fetched problems in step 1, but we'll fetch again here to ensure we have the latest state
     try {
       // Always try to mark problem as solved - updateProblem will handle Supabase availability
       const { updateProblem, getProblems } = await import("@/services/supabaseDataService");

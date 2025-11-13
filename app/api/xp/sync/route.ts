@@ -22,21 +22,30 @@ export async function GET(request: NextRequest) {
       return NextResponse.json({ error: "Database not configured" }, { status: 500 });
     }
 
-    const { data, error } = await (supabase as any)
+    // Build query - same as /api/xp route
+    let query = (supabase as any)
       .from("xp_data")
       .select("*")
       .eq("user_id", userId)
-      .is("student_profile_id", null)
-      .maybeSingle();
+      .is("student_profile_id", null);
 
+    const { data: queryData, error } = await query;
+    
     if (error) {
       logger.error("Error fetching XP for sync", { error: error.message, userId });
       return NextResponse.json({ error: error.message }, { status: 500 });
     }
 
-    if (!data) {
+    if (!queryData || queryData.length === 0) {
       return NextResponse.json({ success: true, xpData: null, message: "No XP data found" });
     }
+
+    // Get the latest record if duplicates exist (same logic as /api/xp)
+    const data = queryData.sort((a: any, b: any) => {
+      const dateA = new Date(a.updated_at || a.created_at);
+      const dateB = new Date(b.updated_at || b.created_at);
+      return dateB.getTime() - dateA.getTime();
+    })[0];
 
     // Convert to localStorage format
     const xpHistory = (data.xp_history as any) || [];
