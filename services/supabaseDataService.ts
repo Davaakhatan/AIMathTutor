@@ -157,7 +157,7 @@ export async function getXPData(userId: string, profileId?: string | null): Prom
       }
       
       try {
-        return await createDefaultXPData(userId, effectiveProfileId);
+      return await createDefaultXPData(userId, effectiveProfileId);
       } catch (createError) {
         logger.error("Failed to create default XP data after fetch error", { error: createError, userId });
         return null;
@@ -168,7 +168,7 @@ export async function getXPData(userId: string, profileId?: string | null): Prom
     if (!data || data.length === 0) {
       logger.info("No XP data found, creating default", { userId, profileId: effectiveProfileId });
       try {
-        return await createDefaultXPData(userId, effectiveProfileId);
+      return await createDefaultXPData(userId, effectiveProfileId);
       } catch (createError) {
         logger.error("Failed to create default XP data", { error: createError, userId });
         return null;
@@ -426,17 +426,67 @@ export interface StreakData {
  */
 export async function getStreakData(userId: string, profileId?: string | null): Promise<StreakData | null> {
   try {
-    // Profile existence is ensured by AuthContext - no need to check here
-    // await ensureProfileExists(userId); // DISABLED - causes 5s timeout
+    const effectiveProfileId = profileId !== undefined ? profileId : null;
     
+    // Try API route first (server-side, bypasses RLS)
+    try {
+      const baseUrl = typeof window !== "undefined" 
+        ? window.location.origin 
+        : process.env.NEXT_PUBLIC_SITE_URL || "http://localhost:3002";
+      
+      const apiUrl = new URL("/api/streak", baseUrl);
+      apiUrl.searchParams.set("userId", userId);
+      if (effectiveProfileId) {
+        apiUrl.searchParams.set("profileId", effectiveProfileId);
+      }
+      
+      logger.debug("Fetching streak data via API route", { userId, effectiveProfileId });
+      
+      const controller = new AbortController();
+      const timeoutId = setTimeout(() => controller.abort(), 10000); // 10 second timeout
+      
+      const response = await fetch(apiUrl.toString(), {
+        method: "GET",
+        signal: controller.signal,
+      });
+      
+      clearTimeout(timeoutId);
+      
+      if (response.ok) {
+        const result = await response.json();
+        if (result.success && result.streakData) {
+          logger.info("Streak data loaded via API route", { 
+            userId, 
+            currentStreak: result.streakData.current_streak,
+            longestStreak: result.streakData.longest_streak
+          });
+          return result.streakData;
+        }
+      }
+      
+      logger.warn("API route failed, falling back to direct query", {
+        status: response.status,
+        userId,
+      });
+    } catch (apiError: any) {
+      if (apiError.name === "AbortError") {
+        logger.warn("API route timeout, falling back to direct query", { userId });
+      } else {
+        logger.warn("API route error, falling back to direct query", {
+          error: apiError.message,
+          userId,
+        });
+      }
+    }
+    
+    // Fallback to direct client-side query
     const supabase = await getSupabaseClient();
     if (!supabase) {
       logger.warn("Supabase client not available");
       return null;
     }
     
-    // Use profile ID if provided, otherwise use null (don't call getEffectiveProfileId - it hangs!)
-    const effectiveProfileId = profileId !== undefined ? profileId : null;
+    logger.debug("Fetching streak data from database (direct)", { userId, effectiveProfileId });
     
     // Simple, fast query
     let query = supabase
@@ -449,8 +499,6 @@ export async function getStreakData(userId: string, profileId?: string | null): 
     } else {
       query = query.is("student_profile_id", null);
     }
-    
-    logger.debug("Executing streak query", { userId, profileId: effectiveProfileId });
     
     const { data, error } = await query;
     
@@ -484,7 +532,7 @@ export async function getStreakData(userId: string, profileId?: string | null): 
 /**
  * Create default streak data
  */
-async function createDefaultStreakData(userId: string, profileId?: string | null): Promise<StreakData> {
+export async function createDefaultStreakData(userId: string, profileId?: string | null): Promise<StreakData> {
   try {
     const supabase = await getSupabaseClient();
     

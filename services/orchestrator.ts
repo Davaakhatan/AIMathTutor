@@ -79,7 +79,15 @@ export async function onProblemCompleted(
     // 2. Update Streak
     try {
       const today = new Date().toISOString().split("T")[0];
-      const currentStreak = await getStreakData(userId, profileId);
+      let currentStreak = await getStreakData(userId, profileId);
+      
+      // If no streak exists, create default (getStreakData should create it, but ensure it exists)
+      if (!currentStreak) {
+        const { createDefaultStreakData } = await import("@/services/supabaseDataService");
+        currentStreak = await createDefaultStreakData(userId, profileId);
+        logger.info("Created default streak data for problem completion", { userId });
+      }
+      
       if (currentStreak) {
         const lastStudyDate = currentStreak.last_study_date;
         const shouldIncrementStreak = !lastStudyDate || lastStudyDate !== today;
@@ -93,6 +101,11 @@ export async function onProblemCompleted(
           }, profileId);
 
           logger.info("Streak updated for problem completion", { userId, newStreak });
+          
+          // Dispatch event to refresh UI
+          window.dispatchEvent(new CustomEvent("streak_updated"));
+        } else {
+          logger.debug("Streak already updated today", { userId, lastStudyDate });
         }
       }
     } catch (error) {

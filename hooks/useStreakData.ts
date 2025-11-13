@@ -26,29 +26,28 @@ export function useStreakData() {
     lastStudyDate: null,
   });
 
-  // Load streak data - Optimistic loading with background sync
+  // Load streak data - Database first for logged-in users
   useEffect(() => {
     let isMounted = true;
     
-    // OPTIMISTIC LOADING: Show localStorage data immediately
-    const localData = {
-      current_streak: localStreakData.currentStreak || 0,
-      longest_streak: localStreakData.longestStreak || 0,
-      last_study_date: localStreakData.lastStudyDate
-        ? new Date(localStreakData.lastStudyDate).toISOString().split("T")[0]
-        : null,
-    };
-    setStreakData(localData);
-    setIsLoading(false); // Show immediately
-    
     if (!user) {
-      // Guest mode - localStorage only, already set above
+      // Guest mode - localStorage only
+      const localData = {
+        current_streak: localStreakData.currentStreak || 0,
+        longest_streak: localStreakData.longestStreak || 0,
+        last_study_date: localStreakData.lastStudyDate
+          ? new Date(localStreakData.lastStudyDate).toISOString().split("T")[0]
+          : null,
+      };
+      setStreakData(localData);
+      setIsLoading(false);
       return;
     }
 
-    // For logged-in users: Load from database in BACKGROUND
+    // For logged-in users: Load from database FIRST (don't show localStorage first)
     const loadFromDatabase = async () => {
-      // Don't set loading true - we already showed localStorage data
+      setIsLoading(true);
+      console.log("[useStreakData] Starting database load", { userId: user.id, userRole });
       
       try {
         // CRITICAL: For student users, ALWAYS use user-level streaks (profileId = null)
@@ -62,6 +61,13 @@ export function useStreakData() {
         if (!isMounted) return;
         
         if (data) {
+          logger.info("Streak data received from getStreakData", { 
+            userId: user.id, 
+            currentStreak: data.current_streak,
+            longestStreak: data.longest_streak,
+            lastStudyDate: data.last_study_date
+          });
+          
           setStreakData(data);
           
           // Also update localStorage cache
@@ -72,17 +78,40 @@ export function useStreakData() {
               ? new Date(data.last_study_date).getTime()
               : null,
           });
+          logger.info("Streak data loaded from database and state updated", { 
+            userId: user.id, 
+            currentStreak: data.current_streak,
+            longestStreak: data.longest_streak 
+          });
         } else {
-          // No database data - keep showing localStorage
-          logger.warn("No streak data in database, keeping localStorage", { userId: user.id });
+          // No database data - fallback to localStorage
+          logger.warn("No streak data in database, using localStorage", { userId: user.id });
+          const localData = {
+            current_streak: localStreakData.currentStreak || 0,
+            longest_streak: localStreakData.longestStreak || 0,
+            last_study_date: localStreakData.lastStudyDate
+              ? new Date(localStreakData.lastStudyDate).toISOString().split("T")[0]
+              : null,
+          };
+          setStreakData(localData);
         }
-        
-        // isLoading already false from initial set
       } catch (error) {
         logger.error("Error loading streak data", { error, userId: user.id });
         if (!isMounted) return;
         
-        // Already showing localStorage, no need to set again
+        // Fallback to localStorage on error
+        const localData = {
+          current_streak: localStreakData.currentStreak || 0,
+          longest_streak: localStreakData.longestStreak || 0,
+          last_study_date: localStreakData.lastStudyDate
+            ? new Date(localStreakData.lastStudyDate).toISOString().split("T")[0]
+            : null,
+        };
+        setStreakData(localData);
+      } finally {
+        if (isMounted) {
+          setIsLoading(false);
+        }
       }
     };
     
@@ -92,7 +121,39 @@ export function useStreakData() {
       isMounted = false;
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [user?.id, userRole]); // Depend on user ID and role (not profile for students)
+  }, [user?.id, userRole, activeProfile?.id]); // Include activeProfile for parents/teachers
+
+  // Listen for streak update events (from orchestrator or other sources)
+  useEffect(() => {
+    if (!user) return;
+
+    const handleStreakUpdate = async () => {
+      try {
+        const profileIdToUse = (userRole === "student") ? null : (activeProfile?.id || null);
+        const data = await getStreakData(user.id, profileIdToUse);
+        
+        if (data) {
+          setStreakData(data);
+          setLocalStreakData({
+            currentStreak: data.current_streak || 0,
+            longestStreak: data.longest_streak || 0,
+            lastStudyDate: data.last_study_date
+              ? new Date(data.last_study_date).getTime()
+              : null,
+          });
+          logger.debug("Streak data refreshed from event", { 
+            userId: user.id, 
+            currentStreak: data.current_streak 
+          });
+        }
+      } catch (error) {
+        logger.error("Error refreshing streak data from event", { error, userId: user.id });
+      }
+    };
+
+    window.addEventListener("streak_updated", handleStreakUpdate);
+    return () => window.removeEventListener("streak_updated", handleStreakUpdate);
+  }, [user?.id, userRole, activeProfile?.id, setLocalStreakData]);
 
   // Update streak data
   const updateStreak = useCallback(
@@ -149,6 +210,15 @@ export function useStreakData() {
         longestStreak: 0,
         lastStudyDate: null,
       };
+
+  // Debug logging
+  if (process.env.NODE_ENV === "development") {
+    console.log("[useStreakData] Returning component data", {
+      hasStreakData: !!streakData,
+      componentData,
+      isLoading,
+    });
+  }
 
   return {
     streakData: componentData,
