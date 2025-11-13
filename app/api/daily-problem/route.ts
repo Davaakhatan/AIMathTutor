@@ -12,17 +12,34 @@ import eventBus from "@/lib/eventBus";
 import { saveProblem } from "@/services/supabaseDataService";
 
 /**
- * Generate a deterministic daily problem based on the date
- * Same date = same problem for all users
+ * Simple seeded random number generator
+ * Same seed = same sequence of random numbers
+ */
+function seededRandom(seed: number): () => number {
+  let value = seed;
+  return function() {
+    value = (value * 9301 + 49297) % 233280;
+    return value / 233280;
+  };
+}
+
+/**
+ * Generate a deterministic daily problem based on the date using AI
+ * Same date = same problem for all users (deterministic via date seed)
+ * Different date = different problem (AI-generated with date-based seed)
  */
 async function generateDeterministicDailyProblem(date: string): Promise<DailyProblemData | null> {
   try {
-    // Use date as seed for deterministic selection
-    const dateObj = new Date(date);
-    const dayOfWeek = dateObj.getDay();
-    const dayOfMonth = dateObj.getDate();
+    // Create a unique seed from the date string for deterministic selection
+    const dateSeed = date.split("-").reduce((acc, val, idx) => {
+      const multiplier = idx === 0 ? 10000 : idx === 1 ? 100 : 1;
+      return acc + parseInt(val) * multiplier;
+    }, 0);
     
-    // Deterministic difficulty based on day of week
+    // Create seeded random generator
+    const random = seededRandom(dateSeed);
+    
+    // Deterministic difficulty based on date seed
     const difficulties: Array<"elementary" | "middle school" | "high school" | "advanced"> = [
       "elementary",
       "middle school", 
@@ -32,9 +49,9 @@ async function generateDeterministicDailyProblem(date: string): Promise<DailyPro
       "high school",
       "elementary"
     ];
-    const difficulty = difficulties[dayOfWeek];
+    const difficulty = difficulties[Math.floor(random() * difficulties.length)];
 
-    // Deterministic problem type based on day of month
+    // Deterministic problem type based on date seed
     const problemTypes: ProblemType[] = [
       ProblemType.ARITHMETIC,
       ProblemType.ALGEBRA,
@@ -42,72 +59,172 @@ async function generateDeterministicDailyProblem(date: string): Promise<DailyPro
       ProblemType.WORD_PROBLEM,
       ProblemType.MULTI_STEP,
     ];
-    const problemType = problemTypes[dayOfMonth % problemTypes.length];
+    const problemType = problemTypes[Math.floor(random() * problemTypes.length)];
 
-    // Deterministic template selection based on date hash
-    const dateHash = date.split("-").reduce((acc, val) => acc + parseInt(val), 0);
-    
-    const templates: Record<ProblemType, string[]> = {
-      [ProblemType.ARITHMETIC]: [
-        "If a pizza is cut into 8 equal slices and you eat 3 slices, what fraction of the pizza did you eat?",
-        "Calculate: 15 × 4 + 12 ÷ 3",
-        "What is 25% of 80?",
-        "Solve: 3² + 4² = ?",
-        "A box contains 24 apples. If you remove 9 apples, how many are left?",
-      ],
-      [ProblemType.ALGEBRA]: [
-        "Solve for x: 2x + 5 = 13",
-        "If 3x - 7 = 14, what is the value of x?",
-        "Find x if: x + 8 = 20",
-        "Solve: 5x = 25",
-        "If 2x - 3 = 11, what is x?",
-      ],
-      [ProblemType.GEOMETRY]: [
-        "Find the area of a rectangle with length 8 and width 5",
-        "What is the perimeter of a square with side length 6?",
-        "Find the area of a circle with radius 4. Use π ≈ 3.14",
-        "A triangle has angles of 60°, 60°, and ? What is the missing angle?",
-        "What is the volume of a cube with side length 3?",
-      ],
-      [ProblemType.WORD_PROBLEM]: [
-        "Sarah has 15 apples. She gives away 7. How many does she have left?",
-        "A store has a 20% off sale. If an item costs $50, what's the sale price?",
-        "John has twice as many books as Mary. Together they have 18 books. How many does each have?",
-        "A train travels 120 miles in 2 hours. What is its speed in miles per hour?",
-        "If 3 pizzas cost $27, how much does 1 pizza cost?",
-      ],
-      [ProblemType.MULTI_STEP]: [
-        "Solve: 2(x + 3) - 5 = 11",
-        "If 3x + 2 = 2x + 8, what is x?",
-        "Solve: 5(x - 2) + 3 = 18",
-        "Find x: 4x - 7 = 2x + 9",
-        "Solve: 2(x + 5) - 3(x - 2) = 10",
-      ],
-      [ProblemType.UNKNOWN]: [
-        "Solve for x: 2x + 5 = 13",
-        "What is 15 + 23?",
-        "Find the area of a rectangle with length 8 and width 5",
-      ],
-    };
+    // Use AI to generate a unique problem based on the date seed
+    // This ensures each day gets a different problem while being deterministic
+    try {
+      const apiKey = process.env.OPENAI_API_KEY?.trim();
+      if (!apiKey) {
+        logger.warn("No OpenAI API key available, falling back to template-based generation");
+        return generateTemplateBasedProblem(date, difficulty, problemType, random);
+      }
 
-    const typeTemplates = templates[problemType] || templates[ProblemType.ALGEBRA];
-    const templateIndex = dateHash % typeTemplates.length;
-    const problemText = typeTemplates[templateIndex];
+      const { createOpenAIClient } = await import("@/lib/openai");
+      const openai = createOpenAIClient(apiKey);
 
-    return {
-      date,
-      problem: {
-        text: problemText,
-        type: problemType,
-        confidence: 1.0,
-      },
-      difficulty,
-      topic: problemType.replace("_", " "),
-    };
+      // Create a deterministic prompt based on date
+      // Include date in prompt to ensure same date = same problem
+      // Use dateSeed to add variety to the prompt
+      const dayNumber = parseInt(date.split("-")[2]); // Day of month
+      const monthNumber = parseInt(date.split("-")[1]); // Month
+      const yearNumber = parseInt(date.split("-")[0]); // Year
+      const dayOfYear = Math.floor((new Date(yearNumber, monthNumber - 1, dayNumber).getTime() - new Date(yearNumber, 0, 1).getTime()) / (1000 * 60 * 60 * 24)) + 1;
+      
+      const systemPrompt = `You are a math problem generator for a daily math challenge. Generate a unique, engaging math problem.
+
+CRITICAL: The date is ${date} (day ${dayOfYear} of the year). Use this date to create a problem that is unique to this specific day.
+
+Requirements:
+- Problem type: ${problemType}
+- Difficulty level: ${difficulty}
+- The problem should be solvable and educational
+- Make it interesting and relevant to daily practice
+- Include all necessary information to solve it
+- Do NOT include the answer or solution steps
+- The problem should feel fresh and unique for day ${dayOfYear}
+
+Generate ONLY the problem statement, nothing else.`;
+
+      const userPrompt = `Generate a ${difficulty} level ${problemType} problem for day ${dayOfYear} of ${yearNumber}. Make it unique, engaging, and appropriate for daily practice. The problem should be different from problems on other days.`;
+
+      logger.info("Generating AI daily problem", { date, difficulty, problemType, dayOfYear });
+
+      const response = await openai.chat.completions.create({
+        model: "gpt-4o-mini", // Use cheaper model for daily problems
+        messages: [
+          { role: "system", content: systemPrompt },
+          { role: "user", content: userPrompt }
+        ],
+        temperature: 0.8, // Fixed temperature for more consistency (still allows some variety)
+        max_tokens: 200,
+        seed: dateSeed % 2147483647, // Use date seed as OpenAI seed parameter for determinism (max 32-bit int)
+      });
+
+      const problemText = response.choices[0]?.message?.content?.trim();
+      
+      if (!problemText) {
+        logger.warn("AI generated empty problem, falling back to template");
+        return generateTemplateBasedProblem(date, difficulty, problemType, random);
+      }
+
+      logger.info("AI daily problem generated successfully", { date, problemLength: problemText.length });
+
+      return {
+        date,
+        problem: {
+          text: problemText,
+          type: problemType,
+          confidence: 1.0,
+        },
+        difficulty,
+        topic: problemType.replace("_", " "),
+      };
+    } catch (aiError) {
+      logger.error("Error generating AI daily problem, falling back to template", { 
+        error: aiError instanceof Error ? aiError.message : String(aiError),
+        date 
+      });
+      // Fallback to template-based generation if AI fails
+      return generateTemplateBasedProblem(date, difficulty, problemType, random);
+    }
   } catch (error) {
     logger.error("Error generating deterministic daily problem", { error, date });
     return null;
   }
+}
+
+/**
+ * Fallback: Generate problem from templates (used when AI is unavailable)
+ */
+function generateTemplateBasedProblem(
+  date: string,
+  difficulty: "elementary" | "middle school" | "high school" | "advanced",
+  problemType: ProblemType,
+  random: () => number
+): DailyProblemData | null {
+  const templates: Record<ProblemType, string[]> = {
+    [ProblemType.ARITHMETIC]: [
+      "If a pizza is cut into 8 equal slices and you eat 3 slices, what fraction of the pizza did you eat?",
+      "Calculate: 15 × 4 + 12 ÷ 3",
+      "What is 25% of 80?",
+      "Solve: 3² + 4² = ?",
+      "A box contains 24 apples. If you remove 9 apples, how many are left?",
+      "Find the sum: 47 + 28",
+      "What is 144 ÷ 12?",
+      "Calculate: 8 × 7 - 15",
+    ],
+    [ProblemType.ALGEBRA]: [
+      "Solve for x: 2x + 5 = 13",
+      "If 3x - 7 = 14, what is the value of x?",
+      "Find x if: x + 8 = 20",
+      "Solve: 5x = 25",
+      "If 2x - 3 = 11, what is x?",
+      "Solve for x: 4x + 9 = 33",
+      "Find x: 7x - 12 = 30",
+      "Solve: 3(x + 4) = 21",
+    ],
+    [ProblemType.GEOMETRY]: [
+      "Find the area of a rectangle with length 8 and width 5",
+      "What is the perimeter of a square with side length 6?",
+      "Find the area of a circle with radius 4. Use π ≈ 3.14",
+      "A triangle has angles of 60°, 60°, and ? What is the missing angle?",
+      "What is the volume of a cube with side length 3?",
+      "Find the area of a triangle with base 10 and height 6",
+      "What is the circumference of a circle with radius 5? Use π ≈ 3.14",
+      "A rectangle has length 12 and width 7. What is its area?",
+    ],
+    [ProblemType.WORD_PROBLEM]: [
+      "Sarah has 15 apples. She gives away 7. How many does she have left?",
+      "A store has a 20% off sale. If an item costs $50, what's the sale price?",
+      "John has twice as many books as Mary. Together they have 18 books. How many does each have?",
+      "A train travels 120 miles in 2 hours. What is its speed in miles per hour?",
+      "If 3 pizzas cost $27, how much does 1 pizza cost?",
+      "Emma saves $5 each week. How much will she save in 8 weeks?",
+      "A recipe calls for 2 cups of flour for every 3 cups of sugar. If you use 6 cups of sugar, how many cups of flour do you need?",
+      "Tom is 3 years older than his sister. If his sister is 12, how old is Tom?",
+    ],
+    [ProblemType.MULTI_STEP]: [
+      "Solve: 2(x + 3) - 5 = 11",
+      "If 3x + 2 = 2x + 8, what is x?",
+      "Solve: 5(x - 2) + 3 = 18",
+      "Find x: 4x - 7 = 2x + 9",
+      "Solve: 2(x + 5) - 3(x - 2) = 10",
+      "Solve: 3(2x - 1) + 4 = 19",
+      "Find x: 5x + 3 = 2x + 15",
+      "Solve: 4(x + 2) - 2(x - 1) = 20",
+    ],
+    [ProblemType.UNKNOWN]: [
+      "Solve for x: 2x + 5 = 13",
+      "What is 15 + 23?",
+      "Find the area of a rectangle with length 8 and width 5",
+    ],
+  };
+
+  const typeTemplates = templates[problemType] || templates[ProblemType.ALGEBRA];
+  const templateIndex = Math.floor(random() * typeTemplates.length);
+  const problemText = typeTemplates[templateIndex];
+
+  return {
+    date,
+    problem: {
+      text: problemText,
+      type: problemType,
+      confidence: 1.0,
+    },
+    difficulty,
+    topic: problemType.replace("_", " "),
+  };
 }
 
 // Note: GET is now used for completion status check
