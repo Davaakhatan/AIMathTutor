@@ -182,6 +182,7 @@ export async function GET(request: NextRequest) {
 
         const profile = profileMap.get(userId);
         const xpDataEntry = userXPData as any;
+        const streakDataEntry = streakData as any;
         const rank = getRankForLevel(xpDataEntry.level || 1);
         userEntry = {
           userId: xpDataEntry.user_id,
@@ -193,7 +194,7 @@ export async function GET(request: NextRequest) {
           rankBadge: rank.badge,
           rankColor: rank.color,
           problemsSolved: problemCount || 0,
-          currentStreak: streakData?.current_streak || 0,
+          currentStreak: streakDataEntry?.current_streak || 0,
           lastActive: xpDataEntry.updated_at,
         };
       }
