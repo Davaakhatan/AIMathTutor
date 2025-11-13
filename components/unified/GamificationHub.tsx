@@ -33,12 +33,23 @@ export default function GamificationHub({
   const { activePanel, setActivePanel, isAnyPanelOpen } = usePanel();
   const [isOpen, setIsOpen] = useState(false);
   const [activeTab, setActiveTab] = useState<"xp" | "achievements" | "leaderboard">("xp");
+  const [isDesktop, setIsDesktop] = useState(false);
   const panelRef = useRef<HTMLDivElement>(null);
   
   // Calculate vertical position - stack below UserMenu (logged in) or AuthButton (guest mode)
   const buttonIndex = 1; // Second button
   const topOffset = `calc(max(1rem, env(safe-area-inset-top, 1rem)) + 4rem + 3.5rem)`;
   const rightOffset = 'max(1rem, env(safe-area-inset-right, 1rem))';
+  
+  // Track window size for responsive positioning
+  useEffect(() => {
+    const checkDesktop = () => {
+      setIsDesktop(window.innerWidth >= 768);
+    };
+    checkDesktop();
+    window.addEventListener('resize', checkDesktop);
+    return () => window.removeEventListener('resize', checkDesktop);
+  }, []);
 
   // Sync local state with panel context
   useEffect(() => {
@@ -101,76 +112,87 @@ export default function GamificationHub({
   }
 
   return (
-    <div
-      ref={panelRef}
-      style={{ 
-        position: 'fixed', 
-        top: topOffset, 
-        right: rightOffset, 
-        zIndex: 40,
-        maxWidth: 'calc(100vw - 2rem - env(safe-area-inset-left, 0px) - env(safe-area-inset-right, 0px))'
-      }}
-      className="bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-700 rounded-lg shadow-xl w-96 max-w-[calc(100vw-2rem)] max-h-[85vh] flex flex-col transition-all duration-200"
-    >
-      {/* Header with Tabs */}
-      <div className="flex items-center justify-between p-4 border-b border-gray-200 dark:border-gray-700">
-        <div className="flex gap-1 bg-gray-100 dark:bg-gray-800 rounded-lg p-1 flex-1">
+    <>
+      {/* Backdrop overlay for mobile */}
+      <div
+        className="fixed inset-0 bg-black/50 z-30 md:hidden transition-opacity duration-200"
+        onClick={handleClose}
+        aria-hidden="true"
+      />
+
+      {/* Panel */}
+      <div
+        ref={panelRef}
+        style={{ 
+          position: 'fixed', 
+          top: isDesktop ? topOffset : 0,
+          right: 0,
+          bottom: isDesktop ? 'auto' : 0,
+          maxHeight: isDesktop ? '85vh' : '100vh',
+          zIndex: 40,
+        }}
+        className="bg-white dark:bg-gray-900 border-l border-gray-200 dark:border-gray-700 shadow-xl w-full sm:w-96 max-w-[90vw] md:max-w-[400px] md:rounded-l-lg md:border-r md:border-l md:border-t md:border-b md:shadow-2xl flex flex-col transition-transform duration-300 ease-out md:translate-x-0"
+      >
+        {/* Header with Tabs */}
+        <div className="flex items-center justify-between p-3 sm:p-4 border-b border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-800/50">
+          <div className="flex gap-1 bg-gray-100 dark:bg-gray-800 rounded-lg p-1 flex-1 min-w-0">
+            <button
+              onClick={() => setActiveTab("xp")}
+              className={`flex-1 px-2 sm:px-3 py-1.5 text-xs font-medium rounded-md transition-colors whitespace-nowrap ${
+                activeTab === "xp"
+                  ? "bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100 shadow-sm"
+                  : "text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-gray-100"
+              }`}
+            >
+              XP & Level
+            </button>
+            <button
+              onClick={() => setActiveTab("achievements")}
+              className={`flex-1 px-2 sm:px-3 py-1.5 text-xs font-medium rounded-md transition-colors whitespace-nowrap ${
+                activeTab === "achievements"
+                  ? "bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100 shadow-sm"
+                  : "text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-gray-100"
+              }`}
+            >
+              Achievements
+            </button>
+            <button
+              onClick={() => setActiveTab("leaderboard")}
+              className={`flex-1 px-2 sm:px-3 py-1.5 text-xs font-medium rounded-md transition-colors whitespace-nowrap ${
+                activeTab === "leaderboard"
+                  ? "bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100 shadow-sm"
+                  : "text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-gray-100"
+              }`}
+            >
+              Leaderboard
+            </button>
+          </div>
           <button
-            onClick={() => setActiveTab("xp")}
-            className={`flex-1 px-3 py-1.5 text-xs font-medium rounded-md transition-colors ${
-              activeTab === "xp"
-                ? "bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100 shadow-sm"
-                : "text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-gray-100"
-            }`}
+            onClick={handleClose}
+            className="ml-2 text-gray-400 dark:text-gray-500 hover:text-gray-600 dark:hover:text-gray-300 transition-colors p-1.5 rounded-md hover:bg-gray-100 dark:hover:bg-gray-700 flex-shrink-0"
+            aria-label="Close menu"
           >
-            XP & Level
-          </button>
-          <button
-            onClick={() => setActiveTab("achievements")}
-            className={`flex-1 px-3 py-1.5 text-xs font-medium rounded-md transition-colors ${
-              activeTab === "achievements"
-                ? "bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100 shadow-sm"
-                : "text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-gray-100"
-            }`}
-          >
-            Achievements
-          </button>
-          <button
-            onClick={() => setActiveTab("leaderboard")}
-            className={`flex-1 px-3 py-1.5 text-xs font-medium rounded-md transition-colors ${
-              activeTab === "leaderboard"
-                ? "bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100 shadow-sm"
-                : "text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-gray-100"
-            }`}
-          >
-            Leaderboard
+            <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+            </svg>
           </button>
         </div>
-        <button
-          onClick={handleClose}
-          className="ml-2 text-gray-400 dark:text-gray-500 hover:text-gray-600 dark:hover:text-gray-300 transition-colors p-1"
-          aria-label="Close menu"
-        >
-          <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-          </svg>
-        </button>
-      </div>
 
-      {/* Tab Content */}
-      <div className="flex-1 overflow-hidden">
-        {activeTab === "xp" && <XPContent onXPDataChange={onXPDataChange} />}
-        {activeTab === "achievements" && <AchievementsContent />}
-        {activeTab === "leaderboard" && (
-          <LeaderboardContent
-            currentXP={currentXP}
-            currentLevel={currentLevel}
-            currentProblemsSolved={currentProblemsSolved}
-            currentStreak={currentStreak}
-          />
-        )}
+        {/* Tab Content - Scrollable */}
+        <div className="flex-1 overflow-y-auto overflow-x-hidden min-h-0">
+          {activeTab === "xp" && <XPContent onXPDataChange={onXPDataChange} />}
+          {activeTab === "achievements" && <AchievementsContent />}
+          {activeTab === "leaderboard" && (
+            <LeaderboardContent
+              currentXP={currentXP}
+              currentLevel={currentLevel}
+              currentProblemsSolved={currentProblemsSolved}
+              currentStreak={currentStreak}
+            />
+          )}
+        </div>
       </div>
-    </div>
+    </>
   );
 }
 
