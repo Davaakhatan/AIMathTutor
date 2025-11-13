@@ -141,7 +141,7 @@ export async function GET(request: NextRequest) {
     // Get user's rank
     const userXPEntry = xpData.find((e: any) => e.user_id === userId) as any;
     const userXP = userXPEntry?.total_xp || 0;
-    let userRank = xpData.findIndex((e: any) => e.user_id === userId) + 1;
+    let userRank: number | null = xpData.findIndex((e: any) => e.user_id === userId) + 1;
     if (userRank === 0 && userXP > 0) {
       // User not in top N, calculate rank
       const { count } = await supabase
