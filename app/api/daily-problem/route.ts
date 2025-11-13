@@ -157,6 +157,50 @@ export async function GET(request: NextRequest) {
       );
     }
 
+    // Handle countCompletions action
+    if (action === "countCompletions") {
+      const userId = searchParams.get("userId");
+      const profileId = searchParams.get("profileId");
+
+      if (!userId) {
+        return NextResponse.json({ success: false, error: "userId required" }, { status: 400 });
+      }
+
+      try {
+        const supabase = getSupabaseServer();
+        if (!supabase) {
+          return NextResponse.json({ success: false, error: "Database not configured" }, { status: 500 });
+        }
+
+        const effectiveProfileId = profileId && profileId !== "null" ? profileId : null;
+
+        let query = supabase
+          .from("daily_problems_completion")
+          .select("id", { count: "exact" })
+          .eq("user_id", userId)
+          .eq("is_solved", true);
+
+        if (effectiveProfileId) {
+          query = query.eq("student_profile_id", effectiveProfileId);
+        } else {
+          query = query.is("student_profile_id", null);
+        }
+
+        const { count, error } = await query;
+
+        if (error) {
+          logger.error("Error counting daily problem completions", { error: error.message, userId, effectiveProfileId });
+          return NextResponse.json({ success: false, error: error.message }, { status: 500 });
+        }
+
+        logger.debug("Daily problem completions count", { userId, count, effectiveProfileId });
+        return NextResponse.json({ success: true, count: count || 0 });
+      } catch (error) {
+        logger.error("Exception counting daily problem completions", { error, userId });
+        return NextResponse.json({ success: false, error: String(error) }, { status: 500 });
+      }
+    }
+
     logger.debug("Checking completion status via API", { date, userId, profileId });
     
     try {

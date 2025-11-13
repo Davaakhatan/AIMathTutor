@@ -15,17 +15,113 @@ const allAchievements = ALL_ACHIEVEMENTS;
  * Achievements Content - Display unlocked and locked achievements
  */
 export default function AchievementsContent() {
-  const { user } = useAuth();
+  const { user, activeProfile, userRole } = useAuth();
   const { unlockedAchievements, unlockAchievement } = useAchievements();
   const [newAchievement, setNewAchievement] = useState<Achievement | null>(null);
   const [xpData] = useLocalStorage<any>("aitutor-xp", { totalXP: 0, level: 1, problemsSolved: 0 });
   const [streakData] = useLocalStorage<any>("aitutor-streak", { currentStreak: 0 });
   const { problems: problemHistory } = useProblemHistory();
+  const [dailyProblemsCount, setDailyProblemsCount] = useState(0);
+
+  // Fetch daily problem completions count
+  useEffect(() => {
+    if (!user) {
+      setDailyProblemsCount(0);
+      return;
+    }
+
+    const fetchDailyProblemsCount = async () => {
+      try {
+        console.log("[AchievementsContent] Fetching daily problems count...", { userId: user.id, userRole });
+        
+        // For students, use user-level (profileId = null)
+        const profileIdToUse = (userRole === "student") ? null : (activeProfile?.id || null);
+        console.log("[AchievementsContent] Using profileId:", profileIdToUse);
+
+        // Use API route instead of direct client query to avoid RLS issues
+        const params = new URLSearchParams({
+          action: "countCompletions",
+          userId: user.id,
+        });
+        
+        if (profileIdToUse) {
+          params.append("profileId", profileIdToUse);
+        }
+
+        const url = `/api/daily-problem?${params.toString()}`;
+        console.log("[AchievementsContent] Fetching from API:", url);
+
+        try {
+          const response = await fetch(url, {
+            method: "GET",
+            headers: { "Content-Type": "application/json" },
+          });
+          
+          console.log("[AchievementsContent] API response status:", response.status, response.ok);
+          
+          if (!response.ok) {
+            const errorText = await response.text();
+            console.error("[AchievementsContent] API route failed:", response.status, response.statusText, errorText);
+            // Fallback to direct query
+            const { getSupabaseClient } = await import("@/lib/supabase");
+            const supabase = await getSupabaseClient();
+            if (supabase) {
+              let query = supabase
+                .from("daily_problems_completion")
+                .select("id")
+                .eq("user_id", user.id)
+                .eq("is_solved", true);
+
+              if (profileIdToUse) {
+                query = query.eq("student_profile_id", profileIdToUse);
+              } else {
+                query = query.is("student_profile_id", null);
+              }
+
+              const { data, error } = await query;
+              if (error) {
+                console.error("[AchievementsContent] Fallback query error:", error);
+                return;
+              }
+              const count = data?.length || 0;
+              console.log("[AchievementsContent] Using fallback count:", count);
+              setDailyProblemsCount(count);
+            }
+            return;
+          }
+
+          const result = await response.json();
+          console.log("[AchievementsContent] API response:", result);
+          
+          if (result.success && result.count !== undefined) {
+            console.log("[AchievementsContent] Setting daily problems count from API:", result.count);
+            setDailyProblemsCount(result.count);
+          } else {
+            console.warn("[AchievementsContent] API returned unexpected format:", result);
+          }
+        } catch (fetchError) {
+          console.error("[AchievementsContent] Fetch error:", fetchError);
+          // Don't set count on error - keep it at 0
+        }
+      } catch (error) {
+        console.error("[AchievementsContent] Error in fetchDailyProblemsCount:", error);
+      }
+    };
+
+    fetchDailyProblemsCount();
+  }, [user?.id, userRole, activeProfile?.id]);
 
   // Check achievements periodically based on stats
   useEffect(() => {
-    // Calculate problems solved from problem history (more reliable than xpData.problemsSolved)
-    const problemsSolved = problemHistory.length || 0;
+    // Calculate problems solved from problem history + daily problems
+    // Daily problems are saved separately, so we need to count both
+    const problemsSolved = (problemHistory.length || 0) + dailyProblemsCount;
+    
+    console.log("[AchievementsContent] Calculating problemsSolved:", {
+      problemHistoryLength: problemHistory.length,
+      dailyProblemsCount,
+      total: problemsSolved
+    });
     
     // Get problem types from history
     const problemTypes = problemHistory.map((p: any) => p.type || p.problem_type || "unknown").filter(Boolean);
@@ -64,7 +160,7 @@ export default function AchievementsContent() {
         }
       });
     }
-  }, [problemHistory.length, streakData?.currentStreak, unlockedAchievements, unlockAchievement]);
+  }, [problemHistory.length, dailyProblemsCount, streakData?.currentStreak, unlockedAchievements, unlockAchievement]);
 
   // Listen for achievement events (from other components)
   useEffect(() => {
