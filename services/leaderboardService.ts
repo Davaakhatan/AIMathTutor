@@ -139,7 +139,7 @@ export async function getGlobalLeaderboard(
     });
     
     // For users without profiles, use email if available
-    userIds.forEach((userId) => {
+    userIds.forEach((userId: string) => {
       if (!allUserProfileMap.has(userId)) {
         const email = emailMap.get(userId) || null;
         const readableName = getReadableName(email);
