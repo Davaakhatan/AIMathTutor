@@ -7,6 +7,8 @@ import { logger } from "@/lib/logger";
  * API route to fetch XP data (server-side with admin client)
  * This bypasses client-side authentication issues
  */
+export const dynamic = 'force-dynamic';
+
 export async function GET(request: NextRequest) {
   try {
     const { searchParams } = new URL(request.url);

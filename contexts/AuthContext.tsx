@@ -634,24 +634,37 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       logger.info("User signed up successfully", { userId: data.user?.id });
       
       // Track referral if referral code was provided
+      // Do this in the background so it doesn't block signup
       let trackedReferralCode: string | null = null;
       if (data.user && metadata?.referralCode) {
-        try {
-          const { trackReferralSignup } = await import("@/services/referralService");
-          await trackReferralSignup(metadata.referralCode, data.user.id);
-          trackedReferralCode = metadata.referralCode;
-          logger.info("Referral tracked on signup", { 
-            userId: data.user.id, 
-            referralCode: metadata.referralCode 
+        // Track referral in background (don't await - let it happen async)
+        import("@/services/referralService")
+          .then(({ trackReferralSignup }) => {
+            return trackReferralSignup(metadata.referralCode!, data.user!.id);
+          })
+          .then((result) => {
+            trackedReferralCode = metadata.referralCode!;
+            logger.info("Referral tracked on signup", { 
+              userId: data.user!.id, 
+              referralCode: metadata.referralCode 
+            });
+            
+            // Dispatch event to trigger XP refresh for the referrer (if they're logged in)
+            // This will be picked up by useXPData hook
+            if (typeof window !== "undefined") {
+              window.dispatchEvent(new CustomEvent('referral_reward_awarded', {
+                detail: { referralCode: metadata.referralCode, result }
+              }));
+            }
+          })
+          .catch((error) => {
+            logger.error("Error tracking referral on signup", { 
+              error, 
+              userId: data.user!.id, 
+              referralCode: metadata.referralCode 
+            });
+            // Don't fail signup if referral tracking fails - it will be retried later
           });
-        } catch (error) {
-          logger.error("Error tracking referral on signup", { 
-            error, 
-            userId: data.user.id, 
-            referralCode: metadata.referralCode 
-          });
-          // Don't fail signup if referral tracking fails
-        }
       }
       
       // Migrate localStorage data to Supabase (keep localStorage as cache)

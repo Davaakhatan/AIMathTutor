@@ -42,7 +42,7 @@ export async function POST(request: NextRequest) {
     }
 
     // Get the created referral record
-    const { data: referral, error: fetchError } = await supabase
+    const { data: referral, error: fetchError } = await (supabase as any)
       .from("referrals")
       .select("*")
       .eq("id", referralId)
@@ -69,19 +69,48 @@ export async function POST(request: NextRequest) {
       refereeId,
     });
 
-    // Award rewards in background (don't wait)
-    fetch(`${request.nextUrl.origin}/api/referral/award-rewards`, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ referralId }),
-    }).catch((err) => {
-      logger.error("Error awarding rewards in background", { error: err, referralId });
-    });
+    // Award rewards immediately (wait for it to complete)
+    try {
+      const awardResponse = await fetch(`${request.nextUrl.origin}/api/referral/award-rewards`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ referralId }),
+      });
 
+      if (!awardResponse.ok) {
+        const errorData = await awardResponse.json().catch(() => ({}));
+        logger.error("Error awarding rewards", { 
+          error: errorData, 
+          referralId,
+          status: awardResponse.status 
+        });
+      } else {
+        const awardResult = await awardResponse.json();
+        logger.info("Referral rewards awarded successfully", { 
+          referralId,
+          rewards: awardResult.rewards 
+        });
+        
+        // Return reward information so the client can trigger UI updates
+        return NextResponse.json({
+          success: true,
+          referralId,
+          referral: typedReferral,
+          rewardsAwarded: true,
+          rewards: awardResult.rewards,
+        });
+      }
+    } catch (err) {
+      logger.error("Error calling award-rewards endpoint", { error: err, referralId });
+      // Continue even if reward awarding fails - referral is still tracked
+    }
+
+    // Return success even if rewards weren't awarded (they can be awarded later)
     return NextResponse.json({
       success: true,
       referralId,
       referral: typedReferral,
+      rewardsAwarded: false,
     });
   } catch (error) {
     logger.error("Error in track-signup route", { error });

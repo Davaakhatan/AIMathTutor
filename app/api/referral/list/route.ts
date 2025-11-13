@@ -19,7 +19,7 @@ export async function GET(request: NextRequest) {
 
     const supabase = getSupabaseServer();
 
-    const { data, error } = await supabase
+    const { data, error } = await (supabase as any)
       .from("referrals")
       .select("id, referral_code, status, created_at, referrer_reward_amount")
       .eq("referrer_id", userId)

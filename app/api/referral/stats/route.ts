@@ -24,7 +24,7 @@ export async function GET(request: NextRequest) {
     const supabase = getSupabaseServer();
 
     // Get referral code
-    const { data: codeData, error: codeError } = await supabase
+    const { data: codeData, error: codeError } = await (supabase as any)
       .from("referral_codes")
       .select("code, total_signups, total_rewards_earned")
       .eq("user_id", userId)
@@ -57,7 +57,7 @@ export async function GET(request: NextRequest) {
         if (!rpcError && newCode) {
           logger.info("Referral code created via RPC", { userId, code: newCode });
           // Fetch the newly created code (use limit(1) to handle duplicates)
-          const { data: fetchedCodes, error: fetchError } = await supabase
+          const { data: fetchedCodes, error: fetchError } = await (supabase as any)
             .from("referral_codes")
             .select("code, total_signups, total_rewards_earned")
             .eq("user_id", userId)
@@ -90,7 +90,7 @@ export async function GET(request: NextRequest) {
     }
 
     // Get referral counts
-    const { data: referrals, error: referralsError } = await supabase
+    const { data: referrals, error: referralsError } = await (supabase as any)
       .from("referrals")
       .select("id, status")
       .eq("referrer_id", userId);
@@ -107,12 +107,48 @@ export async function GET(request: NextRequest) {
       (r) => r.status === "completed" || r.status === "rewarded"
     ).length;
 
+    // If we still don't have a code, try one more time to create it directly
+    if (!finalCodeData || !finalCodeData.code) {
+      logger.warn("No referral code found after all attempts, creating directly", { userId });
+      try {
+        const { data: newCode, error: finalRpcError } = await (supabase.rpc as any)(
+          "get_or_create_referral_code",
+          { p_user_id: userId }
+        );
+        
+        if (!finalRpcError && newCode) {
+          // Fetch it one more time
+          const { data: finalFetch, error: finalFetchError } = await (supabase as any)
+            .from("referral_codes")
+            .select("code, total_signups, total_rewards_earned")
+            .eq("user_id", userId)
+            .eq("is_active", true)
+            .order("created_at", { ascending: false })
+            .limit(1);
+          
+          if (!finalFetchError && finalFetch && finalFetch.length > 0) {
+            finalCodeData = finalFetch[0] as CodeData;
+          } else if (newCode) {
+            // Use the code from RPC even if we can't fetch it
+            finalCodeData = {
+              code: newCode,
+              total_signups: 0,
+              total_rewards_earned: 0,
+            };
+          }
+        }
+      } catch (finalError) {
+        logger.error("Final attempt to create referral code failed", { error: finalError, userId });
+      }
+    }
+
     // Use request origin for proper URL generation
     const origin = request.nextUrl.origin || "";
-    const referralUrl = finalCodeData && origin
-      ? `${origin}/signup?ref=${finalCodeData.code}`
-      : finalCodeData
-      ? `/signup?ref=${finalCodeData.code}`
+    const referralCode = finalCodeData?.code || "";
+    const referralUrl = referralCode && origin
+      ? `${origin}/signup?ref=${referralCode}`
+      : referralCode
+      ? `/signup?ref=${referralCode}`
       : null;
 
     return NextResponse.json({
@@ -121,7 +157,7 @@ export async function GET(request: NextRequest) {
         totalReferrals,
         completedReferrals,
         totalRewardsEarned: finalCodeData?.total_rewards_earned || 0,
-        referralCode: finalCodeData?.code || null,
+        referralCode: referralCode,
         referralUrl,
         totalSignups: finalCodeData?.total_signups || 0,
       },

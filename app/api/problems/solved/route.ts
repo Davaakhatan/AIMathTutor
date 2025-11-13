@@ -9,6 +9,8 @@ import { logger } from "@/lib/logger";
  * 1. Problems from problems table where solved_at is not null
  * 2. Problem of the Day completions from daily_problems_completion
  */
+export const dynamic = 'force-dynamic';
+
 export async function GET(request: NextRequest) {
   try {
     const searchParams = request.nextUrl.searchParams;

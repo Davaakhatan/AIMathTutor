@@ -44,9 +44,40 @@ export function useXPData() {
       }
     };
     
+    // Listen for referral reward events to trigger XP refresh
+    const handleReferralReward = async () => {
+      if (user) {
+        logger.info("Referral reward event received, refreshing XP", { userId: user.id });
+        try {
+          const profileIdToUse = (userRole === "student") ? null : (activeProfile?.id || null);
+          const freshData = await getXPData(user.id, profileIdToUse);
+          if (freshData) {
+            setXPData(freshData);
+            setLocalXPData({
+              totalXP: freshData.total_xp,
+              level: freshData.level,
+              xpToNextLevel: freshData.xp_to_next_level,
+              xpHistory: freshData.xp_history || [],
+              recentGains: freshData.recent_gains || [],
+            });
+            logger.info("XP refreshed after referral reward", { 
+              totalXP: freshData.total_xp,
+              level: freshData.level 
+            });
+          }
+        } catch (error) {
+          logger.error("Error refreshing XP after referral reward", { error });
+        }
+      }
+    };
+    
     window.addEventListener('xp-sync-complete', handleXPSync as EventListener);
-    return () => window.removeEventListener('xp-sync-complete', handleXPSync as EventListener);
-  }, [setLocalXPData]);
+    window.addEventListener('referral_reward_awarded', handleReferralReward as EventListener);
+    return () => {
+      window.removeEventListener('xp-sync-complete', handleXPSync as EventListener);
+      window.removeEventListener('referral_reward_awarded', handleReferralReward as EventListener);
+    };
+  }, [setLocalXPData, user, userRole, activeProfile?.id]);
 
   // Load XP data - Fetch from database for authenticated users
   useEffect(() => {
@@ -195,21 +226,33 @@ export function useXPData() {
         const profileIdToUse = (userRole === "student") ? null : (activeProfile?.id || null);
         const freshData = await getXPData(user.id, profileIdToUse);
         
-        if (freshData && xpData && freshData.total_xp !== xpData.total_xp) {
-          logger.debug("XP changed, updating display", { 
-            old: xpData.total_xp, 
-            new: freshData.total_xp 
-          });
-          setXPData(freshData);
+        // Update if XP, level, or recentGains changed
+        if (freshData && xpData) {
+          const xpChanged = freshData.total_xp !== xpData.total_xp;
+          const levelChanged = freshData.level !== xpData.level;
+          const recentGainsChanged = JSON.stringify(freshData.recent_gains) !== JSON.stringify(xpData.recent_gains);
           
-          // Update localStorage
-          setLocalXPData({
-            totalXP: freshData.total_xp,
-            level: freshData.level,
-            xpToNextLevel: freshData.xp_to_next_level,
-            xpHistory: freshData.xp_history || [],
-            recentGains: freshData.recent_gains || [],
-          });
+          if (xpChanged || levelChanged || recentGainsChanged) {
+            logger.debug("XP/Level/RecentGains changed, updating display", { 
+              xpChanged,
+              levelChanged,
+              recentGainsChanged,
+              oldXP: xpData.total_xp, 
+              newXP: freshData.total_xp,
+              oldRecentGainsCount: xpData.recent_gains?.length || 0,
+              newRecentGainsCount: freshData.recent_gains?.length || 0
+            });
+            setXPData(freshData);
+            
+            // Update localStorage
+            setLocalXPData({
+              totalXP: freshData.total_xp,
+              level: freshData.level,
+              xpToNextLevel: freshData.xp_to_next_level,
+              xpHistory: freshData.xp_history || [],
+              recentGains: freshData.recent_gains || [],
+            });
+          }
         }
       } catch (error) {
         // Silent fail - don't spam logs

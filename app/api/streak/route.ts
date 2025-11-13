@@ -7,6 +7,8 @@ import { logger } from "@/lib/logger";
  * Fetch streak data for the current user
  * Server-side route that bypasses RLS
  */
+export const dynamic = 'force-dynamic';
+
 export async function GET(request: NextRequest) {
   try {
     const searchParams = request.nextUrl.searchParams;

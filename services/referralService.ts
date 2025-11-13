@@ -49,7 +49,7 @@ export async function getOrCreateReferralCode(userId: string): Promise<string> {
     const supabase = await getSupabaseClient();
     
     // Check if user already has an active referral code
-    const { data: existingCode, error: fetchError } = await supabase
+    const { data: existingCode, error: fetchError } = await (supabase as any)
       .from("referral_codes")
       .select("code")
       .eq("user_id", userId)
@@ -70,13 +70,13 @@ export async function getOrCreateReferralCode(userId: string): Promise<string> {
       
       // Fallback: Generate code client-side and insert
       const fallbackCode = generateReferralCode();
-      const { error: insertError } = await supabase
+      const { error: insertError } = await (supabase as any)
         .from("referral_codes")
         .insert({
           user_id: userId,
           code: fallbackCode,
           is_active: true,
-        } as any);
+        });
 
       if (insertError) {
         logger.error("Error inserting referral code", { error: insertError, userId });
@@ -125,16 +125,41 @@ export async function trackReferralSignup(
     });
 
     if (!response.ok) {
-      const error = await response.json();
-      throw new Error(error.error || "Failed to track referral signup");
+      const errorData = await response.json().catch(() => ({ error: "Unknown error" }));
+      const errorMessage = errorData.error || errorData.message || "Failed to track referral signup";
+      logger.error("Referral tracking API error", { 
+        status: response.status,
+        error: errorMessage,
+        referralCode,
+        refereeId 
+      });
+      throw new Error(errorMessage);
     }
 
     const result = await response.json();
-    logger.info("Referral signup tracked", { referralCode, refereeId, referralId: result.referralId });
+    if (!result.success) {
+      logger.error("Referral tracking returned unsuccessful", { 
+        result,
+        referralCode,
+        refereeId 
+      });
+      throw new Error(result.error || "Failed to track referral signup");
+    }
+
+    logger.info("Referral signup tracked", { 
+      referralCode, 
+      refereeId, 
+      referralId: result.referralId 
+    });
     
     return result.referral;
   } catch (error) {
-    logger.error("Error tracking referral signup", { error, referralCode, refereeId });
+    logger.error("Error tracking referral signup", { 
+      error, 
+      referralCode, 
+      refereeId,
+      errorMessage: error instanceof Error ? error.message : String(error)
+    });
     throw error;
   }
 }
@@ -144,52 +169,44 @@ export async function trackReferralSignup(
  */
 export async function getReferralStats(userId: string): Promise<ReferralStats> {
   try {
-    const supabase = await getSupabaseClient();
-
-    // Get referral code
-    const { data: codeData, error: codeError } = await supabase
-      .from("referral_codes")
-      .select("code, total_signups, total_rewards_earned")
-      .eq("user_id", userId)
-      .eq("is_active", true)
-      .single();
-
-    if (codeError || !codeData) {
-      // If no code exists, create one
-      const newCode = await getOrCreateReferralCode(userId);
-      // Safe origin detection for SSR
-      const origin = typeof window !== "undefined" && window.location ? window.location.origin : "";
-      const referralUrl = origin ? `${origin}/signup?ref=${newCode}` : `/signup?ref=${newCode}`;
+    // Use API route instead of direct client queries for better RLS handling
+    const response = await fetch(`/api/referral/stats?userId=${userId}`);
+    
+    if (!response.ok) {
+      const errorData = await response.json().catch(() => ({}));
+      logger.error("Error fetching referral stats", { error: errorData, userId });
       
+      // Fallback: try to create a code and return default stats
+      try {
+        const newCode = await getOrCreateReferralCode(userId);
+        const origin = typeof window !== "undefined" && window.location ? window.location.origin : "";
+        const referralUrl = origin ? `${origin}/signup?ref=${newCode}` : `/signup?ref=${newCode}`;
+        
+        return {
+          totalReferrals: 0,
+          completedReferrals: 0,
+          totalRewardsEarned: 0,
+          referralCode: newCode,
+          referralUrl,
+        };
+      } catch (createError) {
+        logger.error("Error creating referral code in fallback", { error: createError, userId });
+        throw new Error("Failed to get referral stats");
+      }
+    }
+
+    const data = await response.json();
+    if (data.success && data.stats) {
       return {
-        totalReferrals: 0,
-        completedReferrals: 0,
-        totalRewardsEarned: 0,
-        referralCode: newCode,
-        referralUrl,
+        totalReferrals: data.stats.totalReferrals || 0,
+        completedReferrals: data.stats.completedReferrals || 0,
+        totalRewardsEarned: data.stats.totalRewardsEarned || 0,
+        referralCode: data.stats.referralCode || "",
+        referralUrl: data.stats.referralUrl || "",
       };
     }
 
-    // Get referral counts
-    const { data: referrals, error: referralsError } = await supabase
-      .from("referrals")
-      .select("id, status")
-      .eq("referrer_id", userId);
-
-    const totalReferrals = referrals?.length || 0;
-    const completedReferrals = referrals?.filter((r: Referral) => r.status === "completed" || r.status === "rewarded").length || 0;
-
-    // Safe origin detection for SSR
-    const origin = typeof window !== "undefined" && window.location ? window.location.origin : "";
-    const referralUrl = origin ? `${origin}/signup?ref=${codeData.code}` : `/signup?ref=${codeData.code}`;
-
-    return {
-      totalReferrals,
-      completedReferrals,
-      totalRewardsEarned: codeData.total_rewards_earned || 0,
-      referralCode: codeData.code,
-      referralUrl,
-    };
+    throw new Error("Invalid stats response");
   } catch (error) {
     logger.error("Error getting referral stats", { error, userId });
     throw error;
@@ -253,7 +270,7 @@ export async function validateReferralCode(code: string): Promise<boolean> {
   try {
     const supabase = await getSupabaseClient();
 
-    const { data, error } = await supabase
+    const { data, error } = await (supabase as any)
       .from("referral_codes")
       .select("id")
       .eq("code", code.toUpperCase().trim())

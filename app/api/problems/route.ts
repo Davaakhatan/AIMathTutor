@@ -7,6 +7,8 @@ import { logger } from "@/lib/logger";
  * Fetch problems for the current user
  * Uses server-side client to bypass RLS issues
  */
+export const dynamic = 'force-dynamic';
+
 export async function GET(request: NextRequest) {
   try {
     const searchParams = request.nextUrl.searchParams;

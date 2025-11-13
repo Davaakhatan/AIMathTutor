@@ -6,6 +6,8 @@ import { logger } from "@/lib/logger";
  * API route to fetch user emails for leaderboard
  * This is needed because we can't query auth.users directly from the client
  */
+export const dynamic = 'force-dynamic';
+
 export async function GET(request: NextRequest) {
   try {
     const { searchParams } = new URL(request.url);

@@ -8,6 +8,7 @@ import { getRankForLevel } from "@/services/rankingService";
  * API route to fetch leaderboard data server-side
  * This bypasses RLS issues and provides reliable leaderboard data
  */
+export const dynamic = 'force-dynamic';
 export async function GET(request: NextRequest) {
   try {
     const { searchParams } = new URL(request.url);

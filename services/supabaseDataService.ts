@@ -211,11 +211,29 @@ export async function getXPData(userId: string, profileId?: string | null): Prom
 
     // Convert xp_history to recent_gains format (for UI display)
     const xpHistory = (xpRow.xp_history as any) || [];
-    const recentGains = xpHistory.map((entry: any) => ({
-      xp: entry.xp || 0,
-      reason: entry.reason || "XP gained",
-      timestamp: entry.date ? new Date(entry.date).getTime() : Date.now()
-    }));
+    const recentGains = xpHistory
+      .map((entry: any) => {
+        // Handle timestamp - it might be a number, string, or need to be calculated from date
+        let timestamp: number;
+        if (entry.timestamp) {
+          // If timestamp exists, use it (convert to number if it's a string)
+          timestamp = typeof entry.timestamp === 'string' ? parseInt(entry.timestamp) : Math.floor(entry.timestamp);
+        } else if (entry.date) {
+          // If no timestamp but has date, convert date to timestamp
+          timestamp = new Date(entry.date).getTime();
+        } else {
+          // Fallback to current time
+          timestamp = Date.now();
+        }
+        
+        return {
+          xp: entry.xp || 0,
+          reason: entry.reason || "XP gained",
+          timestamp: timestamp
+        };
+      })
+      .sort((a: any, b: any) => b.timestamp - a.timestamp) // Sort by timestamp descending (most recent first)
+      .slice(0, 10); // Limit to 10 most recent entries
 
     return {
       total_xp: xpRow.total_xp || 0,

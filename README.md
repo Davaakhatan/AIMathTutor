@@ -70,16 +70,19 @@ Build an AI tutor that:
 
 ### Learning Features ✅
 
-- **Problem History** - Save and search through past problems
+- **Problem History** - Save and search through past problems with Solved/Bookmarked filters
 - **Bookmarks** - Bookmark favorite problems for quick access
-- **Learning Dashboard** - Track progress, time spent, problems by type
-- **Study Streak** - Track consecutive days of study
-- **Achievements** - Earn badges for milestones
+- **Learning Dashboard** - Track progress, time spent, problems by type, efficiency scores
+- **Learning Paths** - AI-generated personalized learning journeys with concept dependencies
+- **Learning Goals** - Set and track learning goals with progress monitoring
+- **Study Streak** - Track consecutive days of study with daily login bonuses
+- **Achievements** - Earn badges for milestones (first problem, streaks, hints, etc.)
 - **Study Reminders** - Customizable study notifications
-- **Problem Suggestions** - AI suggests problem types to practice
+- **Problem Suggestions** - AI suggests problem types to practice based on history
 - **Formula Reference** - Quick access to common math formulas
 - **Practice Mode** - One-click random problem generation
 - **Progress Tracking** - Intelligent progress detection with completion recognition
+- **Concept Mastery** - Automatic concept extraction and mastery tracking
 
 ### Additional Features ✅
 
@@ -88,12 +91,14 @@ Build an AI tutor that:
 - **Progress Hub** - Quick access to Stats, Goals, Timer, and Streak tracking
 - **Learning Hub** - Dashboard, History, Practice Mode, and Problem Suggestions
 - **Gamification Hub** - Achievements and Leaderboard
-- **XP & Leveling System** - Earn XP for solving problems, level up, track progress
+- **XP & Leveling System** - Earn XP for solving problems, level up, track progress with recent activity
+- **Referral System** - Share referral codes, earn XP bonuses for referrals
 - **Daily Goals** - Set and track daily study goals
 - **Study Timer** - Track time spent studying
 - **Study Streak** - Maintain consecutive days of practice
 - **Achievement System** - Earn badges for milestones and achievements
-- **Leaderboard** - Compare progress with other users (local leaderboard)
+- **Leaderboard** - Compare progress with other users, see rankings and XP
+- **Profile Management** - Create and manage student profiles, link students to parents/teachers
 - **Data Backup & Restore** - Export and import learning data
 - **Settings Panel** - Customize voice, font size, auto-save, API key, dark mode
 - **Keyboard Shortcuts** - Efficient navigation and actions (Ctrl+K for search, ? for tips)

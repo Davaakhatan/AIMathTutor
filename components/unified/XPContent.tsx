@@ -42,9 +42,36 @@ export default function XPContent({ onXPDataChange }: XPContentProps) {
           if (result.success && result.xpData) {
             const dbXP = result.xpData.totalXP;
             
-            // Update if database has different XP (database is source of truth)
-            if (dbXP !== currentXP) {
-              console.log("[XPContent] XP mismatch detected! Updating from", currentXP, "to", dbXP);
+            // Always update to ensure recentGains is fresh (database is source of truth)
+            const currentLevel = xpData.level;
+            const dbLevel = result.xpData.level;
+            const currentRecentGainsCount = xpData.recentGains?.length || 0;
+            const dbRecentGainsCount = result.xpData.recentGains?.length || 0;
+            // Compare recentGains more reliably - check if referral bonus exists and compare sorted entries
+            const hasReferralBonus = result.xpData.recentGains?.some((g: any) => g.reason === "Referral Bonus") || false;
+            const currentHasReferralBonus = xpData.recentGains?.some((g: any) => g.reason === "Referral Bonus") || false;
+            const recentGainsChanged = hasReferralBonus !== currentHasReferralBonus || 
+              JSON.stringify(xpData.recentGains?.map((g: any) => ({ xp: g.xp, reason: g.reason })).sort()) !== 
+              JSON.stringify(result.xpData.recentGains?.map((g: any) => ({ xp: g.xp, reason: g.reason })).sort());
+            
+            // Always update recentGains if database has referral bonus and current doesn't
+            // Or if there's any mismatch in XP, level, or recentGains
+            const shouldUpdate = dbXP !== currentXP || dbLevel !== currentLevel || recentGainsChanged || 
+              (hasReferralBonus && !currentHasReferralBonus);
+            
+            if (shouldUpdate) {
+              console.log("[XPContent] XP/Level/RecentGains mismatch detected! Updating from", { 
+                xp: currentXP, 
+                level: currentLevel,
+                recentGainsCount: currentRecentGainsCount,
+                hasReferralBonus: currentHasReferralBonus
+              }, "to", { 
+                xp: dbXP, 
+                level: dbLevel,
+                recentGainsCount: dbRecentGainsCount,
+                hasReferralBonus: hasReferralBonus,
+                recentGains: result.xpData.recentGains
+              });
               // Update localStorage directly - this will be picked up by the hook
               localStorage.setItem("aitutor-xp", JSON.stringify(result.xpData));
               
@@ -66,7 +93,16 @@ export default function XPContent({ onXPDataChange }: XPContentProps) {
                 console.log("[XPContent] updateXP failed, but event dispatched - hook will sync", { error });
               });
             } else {
-              console.log("[XPContent] XP matches database, no update needed", { currentXP, dbXP });
+              console.log("[XPContent] XP, Level, and RecentGains match database, no update needed", { 
+                currentXP, 
+                dbXP, 
+                currentLevel, 
+                dbLevel,
+                currentRecentGainsCount,
+                dbRecentGainsCount,
+                currentHasReferralBonus,
+                hasReferralBonus
+              });
             }
           }
         }
@@ -77,8 +113,13 @@ export default function XPContent({ onXPDataChange }: XPContentProps) {
     
     // Sync once on mount with a short delay to avoid race conditions
     // Only sync if we have a user and data is loaded
-    const timeoutId = setTimeout(syncXP, 1500);
-    return () => clearTimeout(timeoutId);
+    // Also sync after a longer delay to catch any missed updates
+    const timeoutId1 = setTimeout(syncXP, 1500);
+    const timeoutId2 = setTimeout(syncXP, 5000); // Second sync after 5 seconds
+    return () => {
+      clearTimeout(timeoutId1);
+      clearTimeout(timeoutId2);
+    };
   }, [user?.id, isLoading]); // Sync when user changes or loading completes
 
   // Calculate XP needed for next level
