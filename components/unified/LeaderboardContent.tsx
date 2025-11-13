@@ -44,6 +44,17 @@ export default function LeaderboardContent({
         
         const data = await getLeaderboardData(user.id, 100);
         
+        logger.debug("Leaderboard data received", {
+          topPlayersCount: data.topPlayers.length,
+          userRank: data.userRank,
+          hasUserEntry: !!data.userEntry,
+          samplePlayer: data.topPlayers[0] ? {
+            userId: data.topPlayers[0].userId,
+            username: data.topPlayers[0].username,
+            totalXP: data.topPlayers[0].totalXP
+          } : null
+        });
+        
         setLeaderboard(data.topPlayers);
         setUserEntry(data.userEntry);
         setUserRank(data.userRank);
@@ -53,7 +64,7 @@ export default function LeaderboardContent({
           userRank: data.userRank
         });
       } catch (error) {
-        logger.error("Error fetching leaderboard", { error });
+        logger.error("Error fetching leaderboard", { error, errorMessage: error instanceof Error ? error.message : String(error) });
         // Keep empty state
       }
     };
