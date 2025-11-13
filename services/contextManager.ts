@@ -85,20 +85,37 @@ export class ContextManager {
           logger.debug("Supabase not configured, using in-memory session only", { userId });
         } else {
           // First, save the problem if it exists
+          // For students: always use null for student_profile_id (user-level data)
           let problemId: string | null = null;
           if (problem) {
+            // Get user role to determine profileId
+            const { data: userProfile } = await supabase
+              .from("profiles")
+              .select("role")
+              .eq("id", userId)
+              .single();
+            
+            const userRole = userProfile?.role;
+            const studentProfileId = userRole === "student" ? null : undefined; // undefined means don't set it (let RLS handle it)
+            
+            const insertData: any = {
+              user_id: userId,
+              text: problem.text,
+              type: problem.type,
+              difficulty: difficultyMode,
+              image_url: problem.imageUrl,
+              parsed_data: problem,
+              is_generated: true,
+              source: "chat",
+            };
+            
+            if (studentProfileId !== undefined) {
+              insertData.student_profile_id = studentProfileId;
+            }
+            
             const { data: problemData, error: problemError } = await supabase
               .from("problems")
-              .insert({
-                user_id: userId,
-                text: problem.text,
-                type: problem.type,
-                difficulty: difficultyMode,
-                image_url: problem.imageUrl,
-                parsed_data: problem,
-                is_generated: true,
-                source: "chat",
-              })
+              .insert(insertData)
               .select("id")
               .single();
 

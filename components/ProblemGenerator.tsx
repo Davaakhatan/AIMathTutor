@@ -114,14 +114,30 @@ export default function ProblemGenerator({
               ...result.problem,
               generatedDifficulty: difficulty, // Store the difficulty used
             };
-            onProblemGenerated(problemWithDifficulty);
+            // Call callback asynchronously to avoid blocking
+            Promise.resolve(problemWithDifficulty)
+              .then((prob) => onProblemGenerated(prob))
+              .catch((callbackError) => {
+                console.error("Error in onProblemGenerated callback:", callbackError);
+                // Continue - don't block the UI
+              });
             setIsGenerating(false);
             return;
+          } else {
+            // API returned but with error
+            console.warn("API returned but problem generation failed:", result.error || "Unknown error");
+            throw new Error(result.error || "Failed to generate problem");
           }
+        } else {
+          // API returned error status
+          const errorData = await response.json().catch(() => ({ error: `HTTP ${response.status}` }));
+          console.warn("API request failed:", errorData.error || `HTTP ${response.status}`);
+          throw new Error(errorData.error || `HTTP ${response.status}`);
         }
       } catch (aiError) {
         console.error("AI generation failed:", aiError);
         console.log("Falling back to templates");
+        // Don't re-throw - fall through to template fallback
       }
 
       // Fallback to templates
@@ -133,10 +149,20 @@ export default function ProblemGenerator({
           type: selectedType,
           confidence: 1.0,
         };
-        onProblemGenerated(problem);
+        // Call callback asynchronously to avoid blocking
+        Promise.resolve(problem)
+          .then((prob) => onProblemGenerated(prob))
+          .catch((callbackError) => {
+            console.error("Error in onProblemGenerated callback (template fallback):", callbackError);
+            // Continue - don't block the UI
+          });
+      } else {
+        console.error("No templates available for type:", selectedType);
       }
     } catch (error) {
       console.error("Error generating problem:", error);
+      // Show user-friendly error message
+      alert(`Failed to generate problem: ${error instanceof Error ? error.message : "Unknown error"}`);
     } finally {
       setIsGenerating(false);
     }

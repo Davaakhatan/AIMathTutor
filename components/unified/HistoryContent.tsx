@@ -4,6 +4,7 @@ import { useState, useEffect } from "react";
 import { ParsedProblem, ProblemType } from "@/types";
 import { useLocalStorage } from "@/hooks/useLocalStorage";
 import { useProblemHistory } from "@/hooks/useProblemHistory";
+import { useAuth } from "@/contexts/AuthContext";
 
 interface SavedProblem extends ParsedProblem {
   savedAt: number;
@@ -23,13 +24,14 @@ interface HistoryContentProps {
 
 type SortOption = "recent" | "oldest" | "type" | "alphabetical";
 type FilterType = "all" | ProblemType;
-type ViewMode = "all" | "bookmarked";
+type ViewMode = "all" | "solved" | "bookmarked";
 
 /**
  * History Content - Problem history and bookmarks
  */
 export default function HistoryContent({ onSelectProblem }: HistoryContentProps) {
   const { problems: savedProblems, toggleBookmark } = useProblemHistory();
+  const { user, activeProfile, userRole } = useAuth();
   
   // Get bookmarks from problems (filtered by isBookmarked flag)
   const bookmarks = savedProblems.filter(p => p.isBookmarked).map(p => ({
@@ -41,22 +43,117 @@ export default function HistoryContent({ onSelectProblem }: HistoryContentProps)
   const [filterType, setFilterType] = useState<FilterType>("all");
   const [viewMode, setViewMode] = useState<ViewMode>("all");
   const [isMounted, setIsMounted] = useState(false);
+  const [solvedProblems, setSolvedProblems] = useState<SavedProblem[]>([]);
+  const [isLoadingSolved, setIsLoadingSolved] = useState(false);
 
   // Prevent hydration mismatch by only rendering badge after client-side mount
   useEffect(() => {
     setIsMounted(true);
   }, []);
 
+  // Load solved problems on mount and when viewMode changes
+  useEffect(() => {
+    if (user) {
+      const loadSolvedProblems = async () => {
+        if (viewMode === "solved") {
+          setIsLoadingSolved(true);
+        }
+        try {
+          const profileIdForQuery = userRole === "student" ? null : (activeProfile?.id || null);
+          const profileIdParam = profileIdForQuery ? `&profileId=${profileIdForQuery}` : "";
+          const apiUrl = `/api/problems/solved?userId=${user.id}&limit=100${profileIdParam}`;
+          
+          console.log("[HistoryContent] Loading solved problems", { apiUrl, viewMode });
+          
+          const response = await fetch(apiUrl);
+          if (response.ok) {
+            const result = await response.json();
+            console.log("[HistoryContent] Solved problems API response", { 
+              success: result.success, 
+              count: result.problems?.length || 0 
+            });
+            if (result.success && Array.isArray(result.problems)) {
+              const formatted: SavedProblem[] = result.problems.map((p: any) => ({
+                id: p.id,
+                text: p.text,
+                type: p.type as any,
+                confidence: 1.0,
+                savedAt: p.solved_at ? new Date(p.solved_at).getTime() : Date.now(),
+                isBookmarked: p.is_bookmarked || false,
+                imageUrl: p.image_url || undefined,
+                difficulty: p.difficulty,
+              }));
+              console.log("[HistoryContent] Setting solved problems", { count: formatted.length });
+              setSolvedProblems(formatted);
+            }
+          } else {
+            console.error("[HistoryContent] Failed to load solved problems", { status: response.status });
+          }
+        } catch (error) {
+          console.error("[HistoryContent] Error loading solved problems:", error);
+        } finally {
+          if (viewMode === "solved") {
+            setIsLoadingSolved(false);
+          }
+        }
+      };
+      loadSolvedProblems();
+    }
+  }, [viewMode, user?.id, userRole, activeProfile?.id]);
+
+  // Listen for problem completion events to reload solved problems
+  useEffect(() => {
+    const handleProblemSolved = () => {
+      console.log("[HistoryContent] Problem solved event received, reloading solved problems");
+      if (user) {
+        const loadSolvedProblems = async () => {
+          try {
+            const profileIdForQuery = userRole === "student" ? null : (activeProfile?.id || null);
+            const profileIdParam = profileIdForQuery ? `&profileId=${profileIdForQuery}` : "";
+            const apiUrl = `/api/problems/solved?userId=${user.id}&limit=100${profileIdParam}`;
+            
+            const response = await fetch(apiUrl);
+            if (response.ok) {
+              const result = await response.json();
+              if (result.success && Array.isArray(result.problems)) {
+                const formatted: SavedProblem[] = result.problems.map((p: any) => ({
+                  id: p.id,
+                  text: p.text,
+                  type: p.type as any,
+                  confidence: 1.0,
+                  savedAt: p.solved_at ? new Date(p.solved_at).getTime() : Date.now(),
+                  isBookmarked: p.is_bookmarked || false,
+                  imageUrl: p.image_url || undefined,
+                  difficulty: p.difficulty,
+                }));
+                setSolvedProblems(formatted);
+                console.log("[HistoryContent] Solved problems reloaded after completion", { count: formatted.length });
+              }
+            }
+          } catch (error) {
+            console.error("[HistoryContent] Error reloading solved problems:", error);
+          }
+        };
+        loadSolvedProblems();
+      }
+    };
+    
+    window.addEventListener("problem_completed", handleProblemSolved);
+    return () => window.removeEventListener("problem_completed", handleProblemSolved);
+  }, [user?.id, userRole, activeProfile?.id]);
+
   // All problems from history (bookmarks are already included with isBookmarked flag)
-  const allProblems = savedProblems.map(p => ({
-    ...p,
-    savedAt: p.savedAt || Date.now(),
-    isBookmarked: p.isBookmarked || false,
-  }));
+  const allProblems = viewMode === "solved" 
+    ? solvedProblems
+    : savedProblems.map(p => ({
+        ...p,
+        savedAt: p.savedAt || Date.now(),
+        isBookmarked: p.isBookmarked || false,
+      }));
 
   const filteredProblems = allProblems
     .filter((p) => {
-      // Filter by view mode (all vs bookmarked)
+      // Filter by view mode (all vs solved vs bookmarked)
       if (viewMode === "bookmarked" && !p.isBookmarked) return false;
       
       const matchesText = p.text.toLowerCase().includes(filter.toLowerCase());
@@ -116,29 +213,83 @@ export default function HistoryContent({ onSelectProblem }: HistoryContentProps)
         </p>
       </div>
       
-      {/* Tabs for All vs Bookmarked */}
+      {/* Tabs for All vs Solved vs Bookmarked - 3 TABS */}
       <div className="flex border-b border-gray-200 dark:border-gray-700">
         <button
-          onClick={() => setViewMode("all")}
-          className={`flex-1 px-4 py-2 text-xs font-medium transition-colors ${
-            viewMode === "all"
-              ? "text-gray-900 dark:text-gray-100 border-b-2 border-gray-900 dark:border-gray-100 bg-gray-50 dark:bg-gray-800"
-              : "text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-800"
-          }`}
+          onClick={() => {
+            console.log("[HistoryContent] Switching to All tab");
+            setViewMode("all");
+          }}
+          className="flex-1 px-2 py-2 text-xs font-medium transition-colors text-center"
+          style={{
+            color: viewMode === "all" ? "#111827" : "#6B7280",
+            borderBottom: viewMode === "all" ? "2px solid #111827" : "none",
+            backgroundColor: viewMode === "all" ? "#F9FAFB" : "transparent",
+          }}
         >
           All
         </button>
         <button
-          onClick={() => setViewMode("bookmarked")}
-          className={`flex-1 px-4 py-2 text-xs font-medium transition-colors relative ${
-            viewMode === "bookmarked"
-              ? "text-gray-900 dark:text-gray-100 border-b-2 border-gray-900 dark:border-gray-100 bg-gray-50 dark:bg-gray-800"
-              : "text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-800"
-          }`}
+          onClick={() => {
+            console.log("[HistoryContent] Switching to Solved tab", { solvedCount: solvedProblems.length });
+            setViewMode("solved");
+          }}
+          className="flex-1 px-2 py-2 text-xs font-medium transition-colors relative text-center"
+          style={{
+            color: viewMode === "solved" ? "#111827" : "#6B7280",
+            borderBottom: viewMode === "solved" ? "2px solid #111827" : "none",
+            backgroundColor: viewMode === "solved" ? "#F9FAFB" : "transparent",
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "center",
+            gap: "4px",
+          }}
+          title="View solved problems"
         >
-          Bookmarked
+          <span>Solved</span>
+          {solvedProblems.length > 0 && (
+            <span style={{
+              marginLeft: "4px",
+              padding: "2px 6px",
+              backgroundColor: "#10B981",
+              color: "white",
+              fontSize: "10px",
+              borderRadius: "9999px",
+              minWidth: "18px",
+              textAlign: "center",
+            }}>
+              {solvedProblems.length}
+            </span>
+          )}
+        </button>
+        <button
+          onClick={() => {
+            console.log("[HistoryContent] Switching to Bookmarked tab");
+            setViewMode("bookmarked");
+          }}
+          className="flex-1 px-2 py-2 text-xs font-medium transition-colors relative text-center"
+          style={{
+            color: viewMode === "bookmarked" ? "#111827" : "#6B7280",
+            borderBottom: viewMode === "bookmarked" ? "2px solid #111827" : "none",
+            backgroundColor: viewMode === "bookmarked" ? "#F9FAFB" : "transparent",
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "center",
+            gap: "4px",
+          }}
+        >
+          <span>Bookmarked</span>
           {bookmarks.length > 0 && (
-            <span className="ml-1.5 px-1.5 py-0.5 bg-yellow-500 text-white text-xs rounded-full">
+            <span style={{
+              marginLeft: "4px",
+              padding: "2px 6px",
+              backgroundColor: "#EAB308",
+              color: "white",
+              fontSize: "10px",
+              borderRadius: "9999px",
+              minWidth: "18px",
+              textAlign: "center",
+            }}>
               {bookmarks.length}
             </span>
           )}
@@ -183,14 +334,24 @@ export default function HistoryContent({ onSelectProblem }: HistoryContentProps)
       )}
 
       <div className="flex-1 overflow-y-auto p-4 space-y-2">
-        {filteredProblems.length === 0 ? (
+        {isLoadingSolved && viewMode === "solved" ? (
+          <div className="text-center py-8 text-gray-400 dark:text-gray-500">
+            <p className="text-sm transition-colors">Loading solved problems...</p>
+          </div>
+        ) : filteredProblems.length === 0 ? (
           <div className="text-center py-8 text-gray-400 dark:text-gray-500">
             <p className="text-sm transition-colors">
-              {viewMode === "bookmarked" ? "No bookmarked problems yet" : "No saved problems yet"}
+              {viewMode === "bookmarked" 
+                ? "No bookmarked problems yet" 
+                : viewMode === "solved"
+                ? "No solved problems yet"
+                : "No saved problems yet"}
             </p>
             <p className="text-xs mt-1 transition-colors">
               {viewMode === "bookmarked" 
                 ? "Click the bookmark icon on problems to save them here"
+                : viewMode === "solved"
+                ? "Problems you solve will appear here"
                 : "Problems you work on will be saved here"}
             </p>
           </div>

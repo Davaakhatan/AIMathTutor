@@ -661,6 +661,52 @@ export async function getProblems(userId: string, limit = 100, profileId?: strin
     // ensureProfileExists now returns immediately (no timeout needed)
     await ensureProfileExists(userId);
     
+    // Try API route first (server-side, bypasses RLS)
+    try {
+      const effectiveProfileId = profileId !== undefined ? profileId : null;
+      const profileIdParam = effectiveProfileId ? `&profileId=${effectiveProfileId}` : "";
+      const apiUrl = `/api/problems?userId=${userId}&limit=${limit}${profileIdParam}`;
+      
+      logger.debug("Fetching problems via API route", { userId, effectiveProfileId, limit });
+      
+      const controller = new AbortController();
+      const timeoutId = setTimeout(() => controller.abort(), 10000); // 10 second timeout
+      
+      const response = await fetch(apiUrl, {
+        method: "GET",
+        signal: controller.signal,
+      });
+      
+      clearTimeout(timeoutId);
+      
+      if (response.ok) {
+        const result = await response.json();
+        if (result.success && Array.isArray(result.problems)) {
+          logger.debug("Problems fetched via API route", {
+            count: result.problems.length,
+            userId,
+            effectiveProfileId,
+          });
+          return result.problems;
+        }
+      }
+      
+      logger.warn("API route failed, falling back to direct query", {
+        status: response.status,
+        userId,
+      });
+    } catch (apiError: any) {
+      if (apiError.name === "AbortError") {
+        logger.warn("API route timeout, falling back to direct query", { userId });
+      } else {
+        logger.warn("API route error, falling back to direct query", {
+          error: apiError.message,
+          userId,
+        });
+      }
+    }
+    
+    // Fallback to direct client-side query
     const supabase = await getSupabaseClient();
     if (!supabase) {
       logger.warn("Supabase client not available");
@@ -669,6 +715,8 @@ export async function getProblems(userId: string, limit = 100, profileId?: strin
     
     // Use profile ID if provided, otherwise use null (don't call getEffectiveProfileId - it hangs!)
     const effectiveProfileId = profileId !== undefined ? profileId : null;
+    
+    logger.debug("Fetching problems from database (direct)", { userId, effectiveProfileId, limit });
     
     let query = supabase
       .from("problems")
@@ -685,9 +733,11 @@ export async function getProblems(userId: string, limit = 100, profileId?: strin
       .limit(limit);
 
     if (error) {
-      logger.error("Error fetching problems", { error: error.message, userId });
+      logger.error("Error fetching problems", { error: error.message, userId, effectiveProfileId });
       return [];
     }
+
+    logger.debug("Fetched problems from database (direct)", { count: data?.length || 0, userId, effectiveProfileId });
 
     return (data || []).map((p: any) => ({
       id: p.id,
@@ -700,6 +750,7 @@ export async function getProblems(userId: string, limit = 100, profileId?: strin
       is_generated: p.is_generated || false,
       source: p.source,
       solved_at: p.solved_at,
+      created_at: p.created_at, // Include created_at for sorting
       attempts: p.attempts || 0,
       hints_used: p.hints_used || 0,
       time_spent: p.time_spent || 0,
@@ -719,9 +770,18 @@ export async function saveProblem(userId: string, problem: ProblemData, profileI
     await ensureProfileExists(userId);
     
     const supabase = await getSupabaseClient();
+    if (!supabase) {
+      logger.warn("Supabase client not available");
+      return null;
+    }
+    
+    // Use profileId if explicitly provided (including null for students)
+    // Only call getEffectiveProfileId if profileId is undefined (not provided at all)
     const effectiveProfileId = profileId !== undefined 
       ? profileId 
       : await getEffectiveProfileId();
+    
+    logger.debug("Saving problem to database", { userId, effectiveProfileId, problemText: problem.text.substring(0, 50) });
     
     const insertData: any = {
       user_id: userId,
@@ -732,7 +792,7 @@ export async function saveProblem(userId: string, problem: ProblemData, profileI
       parsed_data: problem.parsed_data,
       is_bookmarked: problem.is_bookmarked || false,
       is_generated: problem.is_generated || false,
-      source: problem.source,
+      source: problem.source || "user_input",
       solved_at: problem.solved_at,
       attempts: problem.attempts || 0,
       hints_used: problem.hints_used || 0,
@@ -741,6 +801,8 @@ export async function saveProblem(userId: string, problem: ProblemData, profileI
     
     if (effectiveProfileId) {
       insertData.student_profile_id = effectiveProfileId;
+    } else {
+      insertData.student_profile_id = null; // Explicitly set to null for students
     }
     
     const { data, error } = await supabase
@@ -767,21 +829,60 @@ export async function saveProblem(userId: string, problem: ProblemData, profileI
 export async function updateProblem(userId: string, problemId: string, updates: Partial<ProblemData>): Promise<boolean> {
   try {
     // CRITICAL: Ensure profile exists before updating (foreign keys point to profiles.id)
-    // Add timeout to prevent hanging
-    const profileExistsPromise = ensureProfileExists(userId);
-    const profileTimeout = new Promise<boolean>((resolve) => {
-      setTimeout(() => {
-        logger.warn("ensureProfileExists timeout - continuing anyway", { userId });
-        resolve(false);
-      }, 2000);
-    });
-    await Promise.race([profileExistsPromise, profileTimeout]);
+    await ensureProfileExists(userId);
     
+    // Try API route first (server-side, bypasses RLS)
+    try {
+      logger.debug("Updating problem via API route", { userId, problemId, updates });
+      
+      const controller = new AbortController();
+      const timeoutId = setTimeout(() => controller.abort(), 10000); // 10 second timeout
+      
+      const response = await fetch("/api/problems/update", {
+        method: "PATCH",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({ userId, problemId, updates }),
+        signal: controller.signal,
+      });
+      
+      clearTimeout(timeoutId);
+      
+      if (response.ok) {
+        const result = await response.json();
+        if (result.success) {
+          logger.debug("Problem updated successfully via API route", { userId, problemId });
+          return true;
+        }
+      }
+      
+      logger.warn("API route failed, falling back to direct update", {
+        status: response.status,
+        userId,
+        problemId,
+      });
+    } catch (apiError: any) {
+      if (apiError.name === "AbortError") {
+        logger.warn("API route timeout, falling back to direct update", { userId, problemId });
+      } else {
+        logger.warn("API route error, falling back to direct update", {
+          error: apiError.message,
+          userId,
+          problemId,
+        });
+      }
+    }
+    
+    // Fallback to direct client-side update
     const supabase = await getSupabaseClient();
     if (!supabase) {
       logger.warn("Supabase client not available");
       return false;
     }
+    
+    logger.debug("Updating problem (direct)", { userId, problemId, updates });
+    
     const { error } = await supabase
       .from("problems")
       .update({
@@ -796,6 +897,7 @@ export async function updateProblem(userId: string, problemId: string, updates: 
       return false;
     }
 
+    logger.debug("Problem updated successfully (direct)", { userId, problemId });
     return true;
   } catch (error) {
     logger.error("Error in updateProblem", { error, userId, problemId });

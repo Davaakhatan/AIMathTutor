@@ -79,15 +79,48 @@ export async function onProblemCompleted(
     //   }
     // }
 
-    // 3. NOTE: Do NOT emit "problem_completed" event here - that would cause infinite recursion!
+    // 3. Mark problem as solved in database (update solved_at)
+    try {
+      const { updateProblem } = await import("@/services/supabaseDataService");
+      // Find the problem by text and user_id to update it
+      const { getProblems } = await import("@/services/supabaseDataService");
+      const problems = await getProblems(userId, 100, profileId);
+      const matchingProblem = problems.find(p => 
+        p.text === problemData.problemText || 
+        p.text.trim() === problemData.problemText.trim()
+      );
+      
+      if (matchingProblem && matchingProblem.id) {
+        // Update the problem to mark it as solved
+        await updateProblem(userId, matchingProblem.id, {
+          solved_at: new Date().toISOString(),
+        });
+        logger.info("Problem marked as solved in database", { 
+          userId, 
+          problemId: matchingProblem.id,
+          problemText: problemData.problemText.substring(0, 50)
+        });
+      } else {
+        logger.debug("Problem not found in database to mark as solved", { 
+          userId, 
+          problemText: problemData.problemText.substring(0, 50),
+          problemsCount: problems.length
+        });
+      }
+    } catch (error) {
+      logger.error("Error marking problem as solved", { error, userId });
+      // Don't fail the whole orchestration if this fails
+    }
+
+    // 4. NOTE: Do NOT emit "problem_completed" event here - that would cause infinite recursion!
     // The orchestrator is already listening to "problem_completed" events, so emitting here
     // would cause this function to be called again, creating an infinite loop.
     // Other systems should listen to the original event emission (from ProblemProgress, etc.)
 
-    // 4. Check and update goals (Week 2) - IMPLEMENTED
+    // 5. Check and update goals (Week 2) - IMPLEMENTED
     await checkGoalsForProblem(userId, problemData.problemType, profileId);
 
-    // 5. Auto-generate "Beat My Skill" challenge (Week 3) - IMPLEMENTED
+    // 6. Auto-generate "Beat My Skill" challenge (Week 3) - IMPLEMENTED
     const challenge = await generateBeatMySkillChallenge(userId, problemData);
     if (challenge) {
       logger.info("Auto-challenge generated after problem completion", { 
@@ -97,11 +130,11 @@ export async function onProblemCompleted(
       });
     }
 
-    // 6. Update conversation summary (Week 2)
+    // 7. Update conversation summary (Week 2)
     // TODO: Pass messages array from problem completion event
     // Will be implemented when session management is integrated
 
-    // 7. TODO: Create additional share links (Week 3 - advanced)
+    // 8. TODO: Create additional share links (Week 3 - advanced)
     // The challenge above already has a share_code for viral sharing
 
     logger.info("Problem completion orchestrated successfully", { userId });

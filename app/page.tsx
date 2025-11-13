@@ -175,50 +175,64 @@ function HomeContentInternal() {
   };
 
   const handleProblemParsed = async (problem: ParsedProblem) => {
-    // Auto-save to history (will sync to database via useProblemHistory hook)
-    // For now, keep localStorage for immediate UI update, but the hook will handle DB sync
-    try {
-      const history = JSON.parse(localStorage.getItem("aitutor-problem-history") || "[]");
-      const newProblem = {
-        ...problem,
-        id: Date.now().toString(),
-        savedAt: Date.now(),
-      };
-      const updatedHistory = [newProblem, ...history.filter((p: any) => p.text !== problem.text)].slice(0, 20);
-      localStorage.setItem("aitutor-problem-history", JSON.stringify(updatedHistory));
-      
-      // Also save to database if authenticated (via service)
-      if (user && activeProfile) {
-        try {
-          const { saveProblem } = await import("@/services/supabaseDataService");
-          await saveProblem(user.id, {
-            text: problem.text,
-            type: problem.type || "unknown",
-            image_url: problem.imageUrl,
-            parsed_data: problem,
-            is_bookmarked: false,
-            is_generated: false,
-            source: "user_input",
-          }, activeProfile.id);
-        } catch (error) {
-          console.error("Error saving problem to database:", error);
-          // Continue - localStorage is fallback
-        }
-      }
-      
-      // Dispatch event for StudyStreak tracking
-      window.dispatchEvent(new CustomEvent("problemStarted"));
-      
-      // Update last study date for StudyReminder
-      localStorage.setItem("aitutor-last-study", Date.now().toString());
-      
-      // Activate study timer
-      setIsStudyActive(true);
-    } catch (error) {
-      // Ignore errors
-    }
-
+    logger.debug("handleProblemParsed called", { problemText: problem.text.substring(0, 50), problemType: problem.type });
+    
+    // Set problem immediately so UI updates
     setCurrentProblem(problem);
+    
+    // Auto-save to history (will sync to database via useProblemHistory hook)
+    // Do this in background - don't block chat initialization
+    (async () => {
+      try {
+        const history = JSON.parse(localStorage.getItem("aitutor-problem-history") || "[]");
+        const newProblem = {
+          ...problem,
+          id: Date.now().toString(),
+          savedAt: Date.now(),
+        };
+        const updatedHistory = [newProblem, ...history.filter((p: any) => p.text !== problem.text)].slice(0, 20);
+        localStorage.setItem("aitutor-problem-history", JSON.stringify(updatedHistory));
+        
+        // Also save to database if authenticated (via service) - non-blocking
+        if (user) {
+          try {
+            const { saveProblem } = await import("@/services/supabaseDataService");
+            const profileIdForSave = userRole === "student" ? null : (activeProfile?.id || null);
+            // Don't await - let it run in background
+            saveProblem(user.id, {
+              text: problem.text,
+              type: problem.type || "unknown",
+              image_url: problem.imageUrl,
+              parsed_data: problem,
+              is_bookmarked: false,
+              is_generated: false,
+              source: "user_input",
+            }, profileIdForSave).then(() => {
+              // Trigger a reload of problem history after save completes
+              window.dispatchEvent(new CustomEvent("problem-saved"));
+            }).catch((error) => {
+              console.error("Error saving problem to database:", error);
+              // Continue - localStorage is fallback
+            });
+          } catch (error) {
+            console.error("Error importing saveProblem:", error);
+            // Continue - localStorage is fallback
+          }
+        }
+        
+        // Dispatch event for StudyStreak tracking
+        window.dispatchEvent(new CustomEvent("problemStarted"));
+        
+        // Update last study date for StudyReminder
+        localStorage.setItem("aitutor-last-study", Date.now().toString());
+        
+        // Activate study timer
+        setIsStudyActive(true);
+      } catch (error) {
+        logger.error("Error in background save task", { error });
+        // Ignore errors - don't block chat
+      }
+    })();
     
     // Map problem generation difficulty to chat difficulty mode
     // Check if problem has generatedDifficulty property (from ProblemGenerator)
@@ -240,8 +254,11 @@ function HomeContentInternal() {
     setIsInitializing(true);
     setSessionId(null);
     setInitialMessages([]);
+    setAllMessages([]); // Clear previous messages
 
     try {
+      logger.debug("Starting chat initialization", { problemText: problem.text.substring(0, 50), difficultyMode, hasApiKey: !!settings.apiKey });
+      
       // Create abort controller for timeout
       const controller = new AbortController();
       const timeoutId = setTimeout(() => controller.abort(), 30000);
@@ -272,6 +289,13 @@ function HomeContentInternal() {
         });
       }
       
+      logger.debug("Sending chat initialization request", { 
+        hasProblem: !!requestBody.problem, 
+        difficultyMode: requestBody.difficultyMode,
+        hasUserId: !!requestBody.userId,
+        hasApiKey: !!requestBody.apiKey 
+      });
+      
       const response = await fetch("/api/chat", {
         method: "POST",
         headers: {
@@ -282,6 +306,7 @@ function HomeContentInternal() {
       });
 
       clearTimeout(timeoutId);
+      logger.debug("Chat API response received", { status: response.status, ok: response.ok });
 
       if (!response.ok) {
         const errorData = await response.json().catch(() => ({}));
@@ -322,6 +347,7 @@ function HomeContentInternal() {
       };
       setInitialMessages([initialMessage]);
       setAllMessages([initialMessage]);
+      setIsInitializing(false); // IMPORTANT: Reset initializing state
     } catch (error) {
       logger.error("Error initializing chat", { error: error instanceof Error ? error.message : String(error) });
       
@@ -329,6 +355,7 @@ function HomeContentInternal() {
       setSessionId(null);
       setInitialMessages([]);
       setAllMessages([]);
+      setIsInitializing(false); // IMPORTANT: Reset initializing state even on error
       
       if (error instanceof Error && error.name === "AbortError") {
         showToast("Request timed out. Please try again.", "error");

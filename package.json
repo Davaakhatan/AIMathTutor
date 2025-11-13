@@ -5,9 +5,12 @@
   "scripts": {
     "dev": "next dev",
     "dev:3002": "next dev -p 3002",
+    "dev:clean": "rm -rf .next && next dev -p 3002",
     "build": "next build",
     "start": "next start",
     "lint": "next lint",
+    "clean": "rm -rf .next",
+    "clean:dev": "rm -rf .next && npm run dev:3002",
     "test:all": "ts-node scripts/test-utils.ts all",
     "test:type": "ts-node scripts/test-utils.ts type",
     "test:parse": "ts-node scripts/test-utils.ts parse",

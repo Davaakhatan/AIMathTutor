@@ -22,7 +22,7 @@ interface SavedProblem extends ParsedProblem {
  * Hook for problem history that syncs with database
  */
 export function useProblemHistory() {
-  const { user, activeProfile } = useAuth();
+  const { user, activeProfile, userRole } = useAuth();
   const [problems, setProblems] = useState<SavedProblem[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [isSyncing, setIsSyncing] = useState(false);
@@ -32,6 +32,53 @@ export function useProblemHistory() {
   // 1. Load database (source of truth)
   // 2. Cache to localStorage
   // 3. If database fails, fallback to localStorage (offline mode)
+  // Listen for problem-saved events to reload history
+  useEffect(() => {
+    const handleProblemSaved = () => {
+      if (user) {
+        logger.debug("Problem saved event received, reloading history", { userId: user.id, userRole });
+        // Reload from database when a problem is saved
+        const loadFromDatabase = async () => {
+          try {
+            const profileIdForQuery = userRole === "student" ? null : (activeProfile?.id || null);
+            logger.debug("Reloading problem history after save", { userId: user.id, profileIdForQuery, userRole });
+            const dbProblems = await getProblems(user.id, 100, profileIdForQuery);
+            
+            logger.debug("Problems reloaded from database", { count: dbProblems.length, userId: user.id });
+            
+            const savedProblems: SavedProblem[] = dbProblems.map((p) => {
+              const parsedData = p.parsed_data as any;
+              // Use created_at if solved_at is null (for problems that haven't been solved yet)
+              const timestamp = p.solved_at || (p as any).created_at || new Date().toISOString();
+              return {
+                id: p.id || Date.now().toString(),
+                text: p.text,
+                type: p.type as any,
+                confidence: 1.0,
+                savedAt: new Date(timestamp).getTime(),
+                isBookmarked: p.is_bookmarked || false,
+                imageUrl: p.image_url || undefined,
+                difficulty: p.difficulty || parsedData?.difficulty,
+                hintsUsed: p.hints_used || parsedData?.hintsUsed,
+                exchanges: parsedData?.exchanges,
+              };
+            });
+            
+            setProblems(savedProblems);
+            localStorage.setItem("aitutor-problem-history", JSON.stringify(savedProblems));
+            logger.debug("Problem history state updated", { count: savedProblems.length });
+          } catch (error) {
+            logger.error("Error reloading problem history after save", { error });
+          }
+        };
+        loadFromDatabase();
+      }
+    };
+    
+    window.addEventListener("problem-saved", handleProblemSaved);
+    return () => window.removeEventListener("problem-saved", handleProblemSaved);
+  }, [user?.id, userRole, activeProfile?.id]);
+
   useEffect(() => {
     let isMounted = true;
     
@@ -59,7 +106,10 @@ export function useProblemHistory() {
       
       try {
         // STEP 1: Load from database (source of truth)
-        const dbProblems = await getProblems(user.id, 100, activeProfile?.id || null);
+        // For students: always pass null. For parents/teachers: use activeProfile
+        const profileIdForQuery = userRole === "student" ? null : (activeProfile?.id || null);
+        logger.debug("Loading problem history", { userId: user.id, profileIdForQuery, userRole });
+        const dbProblems = await getProblems(user.id, 100, profileIdForQuery);
         
         if (!isMounted) return;
         
@@ -109,7 +159,7 @@ export function useProblemHistory() {
     return () => {
       isMounted = false;
     };
-  }, [user?.id, activeProfile?.id]); // Only depend on IDs, not full objects
+  }, [user?.id, userRole, activeProfile?.id]); // Include userRole to handle student vs parent/teacher
 
   // Add problem to history (optimistic update with revert on error)
   const addProblem = useCallback(async (problem: ParsedProblem) => {
@@ -145,7 +195,9 @@ export function useProblemHistory() {
           source: "user_input",
         };
 
-        await saveProblem(user.id, problemData, activeProfile?.id || null);
+        // For students: always pass null. For parents/teachers: use activeProfile
+        const profileIdForSave = userRole === "student" ? null : (activeProfile?.id || null);
+        await saveProblem(user.id, problemData, profileIdForSave);
         setIsSyncing(false);
       } catch (error) {
         logger.error("Error saving problem to database", { error });
@@ -155,7 +207,7 @@ export function useProblemHistory() {
         setIsSyncing(false);
       }
     }
-  }, [user?.id, activeProfile?.id, problems]);
+  }, [user?.id, userRole, activeProfile?.id, problems]);
 
   // Toggle bookmark (updates both localStorage and database)
   const toggleBookmark = useCallback(async (problemId: string, isBookmarked: boolean) => {
@@ -200,10 +252,12 @@ export function useProblemHistory() {
     if (user) {
       try {
         setIsSyncing(true);
-        const success = await deleteProblem(user.id, problemId, activeProfile?.id || null);
+        // For students: always pass null. For parents/teachers: use activeProfile
+        const profileIdForDelete = userRole === "student" ? null : (activeProfile?.id || null);
+        const success = await deleteProblem(user.id, problemId, profileIdForDelete);
         if (!success) {
           // Revert on error - reload from database
-          const dbProblems = await getProblems(user.id, 100, activeProfile?.id || null);
+          const dbProblems = await getProblems(user.id, 100, profileIdForDelete);
           const savedProblems: SavedProblem[] = dbProblems.map((p) => {
             const parsedData = p.parsed_data as any;
             return {
@@ -226,7 +280,8 @@ export function useProblemHistory() {
         logger.error("Error deleting problem from database", { error });
         // Revert on error - reload from database
         try {
-          const dbProblems = await getProblems(user.id, 100, activeProfile?.id || null);
+          const profileIdForReload = userRole === "student" ? null : (activeProfile?.id || null);
+          const dbProblems = await getProblems(user.id, 100, profileIdForReload);
           const savedProblems: SavedProblem[] = dbProblems.map((p) => {
             const parsedData = p.parsed_data as any;
             return {
@@ -251,7 +306,7 @@ export function useProblemHistory() {
         setIsSyncing(false);
       }
     }
-  }, [user?.id, activeProfile?.id]);
+  }, [user?.id, userRole, activeProfile?.id]);
 
   return {
     problems,
