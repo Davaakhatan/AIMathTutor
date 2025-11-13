@@ -181,19 +181,20 @@ export async function GET(request: NextRequest) {
           .is("student_profile_id", null);
 
         const profile = profileMap.get(userId);
-        const rank = getRankForLevel(userXPData.level);
+        const xpDataEntry = userXPData as any;
+        const rank = getRankForLevel(xpDataEntry.level || 1);
         userEntry = {
-          userId: userXPData.user_id,
+          userId: xpDataEntry.user_id,
           username: profile?.username || profile?.displayName || "You",
           displayName: profile?.displayName || profile?.username || "You",
-          totalXP: userXPData.total_xp || 0,
-          level: userXPData.level || 1,
+          totalXP: xpDataEntry.total_xp || 0,
+          level: xpDataEntry.level || 1,
           rank: rank.title,
           rankBadge: rank.badge,
           rankColor: rank.color,
           problemsSolved: problemCount || 0,
           currentStreak: streakData?.current_streak || 0,
-          lastActive: userXPData.updated_at,
+          lastActive: xpDataEntry.updated_at,
         };
       }
     }
