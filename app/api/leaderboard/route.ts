@@ -139,7 +139,8 @@ export async function GET(request: NextRequest) {
     });
 
     // Get user's rank
-    const userXP = xpData.find((e: any) => e.user_id === userId)?.total_xp || 0;
+    const userEntry = xpData.find((e: any) => e.user_id === userId) as any;
+    const userXP = userEntry?.total_xp || 0;
     let userRank = xpData.findIndex((e: any) => e.user_id === userId) + 1;
     if (userRank === 0 && userXP > 0) {
       // User not in top N, calculate rank
