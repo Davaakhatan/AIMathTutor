@@ -57,7 +57,7 @@ export async function getXPData(userId: string, profileId?: string | null): Prom
         ? window.location.origin 
         : process.env.NEXT_PUBLIC_SITE_URL || "http://localhost:3002";
       
-      const apiUrl = new URL("/api/xp", baseUrl);
+      const apiUrl = new URL("/api/v2/xp", baseUrl);
       apiUrl.searchParams.set("userId", userId);
       if (effectiveProfileId) {
         apiUrl.searchParams.set("profileId", effectiveProfileId);
@@ -95,14 +95,15 @@ export async function getXPData(userId: string, profileId?: string | null): Prom
       
       if (response.ok) {
         const result = await response.json();
-        if (result.success && result.xpData) {
-          logger.info("XP data loaded via API route", { 
-            userId, 
-            totalXP: result.xpData.total_xp, 
-            level: result.xpData.level 
+        // v2 API returns data under "data" key
+        if (result.success && result.data) {
+          logger.info("XP data loaded via API route", {
+            userId,
+            totalXP: result.data.total_xp,
+            level: result.data.level
           });
-          return result.xpData;
-        } else if (result.success && !result.xpData) {
+          return result.data;
+        } else if (result.success && !result.data) {
           // No XP data found - will create default below
           logger.debug("No XP data found via API route", { userId });
         }
@@ -303,7 +304,7 @@ export async function updateXPData(userId: string, xpData: Partial<XPData>, prof
       ? window.location.origin
       : process.env.NEXT_PUBLIC_SITE_URL || "http://localhost:3002";
 
-    const apiUrl = new URL("/api/xp/update", baseUrl);
+    const apiUrl = new URL("/api/v2/xp", baseUrl);
 
     logger.debug("Updating XP data via API", { userId, profileId: effectiveProfileId });
 
@@ -313,6 +314,7 @@ export async function updateXPData(userId: string, xpData: Partial<XPData>, prof
       body: JSON.stringify({
         userId,
         profileId: effectiveProfileId,
+        action: "update",
         xpData,
       }),
     });
