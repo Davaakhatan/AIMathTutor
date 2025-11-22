@@ -23,13 +23,14 @@ export async function GET(request: NextRequest) {
     }
 
     // Build query - same as /api/xp route
-    let query = (supabase as any)
+    // Note: .is("column", null) has inconsistent behavior, use in-memory filtering instead
+    const { data: allData, error } = await supabase
       .from("xp_data")
       .select("*")
-      .eq("user_id", userId)
-      .is("student_profile_id", null);
+      .eq("user_id", userId);
 
-    const { data: queryData, error } = await query;
+    // Filter for records where student_profile_id is null
+    const queryData = allData?.filter((r: any) => r.student_profile_id === null) || [];
     
     if (error) {
       logger.error("Error fetching XP for sync", { error: error.message, userId });
@@ -37,11 +38,31 @@ export async function GET(request: NextRequest) {
     }
 
     if (!queryData || queryData.length === 0) {
-      return NextResponse.json({ success: true, xpData: null, message: "No XP data found" });
+      logger.debug("No XP data found for sync, returning default", { userId });
+
+      // Don't auto-create here - let updateXPData handle creation to avoid duplicates
+      const initialXPData = {
+        totalXP: 0,
+        level: 1,
+        xpToNextLevel: 100,
+        xpHistory: [],
+        recentGains: [],
+      };
+
+      return NextResponse.json({
+        success: true,
+        xpData: initialXPData,
+        instructions: "No XP data found - use updateXPData to create"
+      });
     }
 
-    // Get the latest record if duplicates exist (same logic as /api/xp)
+    // Get the record with highest XP if duplicates exist
+    // This handles the case where multiple records were accidentally created
     const data = queryData.sort((a: any, b: any) => {
+      // Primary sort: by total_xp descending (get the one with most XP)
+      const xpDiff = (b.total_xp || 0) - (a.total_xp || 0);
+      if (xpDiff !== 0) return xpDiff;
+      // Secondary sort: by updated_at descending (most recent if same XP)
       const dateA = new Date(a.updated_at || a.created_at);
       const dateB = new Date(b.updated_at || b.created_at);
       return dateB.getTime() - dateA.getTime();

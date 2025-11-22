@@ -680,7 +680,7 @@ export default function SettingsContent() {
               try {
                 logger.info("User initiated account deletion", { userId: user.id });
                 
-                const response = await fetch("/api/delete-account", {
+                const response = await fetch("/api/v2/account", {
                   method: "DELETE",
                   headers: {
                     "Content-Type": "application/json",

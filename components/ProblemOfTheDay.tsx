@@ -6,6 +6,7 @@ import { useAuth } from "@/contexts/AuthContext";
 import { isDailyProblemSolved, markDailyProblemSolved, getDailyProblem, type DailyProblemData } from "@/services/dailyProblemService";
 import { useToast } from "@/hooks/useToast";
 import Toast from "@/components/Toast";
+import eventBus from "@/lib/eventBus";
 
 interface ProblemOfTheDayProps {
   onProblemSelected: (problem: ParsedProblem) => void;
@@ -138,7 +139,7 @@ export default function ProblemOfTheDay({
       try {
         // Fetch today's problem from API (server-side, ensures same problem for all users)
         console.log("[ProblemOfTheDay] Fetching daily problem from API...");
-        const response = await fetch(`/api/daily-problem?action=getProblem&date=${today}`, {
+        const response = await fetch(`/api/v2/daily-problem?action=getProblem&date=${today}`, {
           method: "GET",
           headers: { "Content-Type": "application/json" },
         });
@@ -331,7 +332,7 @@ export default function ProblemOfTheDay({
       console.log("[ProblemOfTheDay] Checking completion status via API...", { userId: user.id, today, profileId: activeProfile?.id });
       try {
         const response = await Promise.race([
-          fetch(`/api/daily-problem?date=${today}&userId=${user.id}&profileId=${activeProfile?.id || "null"}`, {
+          fetch(`/api/v2/daily-problem?date=${today}&userId=${user.id}&profileId=${activeProfile?.id || "null"}`, {
             method: "GET",
             headers: { "Content-Type": "application/json" },
           }),
@@ -510,7 +511,7 @@ export default function ProblemOfTheDay({
       console.log("[ProblemOfTheDay] Saving completion to database...");
       
       // Don't await - save in background
-      fetch("/api/daily-problem", {
+      fetch("/api/v2/daily-problem", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
@@ -603,18 +604,32 @@ export default function ProblemOfTheDay({
 
     // Listen for problem solved events
     const handleProblemSolvedWrapper = (event: Event) => {
-      console.log("[ProblemOfTheDay] Event received!", event.type, event);
+      console.log("[ProblemOfTheDay] Window event received!", event.type, event);
       handleProblemSolved(event);
     };
 
     window.addEventListener("problemSolved", handleProblemSolvedWrapper);
-    
+
     // Also listen for problem_completed event (from orchestrator)
     window.addEventListener("problem_completed", handleProblemSolvedWrapper);
-    
+
+    // Subscribe to eventBus for problem_completed (primary method now)
+    const unsubscribe = eventBus.on("problem_completed", (event) => {
+      console.log("[ProblemOfTheDay] EventBus problem_completed received!", event);
+      // Create a synthetic event with the problem text
+      const syntheticEvent = {
+        detail: {
+          problemText: event.data?.problemText,
+          userId: event.userId,
+        }
+      } as unknown as Event;
+      handleProblemSolved(syntheticEvent);
+    });
+
     return () => {
       window.removeEventListener("problemSolved", handleProblemSolvedWrapper);
       window.removeEventListener("problem_completed", handleProblemSolvedWrapper);
+      unsubscribe();
     };
   }, [isMounted, dailyProblem, user, activeProfile?.id, isSolved]); // Include isSolved to prevent saving if already solved
 
@@ -699,7 +714,7 @@ export default function ProblemOfTheDay({
           }
           
           // Save to database via API (async, non-blocking)
-          fetch("/api/daily-problem", {
+          fetch("/api/v2/daily-problem", {
             method: "POST",
             headers: { "Content-Type": "application/json" },
             body: JSON.stringify({
@@ -829,7 +844,7 @@ export default function ProblemOfTheDay({
     }
     
     // Save to database via API (async, non-blocking)
-    fetch("/api/daily-problem", {
+    fetch("/api/v2/daily-problem", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({

@@ -11,9 +11,12 @@ import { logger } from "@/lib/logger";
 export default function OrchestratorInit() {
   useEffect(() => {
     try {
+      console.log("🚀 [OrchestratorInit] Initializing orchestrator...");
       initializeOrchestrator();
+      console.log("✅ [OrchestratorInit] Orchestrator initialized successfully");
       logger.info("Orchestrator initialized successfully");
     } catch (error) {
+      console.error("❌ [OrchestratorInit] Failed to initialize orchestrator:", error);
       logger.error("Failed to initialize orchestrator", { error });
     }
   }, []); // Run once on mount

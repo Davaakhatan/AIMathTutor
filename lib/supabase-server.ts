@@ -10,16 +10,12 @@ import { logger } from "@/lib/logger";
 const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
 const supabaseServiceKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
 
-let supabaseServer: ReturnType<typeof createClient> | null = null;
-
 /**
  * Get Supabase server client (with service role key for admin access)
  * This bypasses RLS and should only be used in server-side API routes
+ * Note: We create a fresh client each time to avoid potential caching issues
  */
 export function getSupabaseServer() {
-  if (supabaseServer) {
-    return supabaseServer;
-  }
 
   if (!supabaseUrl) {
     throw new Error("NEXT_PUBLIC_SUPABASE_URL is not set");
@@ -33,7 +29,7 @@ export function getSupabaseServer() {
     throw new Error("Supabase keys are not set. Please check your .env.local file.");
   }
 
-  supabaseServer = createClient(supabaseUrl, supabaseKey, {
+  const client = createClient(supabaseUrl, supabaseKey, {
     auth: {
       autoRefreshToken: false,
       persistSession: false,
@@ -48,7 +44,7 @@ export function getSupabaseServer() {
     url: supabaseUrl,
   });
 
-  return supabaseServer;
+  return client;
 }
 
 /**

@@ -81,10 +81,17 @@ export async function getXPData(userId: string, profileId?: string | null): Prom
         logger.debug("Could not get auth token for API request", { error: authError });
       }
       
+      // Add timeout to prevent hanging
+      const controller = new AbortController();
+      const timeoutId = setTimeout(() => controller.abort(), 5000); // 5 second timeout
+
       const response = await fetch(apiUrl.toString(), {
         method: "GET",
         headers: authHeaders,
+        signal: controller.signal,
       });
+
+      clearTimeout(timeoutId);
       
       if (response.ok) {
         const result = await response.json();
@@ -254,95 +261,22 @@ export async function getXPData(userId: string, profileId?: string | null): Prom
  */
 export async function createDefaultXPData(userId: string, profileId?: string | null): Promise<XPData> {
   try {
-    const supabase = await getSupabaseClient();
-    if (!supabase) {
-      logger.warn("Supabase client not available for creating default XP data");
-      return {
-        total_xp: 0,
-        level: 1,
-        xp_to_next_level: 100,
-        xp_history: [],
-        recent_gains: [],
-      };
+    // Use getXPData which calls the API route that auto-creates records
+    // This bypasses RLS issues with client-side Supabase
+    const xpData = await getXPData(userId, profileId);
+
+    if (xpData) {
+      return xpData;
     }
-    
-    // Use profile ID if provided, otherwise use null (don't call getEffectiveProfileId - it hangs!)
-    const effectiveProfileId = profileId !== undefined ? profileId : null;
-    
-    // Check if data already exists for this profile/user combination
-    let checkQuery = supabase.from("xp_data").select("*");
-    if (effectiveProfileId) {
-      checkQuery = checkQuery.eq("student_profile_id", effectiveProfileId);
-    } else {
-      checkQuery = checkQuery.eq("user_id", userId).is("student_profile_id", null);
-    }
-    
-    const { data: existingData, error: checkError } = await checkQuery;
-    
-    // If data exists, return it
-    if (existingData && existingData.length > 0) {
-      const existing = existingData[0];
-      return {
-        total_xp: existing.total_xp || 0,
-        level: existing.level || 1,
-        xp_to_next_level: existing.xp_to_next_level || 100,
-        xp_history: (existing.xp_history as any) || [],
-        recent_gains: (existing.recent_gains as any) || [],
-      };
-    }
-    
-    const defaultData: any = {
-      user_id: userId, // ALWAYS include user_id (required by RLS policies)
+
+    // If getXPData returned null, return default structure
+    logger.warn("getXPData returned null in createDefaultXPData", { userId, profileId });
+    return {
       total_xp: 0,
       level: 1,
       xp_to_next_level: 100,
       xp_history: [],
-      // Note: recent_gains column doesn't exist in database, only in TypeScript interface
-    };
-    
-    if (effectiveProfileId) {
-      // For profile: include BOTH user_id and profile_id
-      defaultData.student_profile_id = effectiveProfileId;
-    } else {
-      // For user: include user_id, profile_id is null
-      defaultData.student_profile_id = null;
-    }
-
-    const { data, error } = await supabase
-      .from("xp_data")
-      .insert(defaultData)
-      .select()
-      .single();
-
-    if (error) {
-      // If duplicate key error (race condition), fetch and return existing data
-      if (error.code === "23505") {
-        logger.debug("XP data created by another request (race condition), fetching existing", { userId });
-        const { data: raceData } = await checkQuery;
-        if (raceData && raceData.length > 0) {
-          const existing = raceData[0];
-          return {
-            total_xp: existing.total_xp || 0,
-            level: existing.level || 1,
-            xp_to_next_level: existing.xp_to_next_level || 100,
-            xp_history: (existing.xp_history as any) || [],
-            recent_gains: (existing.recent_gains as any) || [],
-          };
-        }
-      }
-      logger.error("Error creating default XP data", { error: error.message, userId, errorCode: error.code });
-      // Don't return defaultData - it's not saved to DB
-      // Instead, throw or return null so caller knows it failed
-      // But for backward compatibility, return defaultData structure (caller should handle null)
-      throw new Error(`Failed to create XP data: ${error.message}`);
-    }
-
-    return {
-      total_xp: data.total_xp || 0,
-      level: data.level || 1,
-      xp_to_next_level: data.xp_to_next_level || 100,
-      xp_history: (data.xp_history as any) || [],
-      recent_gains: (data.recent_gains as any) || [],
+      recent_gains: [],
     };
   } catch (error) {
     logger.error("Error creating default XP data", { error, userId });
@@ -362,67 +296,45 @@ export async function createDefaultXPData(userId: string, profileId?: string | n
  */
 export async function updateXPData(userId: string, xpData: Partial<XPData>, profileId?: string | null): Promise<boolean> {
   try {
-    const supabase = await getSupabaseClient();
-    if (!supabase) {
-      logger.warn("Supabase client not available");
+    const effectiveProfileId = profileId !== undefined ? profileId : null;
+
+    // Use API route to bypass RLS issues
+    const baseUrl = typeof window !== "undefined"
+      ? window.location.origin
+      : process.env.NEXT_PUBLIC_SITE_URL || "http://localhost:3002";
+
+    const apiUrl = new URL("/api/xp/update", baseUrl);
+
+    logger.debug("Updating XP data via API", { userId, profileId: effectiveProfileId });
+
+    const response = await fetch(apiUrl.toString(), {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        userId,
+        profileId: effectiveProfileId,
+        xpData,
+      }),
+    });
+
+    if (!response.ok) {
+      const errorData = await response.json().catch(() => ({}));
+      logger.error("API error updating XP data", {
+        status: response.status,
+        error: errorData.error,
+        userId
+      });
       return false;
     }
-    
-    const effectiveProfileId = profileId !== undefined ? profileId : null;
-    
-    // Filter out any fields that don't exist in the database schema
-    const { recent_gains, ...dbFields } = xpData;
-    
-    const updateData: any = {
-      ...dbFields,
-      user_id: userId,
-      student_profile_id: effectiveProfileId,
-      updated_at: new Date().toISOString(),
-    };
-    
-    // SAFE PATTERN: Try UPDATE first (doesn't create duplicates)
-    let updateQuery = supabase
-      .from("xp_data")
-      .update(updateData)
-      .eq("user_id", userId);
-    
-    if (effectiveProfileId) {
-      updateQuery = updateQuery.eq("student_profile_id", effectiveProfileId);
-    } else {
-      updateQuery = updateQuery.is("student_profile_id", null);
-    }
-    
-    const { data: updated, error: updateError } = await updateQuery.select();
-    
-    // If update succeeded, we're done
-    if (updated && updated.length > 0) {
-      logger.debug("XP data updated successfully", { userId, profileId: effectiveProfileId });
+
+    const result = await response.json();
+    if (result.success) {
+      logger.debug("XP data updated successfully via API", { userId, profileId: effectiveProfileId });
       return true;
     }
-    
-    // If no rows were updated, record doesn't exist - INSERT it
-    if (!updated || updated.length === 0) {
-      logger.debug("No existing XP record, inserting new", { userId, profileId: effectiveProfileId });
-      
-      const { error: insertError } = await supabase
-        .from("xp_data")
-        .insert(updateData);
-      
-      if (insertError) {
-        // If duplicate key (race condition - another request inserted between our update and insert)
-        if (insertError.code === "23505") {
-          logger.debug("XP record created by concurrent request (race condition handled)", { userId });
-          return true; // Another request created it, that's fine
-        }
-        logger.error("Error inserting XP data", { error: insertError.message, userId });
-        return false;
-      }
-      
-      logger.debug("XP data inserted successfully", { userId, profileId: effectiveProfileId });
-      return true;
-    }
-    
-    return true;
+
+    logger.error("Failed to update XP data via API", { userId, result });
+    return false;
   } catch (error) {
     logger.error("Error in updateXPData", { error, userId });
     return false;

@@ -35,18 +35,19 @@ export async function GET(request: NextRequest) {
     logger.debug("Fetching streak data via API", { userId, effectiveProfileId });
 
     // Query streaks table
-    let query = (supabase as any)
+    // Note: .is("column", null) has inconsistent behavior, use in-memory filtering instead
+    const { data: allData, error } = await supabase
       .from("streaks")
       .select("*")
       .eq("user_id", userId);
 
+    // Filter by student_profile_id
+    let data = allData;
     if (effectiveProfileId) {
-      query = query.eq("student_profile_id", effectiveProfileId);
+      data = allData?.filter((r: any) => r.student_profile_id === effectiveProfileId) || [];
     } else {
-      query = query.is("student_profile_id", null);
+      data = allData?.filter((r: any) => r.student_profile_id === null) || [];
     }
-
-    const { data, error } = await query;
 
     if (error) {
       logger.error("Error fetching streak data via API", {
@@ -60,9 +61,63 @@ export async function GET(request: NextRequest) {
       );
     }
 
-    // If no data, return default
+    // If no data, create initial record
     if (!data || data.length === 0) {
-      logger.debug("No streak data found, returning default", { userId, effectiveProfileId });
+      logger.debug("No streak data found, creating initial record", { userId, effectiveProfileId });
+
+      // CRITICAL: Ensure user has a profile entry before inserting streak data
+      // streaks has foreign key constraint: user_id REFERENCES profiles(id)
+      const { data: existingProfile, error: profileCheckError } = await supabase
+        .from("profiles")
+        .select("id")
+        .eq("id", userId)
+        .single();
+
+      if (profileCheckError && profileCheckError.code !== "PGRST116") {
+        logger.error("Error checking profile for streak", { error: profileCheckError.message, userId });
+      }
+
+      if (!existingProfile) {
+        logger.info("Creating profile for streak", { userId });
+        const { error: createProfileError } = await supabase
+          .from("profiles")
+          .insert({
+            id: userId,
+            role: "student",
+          });
+
+        if (createProfileError && createProfileError.code !== "23505") {
+          logger.error("Failed to create profile for streak", { error: createProfileError.message, userId, code: createProfileError.code });
+          // Still return default data even if profile creation fails
+          return NextResponse.json({
+            success: true,
+            streakData: {
+              current_streak: 0,
+              longest_streak: 0,
+              last_study_date: null,
+            },
+          });
+        }
+        logger.info("Profile created for streak", { userId });
+      }
+
+      // Auto-create initial streak record for this user
+      const { error: insertError } = await (supabase as any)
+        .from("streaks")
+        .insert({
+          user_id: userId,
+          student_profile_id: effectiveProfileId,
+          current_streak: 0,
+          longest_streak: 0,
+          last_study_date: null,
+        });
+
+      if (insertError) {
+        logger.error("Failed to create initial streak record", { error: insertError.message, userId });
+      } else {
+        logger.info("Created initial streak record", { userId, effectiveProfileId });
+      }
+
       return NextResponse.json({
         success: true,
         streakData: {

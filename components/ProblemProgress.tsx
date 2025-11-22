@@ -259,22 +259,18 @@ export default function ProblemProgress({ messages, problem, difficultyMode = "m
   // Force re-render when completion status changes (for debugging)
   const stage = getStage();
   
-  // Listen for server-side completion events to force re-check
-  // This ensures the UI updates even if there's a timing issue with message updates
-  const [forceCheck, setForceCheck] = useState(0);
-  useEffect(() => {
-    const handleProblemCompleted = () => {
-      // Force a re-check by updating state
-      setForceCheck(prev => prev + 1);
-    };
-    
-    // Listen for custom event that might be dispatched from the page
-    window.addEventListener("problem_completed", handleProblemCompleted);
-    return () => window.removeEventListener("problem_completed", handleProblemCompleted);
-  }, []);
+  // forceCheck can be used to trigger re-evaluation if needed
+  const [forceCheck] = useState(0);
   
   // Log state changes for debugging - hooks must be called unconditionally
   const prevSolvedRef = useRef(isSolved);
+  const eventEmittedRef = useRef(false); // Track if we already emitted for this problem
+
+  // Reset eventEmittedRef when problem changes
+  useEffect(() => {
+    eventEmittedRef.current = false;
+  }, [problem?.text]);
+
   useEffect(() => {
     // Only log in development mode
     if (process.env.NODE_ENV === "development" && prevSolvedRef.current !== isSolved) {
@@ -287,13 +283,16 @@ export default function ProblemProgress({ messages, problem, difficultyMode = "m
         forceCheck,
       });
     }
-    
+
     // Emit event when problem becomes solved (state transition)
     // CRITICAL: Only emit ONCE when transitioning from unsolved → solved
-    if (!prevSolvedRef.current && isSolved && problem && userId) {
+    if (!prevSolvedRef.current && isSolved && problem && userId && !eventEmittedRef.current) {
+      // Mark as emitted FIRST to prevent re-entry
+      eventEmittedRef.current = true;
+
       // Problem just became solved - emit event to orchestrator
       console.log("🎉 Problem solved! Emitting completion event", { userId, problemType: problem.type });
-      
+
       // Map difficultyMode to difficulty string
       const difficultyMap: Record<string, string> = {
         "elementary": "elementary",
@@ -302,7 +301,7 @@ export default function ProblemProgress({ messages, problem, difficultyMode = "m
         "advanced": "advanced",
       };
       const difficulty = (problem as any).difficulty || difficultyMap[difficultyMode] || "middle";
-      
+
       const problemData = {
         problemText: problem.text || "",
         problemType: problem.type || "unknown",
@@ -311,36 +310,51 @@ export default function ProblemProgress({ messages, problem, difficultyMode = "m
         timeSpent: 0, // TODO: Track from session start
         profileId: profileId,
       };
-      
-      // Directly call orchestrator (primary method - more reliable)
-      import("@/services/orchestrator").then(({ onProblemCompleted }) => {
-        console.log("[ProblemProgress] Calling orchestrator directly", { userId, problemData });
-        onProblemCompleted(userId, problemData).then(() => {
-          console.log("[ProblemProgress] Orchestrator completed successfully");
-        }).catch((error) => {
-          console.error("[ProblemProgress] Error calling orchestrator directly:", error);
+
+      // Call v2 API directly to award XP and update streak
+      // This bypasses the complex orchestrator and uses clean backend services
+      console.log("[ProblemProgress] Calling v2 API to award XP", { userId, problemData });
+
+      fetch("/api/v2/problem-completed", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          userId,
+          profileId: profileId || null,
+          problemType: problemData.problemType,
+          difficulty: problemData.difficulty,
+          hintsUsed: problemData.hintsUsed,
+        }),
+      })
+        .then(response => response.json())
+        .then(result => {
+          if (result.success) {
+            console.log("✅ [ProblemProgress] XP awarded successfully!", {
+              xpGained: result.data.xp.gained,
+              newTotal: result.data.xp.total,
+              newLevel: result.data.xp.level,
+              streak: result.data.streak.current
+            });
+
+            // Dispatch event to refresh XP display
+            window.dispatchEvent(new CustomEvent("xp_updated", {
+              detail: {
+                xpGained: result.data.xp.gained,
+                newTotalXP: result.data.xp.total,
+                newLevel: result.data.xp.level
+              }
+            }));
+          } else {
+            console.error("❌ [ProblemProgress] Failed to award XP:", result.error);
+          }
+        })
+        .catch(error => {
+          console.error("❌ [ProblemProgress] Error calling v2 API:", error);
         });
-      }).catch((error) => {
-        console.error("[ProblemProgress] Error importing orchestrator:", error);
-      });
-      
-      // Also emit via eventBus (for other systems that listen to events)
-      import("@/lib/eventBus").then(({ default: eventBus }) => {
-        eventBus.emit("problem_completed", userId, problemData, { profileId }).catch((error) => {
-          console.error("[ProblemProgress] Error emitting problem_completed event:", error);
-        });
-      }).catch((error) => {
-        console.error("[ProblemProgress] Error importing eventBus:", error);
-      });
-      
-      // Also dispatch window event as fallback (for other components)
-      window.dispatchEvent(new CustomEvent("problem_completed", {
-        detail: { userId, ...problemData }
-      }));
     }
-    
+
     prevSolvedRef.current = isSolved;
-  }, [isSolved, completionResult.score, stage, messages.length, forceCheck, problem?.text, problem?.type, userId, profileId]);
+  }, [isSolved, completionResult.score, stage, messages.length, forceCheck, problem?.text, problem?.type, userId, profileId, hintsUsed, difficultyMode]);
 
   if (messages.length === 0) return null;
 

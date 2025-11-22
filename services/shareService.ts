@@ -77,7 +77,7 @@ export async function createShare(
         : "http://localhost:3002";
     
     // Call API route instead of direct Supabase call
-    const response = await fetch(`${baseUrl}/api/share/generate`, {
+    const response = await fetch(`${baseUrl}/api/v2/share`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
@@ -262,10 +262,10 @@ export async function getShareByCode(shareCode: string): Promise<ShareData | nul
 export async function trackShareClick(shareCode: string): Promise<boolean> {
   try {
     // Call API route instead of direct Supabase call
-    const response = await fetch("/api/share/track-click", {
+    const response = await fetch("/api/v2/share", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ shareCode }),
+      body: JSON.stringify({ action: "trackClick", shareCode }),
     });
     
     if (!response.ok) {
@@ -289,10 +289,10 @@ export async function trackShareClick(shareCode: string): Promise<boolean> {
 export async function trackShareConversion(shareCode: string, newUserId: string): Promise<boolean> {
   try {
     // Call API route instead of direct Supabase call
-    const response = await fetch("/api/share/track-conversion", {
+    const response = await fetch("/api/v2/share", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ shareCode, newUserId }),
+      body: JSON.stringify({ action: "trackConversion", shareCode, newUserId }),
     });
     
     if (!response.ok) {

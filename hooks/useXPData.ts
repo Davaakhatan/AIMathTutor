@@ -2,9 +2,75 @@
 
 import { useState, useEffect, useCallback } from "react";
 import { useAuth } from "@/contexts/AuthContext";
-import { getXPData, updateXPData, XPData } from "@/services/supabaseDataService";
 import { useLocalStorage } from "./useLocalStorage";
 import { logger } from "@/lib/logger";
+
+// XPData type for internal use
+interface XPData {
+  total_xp: number;
+  level: number;
+  xp_to_next_level: number;
+  xp_history: any[];
+  recent_gains: any[];
+}
+
+// Fetch XP from v2 API
+async function fetchXPFromAPI(userId: string, profileId: string | null): Promise<XPData | null> {
+  try {
+    const url = profileId
+      ? `/api/v2/xp?userId=${userId}&profileId=${profileId}`
+      : `/api/v2/xp?userId=${userId}`;
+
+    const response = await fetch(url);
+    if (!response.ok) {
+      logger.error("Failed to fetch XP from API", { status: response.status });
+      return null;
+    }
+
+    const result = await response.json();
+    if (result.success && result.xpData) {
+      return {
+        total_xp: result.xpData.totalXP || 0,
+        level: result.xpData.level || 1,
+        xp_to_next_level: result.xpData.xpToNextLevel || 100,
+        xp_history: result.xpData.xpHistory || [],
+        recent_gains: result.xpData.recentGains || [],
+      };
+    }
+    return null;
+  } catch (error) {
+    logger.error("Error fetching XP from API", { error });
+    return null;
+  }
+}
+
+// Update XP via v2 API
+async function updateXPViaAPI(
+  userId: string,
+  xpData: XPData,
+  profileId: string | null
+): Promise<boolean> {
+  try {
+    const response = await fetch("/api/v2/xp", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        userId,
+        profileId,
+        action: "update",
+        totalXP: xpData.total_xp,
+        level: xpData.level,
+        xpToNextLevel: xpData.xp_to_next_level,
+        xpHistory: xpData.xp_history,
+      }),
+    });
+
+    return response.ok;
+  } catch (error) {
+    logger.error("Error updating XP via API", { error });
+    return false;
+  }
+}
 
 /**
  * Hook to manage XP data with Supabase persistence
@@ -50,7 +116,7 @@ export function useXPData() {
         logger.info("Referral reward event received, refreshing XP", { userId: user.id });
         try {
           const profileIdToUse = (userRole === "student") ? null : (activeProfile?.id || null);
-          const freshData = await getXPData(user.id, profileIdToUse);
+          const freshData = await fetchXPFromAPI(user.id, profileIdToUse);
           if (freshData) {
             setXPData(freshData);
             setLocalXPData({
@@ -60,9 +126,9 @@ export function useXPData() {
               xpHistory: freshData.xp_history || [],
               recentGains: freshData.recent_gains || [],
             });
-            logger.info("XP refreshed after referral reward", { 
+            logger.info("XP refreshed after referral reward", {
               totalXP: freshData.total_xp,
-              level: freshData.level 
+              level: freshData.level
             });
           }
         } catch (error) {
@@ -131,7 +197,7 @@ export function useXPData() {
         
         // Add timeout wrapper to prevent hanging forever
         const timeoutMs = 5000; // 5 seconds max
-        const dataPromise = getXPData(user.id, profileIdToUse);
+        const dataPromise = fetchXPFromAPI(user.id, profileIdToUse);
         const timeoutPromise = new Promise<null>((resolve) => 
           setTimeout(() => {
             logger.warn("XP query timeout, falling back to localStorage", { userId: user.id });
@@ -169,7 +235,7 @@ export function useXPData() {
             logger.info("localStorage has default values, attempting one more fetch", { userId: user.id });
             try {
               // Try one more time with a shorter timeout (3 seconds)
-              const retryPromise = getXPData(user.id, profileIdToUse);
+              const retryPromise = fetchXPFromAPI(user.id, profileIdToUse);
               const retryTimeout = new Promise<null>((resolve) => 
                 setTimeout(() => resolve(null), 3000)
               );
@@ -224,7 +290,7 @@ export function useXPData() {
     const pollInterval = setInterval(async () => {
       try {
         const profileIdToUse = (userRole === "student") ? null : (activeProfile?.id || null);
-        const freshData = await getXPData(user.id, profileIdToUse);
+        const freshData = await fetchXPFromAPI(user.id, profileIdToUse);
         
         // Update if XP, level, or recentGains changed
         if (freshData && xpData) {
@@ -285,7 +351,10 @@ export function useXPData() {
         try {
           // CRITICAL: For student users, ALWAYS use user-level XP (profileId = null)
           const profileIdToUse = (userRole === "student") ? null : (activeProfile?.id || null);
-          await updateXPData(user.id, updatedData, profileIdToUse);
+          const success = await updateXPViaAPI(user.id, updatedData, profileIdToUse);
+          if (!success) {
+            throw new Error("Failed to update XP via API");
+          }
         } catch (error) {
           logger.error("Error updating XP data in database", { error });
           // Revert on error

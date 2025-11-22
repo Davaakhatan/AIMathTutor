@@ -79,7 +79,7 @@ export default function LearningGoals({ isGuestMode = false, onSignUpClick }: Le
         ...(profileIdToUse && { profileId: profileIdToUse }),
       });
 
-      const response = await fetch(`/api/companion/goals?${params}`);
+      const response = await fetch(`/api/v2/goals?${params}`);
       const data = await response.json();
 
       if (!response.ok) {
@@ -157,7 +157,7 @@ export default function LearningGoals({ isGuestMode = false, onSignUpClick }: Le
       // For students, always use null for profileId
       const profileIdToUse = userRole === "student" ? null : (activeProfile?.id || null);
       
-      const response = await fetch("/api/companion/goals", {
+      const response = await fetch("/api/v2/goals", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
@@ -204,7 +204,7 @@ export default function LearningGoals({ isGuestMode = false, onSignUpClick }: Le
       // For students, always use null for profileId
       const profileIdToUse = userRole === "student" ? null : (activeProfile?.id || null);
       
-      const response = await fetch("/api/companion/goals", {
+      const response = await fetch("/api/v2/goals", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
@@ -247,7 +247,7 @@ export default function LearningGoals({ isGuestMode = false, onSignUpClick }: Le
         goalId,
       });
 
-      const response = await fetch(`/api/companion/goals?${params}`, {
+      const response = await fetch(`/api/v2/goals?${params}`, {
         method: "DELETE",
       });
 
@@ -269,7 +269,7 @@ export default function LearningGoals({ isGuestMode = false, onSignUpClick }: Le
     if (!user) return;
 
     try {
-      const response = await fetch("/api/companion/goals", {
+      const response = await fetch("/api/v2/goals", {
         method: "PUT",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
@@ -296,7 +296,7 @@ export default function LearningGoals({ isGuestMode = false, onSignUpClick }: Le
     if (!user) return;
 
     try {
-      const response = await fetch("/api/companion/goals", {
+      const response = await fetch("/api/v2/goals", {
         method: "PUT",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({

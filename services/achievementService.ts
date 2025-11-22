@@ -98,12 +98,20 @@ export function checkAchievements(
  * Unlock an achievement and dispatch event
  */
 export function unlockAchievement(achievementId: string): void {
-  // Dispatch event for UI to react
+  // Find the achievement details
+  const achievement = ALL_ACHIEVEMENTS.find(a => a.id === achievementId);
+
+  // Dispatch event for UI to react with full details
   window.dispatchEvent(
     new CustomEvent("achievementUnlocked", {
-      detail: achievementId, // Send just the ID string
+      detail: {
+        id: achievementId,
+        type: "achievement",
+        title: achievement?.name || "Achievement Unlocked!",
+        message: achievement?.description || "Great job!",
+      },
     })
   );
-  logger.info("Achievement unlock event dispatched", { achievementId });
+  logger.info("Achievement unlock event dispatched", { achievementId, name: achievement?.name });
 }
 

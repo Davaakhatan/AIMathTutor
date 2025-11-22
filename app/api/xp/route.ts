@@ -29,19 +29,46 @@ export async function GET(request: NextRequest) {
       return NextResponse.json({ error: "Database not configured" }, { status: 500 });
     }
 
-    // Build query
-    let query = supabase
+    // First, check all records for this user (for debugging)
+    const { data: allRecords } = await supabase
+      .from("xp_data")
+      .select("id, user_id, student_profile_id, total_xp")
+      .eq("user_id", userId);
+
+    logger.debug("All XP records for user", {
+      userId,
+      profileId,
+      recordCount: allRecords?.length || 0,
+      records: allRecords?.map((r: any) => ({
+        id: r.id,
+        student_profile_id: r.student_profile_id,
+        total_xp: r.total_xp
+      })) || []
+    });
+
+    // Build query with profile filter
+    // Note: For null profileId, we filter the results in-memory since .is("column", null)
+    // has inconsistent behavior with Supabase
+    const { data: allData, error } = await supabase
       .from("xp_data")
       .select("*")
       .eq("user_id", userId);
 
+    // Filter by student_profile_id
+    let data = allData;
     if (profileId && profileId !== "null") {
-      query = query.eq("student_profile_id", profileId);
+      data = allData?.filter((r: any) => r.student_profile_id === profileId) || [];
     } else {
-      query = query.is("student_profile_id", null);
+      // For null profileId, get records where student_profile_id is null
+      data = allData?.filter((r: any) => r.student_profile_id === null) || [];
     }
 
-    const { data, error } = await query;
+    logger.debug("XP query result", {
+      userId,
+      profileId,
+      recordCount: data?.length || 0,
+      hasError: !!error
+    });
 
     if (error) {
       logger.error("Error fetching XP data via API", { error: error.message, userId, profileId });
@@ -49,12 +76,28 @@ export async function GET(request: NextRequest) {
     }
 
     if (!data || data.length === 0) {
-      logger.debug("No XP data found", { userId, profileId });
-      return NextResponse.json({ success: true, xpData: null });
+      logger.debug("No XP data found, will return default (let updateXPData create if needed)", { userId, profileId });
+
+      // Don't auto-create here - let updateXPData handle creation to avoid duplicates
+      // Just return default data
+      const initialXPData = {
+        total_xp: 0,
+        level: 1,
+        xp_to_next_level: 100,
+        xp_history: [],
+        recent_gains: [],
+      };
+
+      return NextResponse.json({ success: true, xpData: initialXPData });
     }
 
-    // Get the latest record if duplicates exist
+    // Get the record with highest XP if duplicates exist
+    // This handles the case where multiple records were accidentally created
     const xpRow = (data as any[]).sort((a: any, b: any) => {
+      // Primary sort: by total_xp descending (get the one with most XP)
+      const xpDiff = (b.total_xp || 0) - (a.total_xp || 0);
+      if (xpDiff !== 0) return xpDiff;
+      // Secondary sort: by updated_at descending (most recent if same XP)
       const dateA = new Date(a.updated_at || a.created_at);
       const dateB = new Date(b.updated_at || b.created_at);
       return dateB.getTime() - dateA.getTime();

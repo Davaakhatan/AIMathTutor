@@ -114,11 +114,12 @@ export async function trackReferralSignup(
   refereeId: string
 ): Promise<Referral> {
   try {
-    // Use API route to track referral (bypasses RLS and uses service role)
-    const response = await fetch("/api/referral/track-signup", {
+    // Use v2 API route to track referral (bypasses RLS and uses service role)
+    const response = await fetch("/api/v2/referral", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
+        action: "trackSignup",
         referralCode: referralCode.toUpperCase().trim(),
         refereeId,
       }),
@@ -169,8 +170,8 @@ export async function trackReferralSignup(
  */
 export async function getReferralStats(userId: string): Promise<ReferralStats> {
   try {
-    // Use API route instead of direct client queries for better RLS handling
-    const response = await fetch(`/api/referral/stats?userId=${userId}`);
+    // Use v2 API route instead of direct client queries for better RLS handling
+    const response = await fetch(`/api/v2/referral?userId=${userId}`);
     
     if (!response.ok) {
       const errorData = await response.json().catch(() => ({}));
@@ -218,8 +219,8 @@ export async function getReferralStats(userId: string): Promise<ReferralStats> {
  */
 export async function getUserReferrals(userId: string): Promise<Referral[]> {
   try {
-    // Use API route instead of direct Supabase call for better RLS handling
-    const response = await fetch(`/api/referral/list?userId=${userId}`);
+    // Use v2 API route instead of direct Supabase call for better RLS handling
+    const response = await fetch(`/api/v2/referral?userId=${userId}&action=list`);
     
     if (!response.ok) {
       const errorData = await response.json().catch(() => ({}));
@@ -244,11 +245,11 @@ export async function getUserReferrals(userId: string): Promise<Referral[]> {
  */
 export async function awardReferralRewards(referralId: string): Promise<void> {
   try {
-    // Use API route to award rewards (handles XP, streaks, etc.)
-    const response = await fetch("/api/referral/award-rewards", {
+    // Use v2 API route to award rewards (handles XP, streaks, etc.)
+    const response = await fetch("/api/v2/referral", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ referralId }),
+      body: JSON.stringify({ action: "awardRewards", referralId }),
     });
 
     if (!response.ok) {

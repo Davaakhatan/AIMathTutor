@@ -80,7 +80,7 @@ export default function DashboardContent({ onDifficultyChange }: DashboardConten
       try {
         const profileIdForQuery = userRole === "student" ? null : (activeProfile?.id || null);
         const profileIdParam = profileIdForQuery ? `&profileId=${profileIdForQuery}` : "";
-        const apiUrl = `/api/problems/solved?userId=${user.id}&limit=100${profileIdParam}`;
+        const apiUrl = `/api/v2/problems/solved?userId=${user.id}&limit=100${profileIdParam}`;
         
         const response = await fetch(apiUrl);
         if (response.ok) {
@@ -98,7 +98,7 @@ export default function DashboardContent({ onDifficultyChange }: DashboardConten
       try {
         const profileIdForQuery = userRole === "student" ? null : (activeProfile?.id || null);
         const profileIdParam = profileIdForQuery ? `&profileId=${profileIdForQuery}` : "";
-        const apiUrl = `/api/problems?userId=${user.id}&limit=100${profileIdParam}`;
+        const apiUrl = `/api/v2/problems?userId=${user.id}&limit=100${profileIdParam}`;
         
         const response = await fetch(apiUrl);
         if (response.ok) {

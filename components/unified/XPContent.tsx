@@ -36,7 +36,7 @@ export default function XPContent({ onXPDataChange }: XPContentProps) {
       try {
         const currentXP = xpData.totalXP; // Capture current value
         console.log("[XPContent] Syncing XP from API to check for updates...", { userId: user.id, currentXP });
-        const response = await fetch(`/api/xp/sync?userId=${user.id}`);
+        const response = await fetch(`/api/v2/xp?userId=${user.id}`);
         if (response.ok) {
           const result = await response.json();
           if (result.success && result.xpData) {

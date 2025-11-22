@@ -23,7 +23,7 @@ export function useLearningPath() {
       setIsLoading(true);
       const profileIdForQuery = userRole === "student" ? null : (activeProfile?.id || null);
       const profileIdParam = profileIdForQuery ? `&profileId=${profileIdForQuery}` : "";
-      const apiUrl = `/api/learning-paths?userId=${user.id}${profileIdParam}`;
+      const apiUrl = `/api/v2/learning-paths?userId=${user.id}${profileIdParam}`;
 
       logger.debug("Loading learning path from database", {
         userId: user.id,
@@ -77,7 +77,7 @@ export function useLearningPath() {
         if (path === null) {
           // Delete learning path
           const profileIdParam = profileIdForQuery ? `&profileId=${profileIdForQuery}` : "";
-          const deleteUrl = `/api/learning-paths?userId=${user.id}${profileIdParam}`;
+          const deleteUrl = `/api/v2/learning-paths?userId=${user.id}${profileIdParam}`;
           const deleteResponse = await fetch(deleteUrl, { method: "DELETE" });
 
           if (!deleteResponse.ok) {
@@ -93,7 +93,7 @@ export function useLearningPath() {
           }
         } else {
           // Save/update learning path
-          const saveResponse = await fetch("/api/learning-paths", {
+          const saveResponse = await fetch("/api/v2/learning-paths", {
             method: "POST",
             headers: { "Content-Type": "application/json" },
             body: JSON.stringify({

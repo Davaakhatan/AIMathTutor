@@ -61,7 +61,7 @@ export default function ProblemHistory({ onSelectProblem }: ProblemHistoryProps)
         try {
           const profileIdForQuery = userRole === "student" ? null : (activeProfile?.id || null);
           const profileIdParam = profileIdForQuery ? `&profileId=${profileIdForQuery}` : "";
-          const apiUrl = `/api/problems/solved?userId=${user.id}&limit=100${profileIdParam}`;
+          const apiUrl = `/api/v2/problems/solved?userId=${user.id}&limit=100${profileIdParam}`;
           
           console.log("[ProblemHistory] Loading solved problems", { apiUrl, viewMode });
           
@@ -110,7 +110,7 @@ export default function ProblemHistory({ onSelectProblem }: ProblemHistoryProps)
           try {
             const profileIdForQuery = userRole === "student" ? null : (activeProfile?.id || null);
             const profileIdParam = profileIdForQuery ? `&profileId=${profileIdForQuery}` : "";
-            const apiUrl = `/api/problems/solved?userId=${user.id}&limit=100${profileIdParam}`;
+            const apiUrl = `/api/v2/problems/solved?userId=${user.id}&limit=100${profileIdParam}`;
             
             const response = await fetch(apiUrl);
             if (response.ok) {

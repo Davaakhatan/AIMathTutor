@@ -74,35 +74,76 @@ export async function onProblemCompleted(
           solvedAt: matchingProblem.solved_at
         });
       } else {
-        // Problem not solved yet - award XP
-        const currentXP = await getXPData(userId, profileId);
-        if (currentXP) {
-          const xpGained = calculateXPForProblem(problemData.difficulty, problemData.hintsUsed);
-          const newTotalXP = currentXP.total_xp + xpGained;
-          const newLevel = calculateLevel(newTotalXP);
-          const xpToNextLevel = calculateXPForLevel(newLevel + 1) - newTotalXP;
+        // Award XP - either we found an unsolved problem OR no matching problem exists
+        // (which can happen if saveProblem was called async and hasn't completed yet)
+        if (!matchingProblem) {
+          logger.info("No matching problem found in DB, but awarding XP anyway", {
+            userId,
+            problemText: problemData.problemText.substring(0, 50),
+            profileId
+          });
+        }
 
-          // Update XP history - always add a new entry for problem completion
-          const today = new Date().toISOString().split("T")[0];
-          const updatedHistory = [
-            ...(currentXP.xp_history || []),
-            {
-              date: today,
-              xp: xpGained,
-              reason: `Solved ${problemData.problemType} problem`,
-            },
-          ];
+        // Problem not solved yet (or not in DB) - award XP
+        let currentXP = await getXPData(userId, profileId);
 
-          await updateXPData(userId, {
-            total_xp: newTotalXP,
-            level: newLevel,
-            xp_to_next_level: xpToNextLevel,
-            xp_history: updatedHistory,
-          }, profileId);
+        // If no XP data exists, create default - THIS WAS THE BUG
+        if (!currentXP) {
+          logger.info("No XP data found, creating default XP record", { userId, profileId });
+          try {
+            const { createDefaultXPData } = await import("@/services/supabaseDataService");
+            currentXP = await createDefaultXPData(userId, profileId);
+          } catch (createError) {
+            logger.error("Failed to create default XP data", { error: createError, userId });
+          }
 
+          // If still no data, use fallback to at least try to award XP
+          if (!currentXP) {
+            currentXP = {
+              total_xp: 0,
+              level: 1,
+              xp_to_next_level: 100,
+              xp_history: [],
+              recent_gains: [],
+            };
+            logger.warn("Using fallback XP data - will attempt to save anyway", { userId });
+          }
+        }
+
+        const xpGained = calculateXPForProblem(problemData.difficulty, problemData.hintsUsed);
+        const newTotalXP = currentXP.total_xp + xpGained;
+        const newLevel = calculateLevel(newTotalXP);
+        const xpToNextLevel = calculateXPForLevel(newLevel + 1) - newTotalXP;
+
+        // Update XP history
+        const today = new Date().toISOString().split("T")[0];
+        const updatedHistory = [
+          ...(currentXP.xp_history || []),
+          {
+            date: today,
+            xp: xpGained,
+            reason: `Solved ${problemData.problemType} problem`,
+          },
+        ];
+
+        const updateSuccess = await updateXPData(userId, {
+          total_xp: newTotalXP,
+          level: newLevel,
+          xp_to_next_level: xpToNextLevel,
+          xp_history: updatedHistory,
+        }, profileId);
+
+        if (updateSuccess) {
           logger.info("XP updated for problem completion", { userId, xpGained, newLevel, newTotalXP });
+
+          // Dispatch event to refresh XP display
+          if (typeof window !== "undefined") {
+            window.dispatchEvent(new CustomEvent("xp_updated", {
+              detail: { xpGained, newTotalXP, newLevel }
+            }));
+          }
         } else {
-          logger.warn("No XP data found for user - cannot award XP", { userId, profileId });
+          logger.error("Failed to update XP for problem completion", { userId, xpGained });
         }
       }
     } catch (error) {
@@ -398,15 +439,32 @@ export function initializeOrchestrator(): void {
   // React Strict Mode, HMR, or component remounting would otherwise
   // register listeners multiple times, causing infinite loops!
   if (isInitialized) {
+    console.log("⏭️ [Orchestrator] Already initialized, skipping");
     logger.debug("Orchestrator already initialized, skipping");
     return;
   }
 
+  console.log("🎯 [Orchestrator] Initializing ecosystem orchestrator...");
   logger.info("Initializing ecosystem orchestrator");
 
   // Listen to events and trigger orchestrations
   eventBus.on("problem_completed", async (event) => {
-    await onProblemCompleted(event.userId, event.data);
+    console.log("🎯 [Orchestrator] problem_completed event received!", {
+      userId: event.userId,
+      problemType: event.data?.problemType
+    });
+    logger.info("🎯 problem_completed event received by orchestrator", {
+      userId: event.userId,
+      problemType: event.data?.problemType,
+      profileId: event.data?.profileId
+    });
+    try {
+      await onProblemCompleted(event.userId, event.data);
+      console.log("✅ [Orchestrator] onProblemCompleted finished successfully");
+    } catch (error) {
+      console.error("❌ [Orchestrator] Error in onProblemCompleted:", error);
+      logger.error("Error in onProblemCompleted handler", { error, userId: event.userId });
+    }
   });
 
   eventBus.on("achievement_unlocked", async (event) => {
@@ -418,5 +476,6 @@ export function initializeOrchestrator(): void {
   });
 
   isInitialized = true;
+  console.log("✅ [Orchestrator] Initialized - now listening to events");
   logger.info("Orchestrator initialized - listening to events");
 }

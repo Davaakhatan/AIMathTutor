@@ -35,19 +35,21 @@ export async function GET(request: NextRequest) {
 
     logger.debug("Fetching problems via API", { userId, effectiveProfileId, limit });
 
-    let query = supabase
+    // Note: .is("column", null) has inconsistent behavior, use in-memory filtering instead
+    const { data: allData, error } = await supabase
       .from("problems")
-      .select("*");
-
-    if (effectiveProfileId) {
-      query = query.eq("student_profile_id", effectiveProfileId);
-    } else {
-      query = query.eq("user_id", userId).is("student_profile_id", null);
-    }
-
-    const { data, error } = await query
+      .select("*")
+      .eq("user_id", userId)
       .order("created_at", { ascending: false })
       .limit(limit);
+
+    // Filter by student_profile_id
+    let data = allData;
+    if (effectiveProfileId) {
+      data = allData?.filter((r: any) => r.student_profile_id === effectiveProfileId) || [];
+    } else {
+      data = allData?.filter((r: any) => r.student_profile_id === null) || [];
+    }
 
     if (error) {
       logger.error("Error fetching problems via API", {

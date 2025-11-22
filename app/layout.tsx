@@ -4,6 +4,9 @@ import ErrorBoundary from "@/components/ErrorBoundary";
 import MobileOptimizer from "@/components/MobileOptimizer";
 import ServiceWorkerRegistration from "@/components/ServiceWorkerRegistration";
 import OrchestratorInit from "@/components/OrchestratorInit";
+import { ToastProvider } from "@/contexts/ToastContext";
+import ToastContainer from "@/components/ToastContainer";
+import NotificationListener from "@/components/NotificationListener";
 
 export const metadata: Metadata = {
   title: "AI Math Tutor - Socratic Learning Assistant",
@@ -47,12 +50,16 @@ export default function RootLayout({
         <link rel="apple-touch-icon" href="/icon.svg" />
       </head>
       <body>
-        <ServiceWorkerRegistration />
-        <MobileOptimizer />
-        <OrchestratorInit />
-        <ErrorBoundary>
-          {children}
-        </ErrorBoundary>
+        <ToastProvider>
+          <ServiceWorkerRegistration />
+          <MobileOptimizer />
+          <OrchestratorInit />
+          <NotificationListener />
+          <ErrorBoundary>
+            {children}
+          </ErrorBoundary>
+          <ToastContainer />
+        </ToastProvider>
       </body>
     </html>
   );

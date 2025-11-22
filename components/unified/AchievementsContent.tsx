@@ -48,7 +48,7 @@ export default function AchievementsContent() {
           params.append("profileId", profileIdToUse);
         }
 
-        const url = `/api/daily-problem?${params.toString()}`;
+        const url = `/api/v2/daily-problem?${params.toString()}`;
         console.log("[AchievementsContent] Fetching from API:", url);
 
         try {
