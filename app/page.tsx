@@ -42,6 +42,7 @@ import WelcomeScreen from "@/components/WelcomeScreen";
 import { ParsedProblem, Message } from "@/types";
 import { normalizeProblemText } from "@/lib/textUtils";
 import { logger } from "@/lib/logger";
+import MathRenderer from "@/components/math/MathRenderer";
 import { AuthProvider, useAuth } from "@/contexts/AuthContext";
 import { PanelProvider } from "@/contexts/PanelContext";
 
@@ -583,7 +584,7 @@ function HomeContentInternal() {
                   </div>
                 )}
                 <div className="text-gray-900 dark:text-gray-100 text-base sm:text-lg leading-relaxed break-words whitespace-pre-wrap transition-colors">
-                  {normalizeProblemText(currentProblem.text)}
+                  <MathRenderer content={normalizeProblemText(currentProblem.text)} />
                 </div>
                 <div className="flex items-center gap-3 flex-wrap pt-2 border-t border-gray-100 dark:border-gray-800 transition-colors">
                   {currentProblem.type && (

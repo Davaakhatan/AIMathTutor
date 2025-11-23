@@ -91,7 +91,7 @@ export default function MathRenderer({
   }
 
   return (
-    <span className="break-words">
+    <span className="break-words" style={{ overflowWrap: 'anywhere' }}>
       {parts.map((part, index) => {
         if (typeof part === "string") {
           return (
@@ -106,7 +106,9 @@ export default function MathRenderer({
                 <BlockMath math={part.content} />
               </div>
             ) : (
-              <InlineMath key={index} math={part.content} />
+              <span key={index} className="inline-block max-w-full overflow-x-auto align-middle">
+                <InlineMath math={part.content} />
+              </span>
             );
           } catch (error) {
             // If KaTeX fails, try to render a simpler version or show as text

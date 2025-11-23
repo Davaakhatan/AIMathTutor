@@ -55,14 +55,14 @@ function Message({
         />
       )}
       <div
-        className={`max-w-[85%] sm:max-w-[75%] rounded-lg px-3 py-2 sm:px-4 sm:py-3 transition-all relative ${
+        className={`max-w-[85%] sm:max-w-[75%] rounded-lg px-3 py-2 sm:px-4 sm:py-3 transition-all relative overflow-hidden ${
           isUser
             ? "bg-gray-900 dark:bg-gray-800 text-white"
             : "bg-gray-50 dark:bg-gray-800 text-gray-900 dark:text-gray-100 border border-gray-200 dark:border-gray-700"
         }`}
       >
         <div className="flex items-start justify-between gap-2">
-          <div className="flex-1 text-sm leading-relaxed font-light">
+          <div className="flex-1 text-sm leading-relaxed font-light min-w-0">
             <EnhancedMessageRenderer content={message.content} isUser={isUser} />
             {!isUser && <ExampleDrawing message={message.content} />}
             {!isUser && enableStretchFeatures && (
