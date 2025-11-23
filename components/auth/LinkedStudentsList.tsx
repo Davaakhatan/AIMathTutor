@@ -17,7 +17,7 @@ interface LinkedStudent {
 }
 
 export default function LinkedStudentsList({ onStudentSelect }: { onStudentSelect?: (studentProfileId: string) => void }) {
-  const { user, activeProfile, setActiveProfile, refreshProfiles } = useAuth();
+  const { user, activeProfile, setActiveProfile, refreshProfiles, profiles } = useAuth();
   const [linkedStudents, setLinkedStudents] = useState<LinkedStudent[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [isUnlinking, setIsUnlinking] = useState<string | null>(null);
@@ -31,7 +31,7 @@ export default function LinkedStudentsList({ onStudentSelect }: { onStudentSelec
     } else {
       setIsLoading(false);
     }
-  }, [user]);
+  }, [user, profiles.length]); // Also refresh when profiles count changes (e.g., after linking a new student)
 
   const loadLinkedStudents = async () => {
     if (!user) return;

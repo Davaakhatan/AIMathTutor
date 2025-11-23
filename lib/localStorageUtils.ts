@@ -18,6 +18,9 @@ export const LOCAL_STORAGE_KEYS = {
   LEADERBOARD: "aitutor-leaderboard",
   LAST_STUDY: "aitutor-last-study",
   NOTIFICATIONS: "aitutor-notifications",
+  // Profile/role keys
+  ACTIVE_PROFILE_ID: "aitutor-active-profile-id",
+  USER_ROLE: "aitutor-user-role",
   // Legacy keys (can be removed)
   USER_ID: "aitutor-user-id",
   USERNAME: "aitutor-username",
@@ -38,6 +41,8 @@ export const USER_DATA_KEYS = [
   LOCAL_STORAGE_KEYS.LEADERBOARD,
   LOCAL_STORAGE_KEYS.LAST_STUDY,
   LOCAL_STORAGE_KEYS.NOTIFICATIONS,
+  LOCAL_STORAGE_KEYS.ACTIVE_PROFILE_ID,
+  LOCAL_STORAGE_KEYS.USER_ROLE,
   LOCAL_STORAGE_KEYS.USER_ID,
   LOCAL_STORAGE_KEYS.USERNAME,
 ] as const;

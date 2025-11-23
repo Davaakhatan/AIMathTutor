@@ -153,7 +153,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         controller.abort();
       }, 15000); // 15 second timeout (increased from 10)
       
-      fetch("/api/get-profiles", {
+      return fetch("/api/get-profiles", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ userId }),
