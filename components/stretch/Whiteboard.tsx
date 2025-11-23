@@ -46,11 +46,11 @@ export default function Whiteboard({
   const [color, setColor] = useState("#000000");
   const [lineWidth, setLineWidth] = useState(2);
   const [hasContent, setHasContent] = useState(false);
-  const [drawingMode, setDrawingMode] = useState<"freehand" | "rectangle" | "circle" | "triangle" | "line" | "text" | "select">("freehand");
+  const [drawingMode, setDrawingMode] = useState<"freehand" | "rectangle" | "circle" | "triangle" | "line" | "text" | "select" | "eraser">("freehand");
   const [startPos, setStartPos] = useState<{ x: number; y: number } | null>(null);
   const [endPos, setEndPos] = useState<{ x: number; y: number } | null>(null); // For shape preview
   const [textInput, setTextInput] = useState<{ x: number; y: number; text: string } | null>(null);
-  
+
   // Store shapes and paths as objects for selection/moving
   const [shapes, setShapes] = useState<Shape[]>([]);
   const [freehandPaths, setFreehandPaths] = useState<FreehandPath[]>([]);
@@ -58,19 +58,110 @@ export default function Whiteboard({
   const [selectedShapeId, setSelectedShapeId] = useState<string | null>(null);
   const [isDragging, setIsDragging] = useState(false);
   const [dragOffset, setDragOffset] = useState<{ x: number; y: number } | null>(null);
+
+  // Undo/Redo history
+  interface HistoryState {
+    shapes: Shape[];
+    freehandPaths: FreehandPath[];
+  }
+  const [history, setHistory] = useState<HistoryState[]>([{ shapes: [], freehandPaths: [] }]);
+  const [historyIndex, setHistoryIndex] = useState(0);
+
+  // Save state to history
+  const saveToHistory = useCallback((newShapes: Shape[], newPaths: FreehandPath[]) => {
+    setHistory(prev => {
+      const newHistory = prev.slice(0, historyIndex + 1);
+      newHistory.push({ shapes: newShapes, freehandPaths: newPaths });
+      // Keep max 50 states
+      if (newHistory.length > 50) newHistory.shift();
+      return newHistory;
+    });
+    setHistoryIndex(prev => Math.min(prev + 1, 49));
+  }, [historyIndex]);
+
+  // Undo
+  const undo = useCallback(() => {
+    if (historyIndex > 0) {
+      const newIndex = historyIndex - 1;
+      const state = history[newIndex];
+      setShapes(state.shapes);
+      setFreehandPaths(state.freehandPaths);
+      setHistoryIndex(newIndex);
+      setHasContent(state.shapes.length > 0 || state.freehandPaths.length > 0);
+      onDrawingChange?.(state.shapes.length > 0 || state.freehandPaths.length > 0);
+    }
+  }, [history, historyIndex, onDrawingChange]);
+
+  // Redo
+  const redo = useCallback(() => {
+    if (historyIndex < history.length - 1) {
+      const newIndex = historyIndex + 1;
+      const state = history[newIndex];
+      setShapes(state.shapes);
+      setFreehandPaths(state.freehandPaths);
+      setHistoryIndex(newIndex);
+      setHasContent(state.shapes.length > 0 || state.freehandPaths.length > 0);
+      onDrawingChange?.(state.shapes.length > 0 || state.freehandPaths.length > 0);
+    }
+  }, [history, historyIndex, onDrawingChange]);
+
+  // Delete selected shape
+  const deleteSelected = useCallback(() => {
+    if (selectedShapeId) {
+      const newShapes = shapes.filter(s => s.id !== selectedShapeId);
+      setShapes(newShapes);
+      setSelectedShapeId(null);
+      saveToHistory(newShapes, freehandPaths);
+      const hasAnyContent = newShapes.length > 0 || freehandPaths.length > 0;
+      setHasContent(hasAnyContent);
+      onDrawingChange?.(hasAnyContent);
+    }
+  }, [selectedShapeId, shapes, freehandPaths, saveToHistory, onDrawingChange]);
   
+  // Keyboard shortcuts
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      // Don't trigger shortcuts when typing in text input
+      if (textInput) return;
+
+      // Undo: Ctrl+Z or Cmd+Z
+      if ((e.ctrlKey || e.metaKey) && e.key === 'z' && !e.shiftKey) {
+        e.preventDefault();
+        undo();
+      }
+      // Redo: Ctrl+Y or Cmd+Shift+Z
+      if ((e.ctrlKey || e.metaKey) && (e.key === 'y' || (e.key === 'z' && e.shiftKey))) {
+        e.preventDefault();
+        redo();
+      }
+      // Delete selected shape
+      if ((e.key === 'Delete' || e.key === 'Backspace') && selectedShapeId) {
+        e.preventDefault();
+        deleteSelected();
+      }
+      // Escape to deselect
+      if (e.key === 'Escape') {
+        setSelectedShapeId(null);
+        setTextInput(null);
+      }
+    };
+
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [undo, redo, deleteSelected, selectedShapeId, textInput]);
+
   // Listen for voice-triggered drawing events
   useEffect(() => {
     const canvas = canvasRef.current;
     if (!canvas) return;
-    
+
     const handleVoiceDrawing = (event: CustomEvent) => {
       const { instruction } = event.detail;
       if (!instruction) return;
-      
+
       // Parse instruction and trigger appropriate drawing
       const lowerInstruction = instruction.toLowerCase();
-      
+
       // Simple pattern matching for common drawing instructions
       if (lowerInstruction.includes("triangle")) {
         // Could trigger triangle drawing mode or draw a sample triangle
@@ -83,9 +174,9 @@ export default function Whiteboard({
         setDrawingMode("line");
       }
     };
-    
+
     canvas.addEventListener("voice-drawing-trigger", handleVoiceDrawing as EventListener);
-    
+
     return () => {
       canvas.removeEventListener("voice-drawing-trigger", handleVoiceDrawing as EventListener);
     };
@@ -492,12 +583,30 @@ export default function Whiteboard({
           ...prev,
           points: [...prev.points, pos],
         } : null);
+      } else if (drawingMode === "eraser") {
+        // Eraser mode - remove freehand paths that are near the cursor
+        const eraserRadius = 10;
+        setFreehandPaths(prev => {
+          const newPaths = prev.filter(path => {
+            // Check if any point in the path is within eraser radius
+            return !path.points.some(point => {
+              const dist = Math.sqrt(Math.pow(point.x - pos.x, 2) + Math.pow(point.y - pos.y, 2));
+              return dist < eraserRadius;
+            });
+          });
+          if (newPaths.length !== prev.length) {
+            const hasAnyContent = shapes.length > 0 || newPaths.length > 0;
+            setHasContent(hasAnyContent);
+            onDrawingChange?.(hasAnyContent);
+          }
+          return newPaths;
+        });
       } else if (drawingMode !== "select" && startPos) {
         // Update end position for shape preview
         setEndPos(pos);
       }
     },
-    [isEnabled, isDrawing, startPos, drawingMode, getMousePos, isDragging, selectedShapeId, dragOffset, textInput]
+    [isEnabled, isDrawing, startPos, drawingMode, getMousePos, isDragging, selectedShapeId, dragOffset, textInput, shapes, onDrawingChange]
   );
 
   const stopDrawing = useCallback((e?: React.MouseEvent<HTMLCanvasElement> | React.TouchEvent<HTMLCanvasElement>) => {
@@ -520,11 +629,16 @@ export default function Whiteboard({
     if (drawingMode === "freehand") {
       // Finalize freehand path
       if (currentPath && currentPath.points.length > 1) {
-        setFreehandPaths(prev => [...prev, currentPath]);
+        const newPaths = [...freehandPaths, currentPath];
+        setFreehandPaths(newPaths);
         setCurrentPath(null);
         setHasContent(true);
         onDrawingChange?.(true);
+        saveToHistory(shapes, newPaths);
       }
+    } else if (drawingMode === "eraser") {
+      // Save history after erasing
+      saveToHistory(shapes, freehandPaths);
     } else if (drawingMode !== "select" && drawingMode !== "text") {
       // Create shape object
       const shapeId = `shape-${Date.now()}-${Math.random()}`;
@@ -556,15 +670,17 @@ export default function Whiteboard({
           break;
       }
 
-      setShapes(prev => [...prev, newShape]);
+      const newShapes = [...shapes, newShape];
+      setShapes(newShapes);
       setHasContent(true);
       onDrawingChange?.(true);
+      saveToHistory(newShapes, freehandPaths);
     }
 
     setIsDrawing(false);
     setStartPos(null);
     setEndPos(null);
-  }, [isDrawing, isDragging, startPos, endPos, drawingMode, currentPath, color, lineWidth, onDrawingChange, getMousePos]);
+  }, [isDrawing, isDragging, startPos, endPos, drawingMode, currentPath, color, lineWidth, onDrawingChange, getMousePos, shapes, freehandPaths, saveToHistory]);
 
   const clearCanvas = useCallback(() => {
     setShapes([]);
@@ -683,6 +799,30 @@ export default function Whiteboard({
           )}
         </div>
         <div className="flex items-center gap-1.5">
+          {/* Undo/Redo buttons */}
+          <button
+            onClick={undo}
+            disabled={historyIndex <= 0}
+            className="px-1.5 py-1 text-xs text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-gray-100 hover:bg-gray-100 dark:hover:bg-gray-800 rounded transition-colors disabled:opacity-30 disabled:cursor-not-allowed"
+            aria-label="Undo (Ctrl+Z)"
+            title="Undo (Ctrl+Z)"
+          >
+            <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 10h10a8 8 0 018 8v2M3 10l6 6m-6-6l6-6" />
+            </svg>
+          </button>
+          <button
+            onClick={redo}
+            disabled={historyIndex >= history.length - 1}
+            className="px-1.5 py-1 text-xs text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-gray-100 hover:bg-gray-100 dark:hover:bg-gray-800 rounded transition-colors disabled:opacity-30 disabled:cursor-not-allowed"
+            aria-label="Redo (Ctrl+Y)"
+            title="Redo (Ctrl+Y)"
+          >
+            <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 10h-10a8 8 0 00-8 8v2M21 10l-6 6m6-6l-6-6" />
+            </svg>
+          </button>
+          <div className="w-px h-4 bg-gray-300 dark:bg-gray-600 mx-1"></div>
           {onReviewDrawing && (
             <button
               onClick={reviewDrawing}
@@ -834,6 +974,17 @@ export default function Whiteboard({
             >
               ✋ Select
             </button>
+            <button
+              onClick={() => setDrawingMode("eraser")}
+              className={`px-2 py-1 text-xs rounded transition-colors ${
+                drawingMode === "eraser"
+                  ? "bg-blue-100 dark:bg-blue-900/20 text-blue-700 dark:text-blue-300"
+                  : "bg-gray-100 dark:bg-gray-800 text-gray-600 dark:text-gray-400 hover:bg-gray-200 dark:hover:bg-gray-700"
+              }`}
+              title="Eraser"
+            >
+              🧹 Eraser
+            </button>
           </div>
         </div>
       )}
@@ -954,8 +1105,9 @@ export default function Whiteboard({
           onTouchMove={draw}
           onTouchEnd={(e) => stopDrawing(e)}
           className={`w-full ${compact ? 'h-32' : 'h-64'} ${
-            drawingMode === "text" ? "cursor-text" : 
-            drawingMode === "select" ? "cursor-grab" : 
+            drawingMode === "text" ? "cursor-text" :
+            drawingMode === "select" ? "cursor-grab" :
+            drawingMode === "eraser" ? "cursor-cell" :
             isDragging ? "cursor-grabbing" :
             "cursor-crosshair"
           } touch-none`}
