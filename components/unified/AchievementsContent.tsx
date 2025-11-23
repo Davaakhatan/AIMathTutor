@@ -125,14 +125,28 @@ export default function AchievementsContent() {
     
     // Get problem types from history
     const problemTypes = problemHistory.map((p: any) => p.type || p.problem_type || "unknown").filter(Boolean);
-    
+
+    // Calculate total hints used from problem history
+    const totalHintsUsed = problemHistory.reduce((sum: number, p: any) => sum + (p.hintsUsed || 0), 0);
+
+    // Get feature usage counts from localStorage
+    let voiceUsageCount = 0;
+    let whiteboardUsageCount = 0;
+    try {
+      const settings = JSON.parse(localStorage.getItem("aitutor-settings") || "{}");
+      voiceUsageCount = settings.voiceUsageCount || 0;
+      whiteboardUsageCount = settings.whiteboardUsageCount || 0;
+    } catch (e) {
+      // Ignore parsing errors
+    }
+
     const stats = {
       problemsSolved: problemsSolved,
       currentStreak: streakData?.currentStreak || 0,
-      hintsUsed: 0, // TODO: Track hints used
+      hintsUsed: totalHintsUsed,
       problemTypes: problemTypes,
-      voiceUsageCount: 0, // TODO: Track voice usage
-      whiteboardUsageCount: 0, // TODO: Track whiteboard usage
+      voiceUsageCount: voiceUsageCount,
+      whiteboardUsageCount: whiteboardUsageCount,
     };
 
     console.log("[AchievementsContent] Checking achievements with stats:", stats);

@@ -427,7 +427,19 @@ export default function Whiteboard({
       setIsDrawing(true);
       setStartPos(pos);
       setEndPos(pos);
-      
+
+      // Track whiteboard usage for achievements (only once per session)
+      try {
+        const settings = JSON.parse(localStorage.getItem("aitutor-settings") || "{}");
+        if (!settings.whiteboardSessionTracked) {
+          settings.whiteboardUsageCount = (settings.whiteboardUsageCount || 0) + 1;
+          settings.whiteboardSessionTracked = true;
+          localStorage.setItem("aitutor-settings", JSON.stringify(settings));
+        }
+      } catch (e) {
+        // Ignore tracking errors
+      }
+
       if (drawingMode === "freehand") {
         // Start new freehand path
         setCurrentPath({

@@ -113,6 +113,15 @@ export default function VoiceInterface({
     try {
       recognitionRef.current.start();
       setIsListening(true);
+
+      // Track voice usage for achievements
+      try {
+        const settings = JSON.parse(localStorage.getItem("aitutor-settings") || "{}");
+        settings.voiceUsageCount = (settings.voiceUsageCount || 0) + 1;
+        localStorage.setItem("aitutor-settings", JSON.stringify(settings));
+      } catch (e) {
+        // Ignore tracking errors
+      }
     } catch (error: any) {
       console.error("Failed to start speech recognition:", error);
       
