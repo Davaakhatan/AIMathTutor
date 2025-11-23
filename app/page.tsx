@@ -32,6 +32,7 @@ import SessionResume from "@/components/SessionResume";
 import ProblemProgress from "@/components/ProblemProgress";
 import ProblemOfTheDay from "@/components/ProblemOfTheDay";
 import XPSystem from "@/components/XPSystem";
+import StudentQuickStats from "@/components/StudentQuickStats";
 import GamificationHub from "@/components/unified/GamificationHub";
 import StudyTimer from "@/components/StudyTimer";
 import DailyGoals from "@/components/DailyGoals";
@@ -94,7 +95,7 @@ function HomeContentInternal() {
   const [difficultyMode, setDifficultyMode] = useState<"elementary" | "middle" | "high" | "advanced">("middle");
   const [allMessages, setAllMessages] = useState<Message[]>([]);
   const { toasts, showToast, removeToast } = useToast();
-  const { user, loading: authLoading, activeProfile, userRole, loadUserDataFromSupabase, userDataLoading } = useAuth();
+  const { user, loading: authLoading, activeProfile, userRole, isViewingStudent, loadUserDataFromSupabase, userDataLoading, profilesLoading } = useAuth();
   const [xpData, setXPData] = useState({ totalXP: 0, level: 1, problemsSolved: 0 });
   const [streak, setStreak] = useState(0);
   const [isStudyActive, setIsStudyActive] = useState(false);
@@ -516,7 +517,7 @@ function HomeContentInternal() {
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
               </svg>
               <p className="text-xs text-blue-700 dark:text-blue-300 font-medium">
-                You&apos;re in Guest Mode. Your progress won&apos;t be saved. <button 
+                You&apos;re in Guest Mode. Your progress won&apos;t be saved. <button
                   onClick={(e) => {
                     e.preventDefault();
                     setAuthModalMode("signup");
@@ -526,6 +527,17 @@ function HomeContentInternal() {
                 >
                   Sign up
                 </button> to save your progress.
+              </p>
+            </div>
+          )}
+          {isViewingStudent && activeProfile && (
+            <div className="mb-6 inline-flex items-center gap-2 px-4 py-2 bg-purple-50 dark:bg-purple-900/20 border border-purple-200 dark:border-purple-800 rounded-lg">
+              <svg className="w-4 h-4 text-purple-600 dark:text-purple-400 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" />
+              </svg>
+              <p className="text-xs text-purple-700 dark:text-purple-300 font-medium">
+                Viewing <span className="font-semibold">{activeProfile.name}&apos;s</span> progress (read-only)
               </p>
             </div>
           )}
@@ -541,17 +553,39 @@ function HomeContentInternal() {
         </div>
 
             {!currentProblem ? (
-              <div className="space-y-4" data-tutorial="problem-input">
-                <ProblemOfTheDay 
-                  onProblemSelected={handleProblemParsed}
-                  apiKey={settings.apiKey}
+              // Wait for client-side hydration AND profiles to load before rendering conditional content
+              // This prevents flash of wrong content during SSR -> client hydration
+              // For teachers/parents with stored profile, wait until activeProfile is loaded
+              (() => {
+                // Check if we have a stored profile ID but activeProfile is not yet fully loaded
+                const hasStoredProfile = typeof window !== "undefined" && localStorage.getItem("aitutor-active-profile-id");
+                // activeProfile might be a placeholder with name "Loading..." - wait for real profile
+                const isPlaceholderProfile = activeProfile?.name === "Loading...";
+                const isWaitingForProfile = user && (userRole === "parent" || userRole === "teacher") && hasStoredProfile && (!activeProfile || isPlaceholderProfile);
+                return !isMounted || profilesLoading || isWaitingForProfile;
+              })() ? (
+                <div className="h-64 flex items-center justify-center">
+                  <div className="w-8 h-8 border-3 border-gray-300 dark:border-gray-600 border-t-indigo-500 rounded-full animate-spin"></div>
+                </div>
+              ) : isViewingStudent ? (
+                // Monitoring mode - show student quick stats
+                <StudentQuickStats
+                  studentName={activeProfile?.name || "Student"}
+                  profileId={activeProfile?.id || null}
                 />
-                <ProblemInput 
-                  onProblemParsed={handleProblemParsed} 
-                  apiKey={settings.apiKey} 
-                />
-                <ProblemGenerator onProblemGenerated={handleProblemParsed} apiKey={settings.apiKey} />
-              </div>
+              ) : (
+                <div className="space-y-4" data-tutorial="problem-input">
+                  <ProblemOfTheDay
+                    onProblemSelected={handleProblemParsed}
+                    apiKey={settings.apiKey}
+                  />
+                  <ProblemInput
+                    onProblemParsed={handleProblemParsed}
+                    apiKey={settings.apiKey}
+                  />
+                  <ProblemGenerator onProblemGenerated={handleProblemParsed} apiKey={settings.apiKey} />
+                </div>
+              )
             ) : (
           <div className="space-y-6">
             {/* Problem Display */}
@@ -719,15 +753,6 @@ function HomeContentInternal() {
               onClose={() => removeToast(toast.id)}
             />
           ))}
-
-          {/* Parent/Teacher View Indicator */}
-          {user && (userRole === "parent" || userRole === "teacher") && activeProfile && (
-            <div className="fixed top-4 left-1/2 transform -translate-x-1/2 z-30 px-4 py-2 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg shadow-lg">
-              <p className="text-sm font-medium text-gray-900 dark:text-gray-100">
-                Viewing: <span className="font-semibold">{activeProfile.name}</span>
-              </p>
-            </div>
-          )}
 
           {/* Unified Learning Hub (Dashboard + History + Practice) */}
           <LearningHub 

@@ -4,9 +4,26 @@
 
 import { NextRequest, NextResponse } from "next/server";
 import { getStreak, updateStreak, incrementStreak } from "@/backend/services/streakService";
+import { getSupabaseServer } from "@/lib/supabase-server";
 import { logger } from "@/lib/logger";
 
 export const dynamic = 'force-dynamic';
+
+// Helper to get the actual user_id for a student profile (owner_id)
+async function getEffectiveUserId(userId: string, profileId: string | null): Promise<string> {
+  if (!profileId) return userId;
+
+  const supabase = getSupabaseServer();
+  if (!supabase) return userId;
+
+  const { data: profile } = await supabase
+    .from("student_profiles")
+    .select("owner_id")
+    .eq("id", profileId)
+    .single();
+
+  return profile?.owner_id || userId;
+}
 
 export async function GET(request: NextRequest) {
   try {
@@ -19,7 +36,14 @@ export async function GET(request: NextRequest) {
     }
 
     const effectiveProfileId = profileId && profileId !== "null" ? profileId : null;
-    const streakData = await getStreak(userId, effectiveProfileId);
+    const effectiveUserId = await getEffectiveUserId(userId, effectiveProfileId);
+    const streakData = await getStreak(effectiveUserId, effectiveProfileId);
+
+    logger.info("Streak data loaded via API route", {
+      userId: effectiveUserId,
+      currentStreak: streakData?.current_streak || 0,
+      longestStreak: streakData?.longest_streak || 0
+    });
 
     if (!streakData) {
       return NextResponse.json({

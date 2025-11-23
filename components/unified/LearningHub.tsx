@@ -2,12 +2,11 @@
 
 import { useState, useEffect, useRef } from "react";
 import { ParsedProblem } from "@/types";
-import { useAuth } from "@/contexts/AuthContext";
 import { usePanel } from "@/contexts/PanelContext";
 import DashboardContent from "./DashboardContent";
 import PracticeContent from "./PracticeContent";
 import SuggestionsContent from "./SuggestionsContent";
-import LearningPath from "../LearningPath";
+// import LearningPath from "../LearningPath"; // Commented out - functionality merged into LearningGoals
 import LearningGoals from "./LearningGoals";
 import { DifficultyLevel } from "@/services/difficultyTracker";
 
@@ -23,10 +22,9 @@ interface LearningHubProps {
  * Unified Learning Hub - Combines Dashboard, History, Practice, and Suggestions
  */
 export default function LearningHub({ onSelectProblem, onDifficultyChange, apiKey, isGuestMode = false, onSignUpClick }: LearningHubProps) {
-  const { user } = useAuth();
   const { activePanel, setActivePanel, isAnyPanelOpen } = usePanel();
   const [isOpen, setIsOpen] = useState(false);
-  const [activeTab, setActiveTab] = useState<"dashboard" | "practice" | "suggestions" | "path" | "goals">("dashboard");
+  const [activeTab, setActiveTab] = useState<"dashboard" | "practice" | "suggestions" | "goals">("dashboard");
   const panelRef = useRef<HTMLDivElement>(null);
   
   // Calculate vertical position - stack below UserMenu (logged in) or AuthButton (guest mode)
@@ -141,16 +139,7 @@ export default function LearningHub({ onSelectProblem, onDifficultyChange, apiKe
           >
             Suggestions
           </button>
-          <button
-            onClick={() => setActiveTab("path")}
-            className={`flex-1 px-2 py-1.5 text-xs font-medium rounded-md transition-colors ${
-              activeTab === "path"
-                ? "bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100 shadow-sm"
-                : "text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-gray-100"
-            }`}
-          >
-            Path
-          </button>
+          {/* Path tab removed - functionality merged into Goals */}
           <button
             onClick={() => setActiveTab("goals")}
             className={`flex-1 px-2 py-1.5 text-xs font-medium rounded-md transition-colors ${
@@ -178,7 +167,6 @@ export default function LearningHub({ onSelectProblem, onDifficultyChange, apiKe
               {activeTab === "dashboard" && <DashboardContent onDifficultyChange={onDifficultyChange} />}
         {activeTab === "practice" && <PracticeContent onStartPractice={onSelectProblem} apiKey={apiKey} />}
         {activeTab === "suggestions" && <SuggestionsContent onSelectProblem={onSelectProblem} />}
-        {activeTab === "path" && <LearningPath onStartProblem={onSelectProblem} apiKey={apiKey} />}
         {activeTab === "goals" && <LearningGoals isGuestMode={isGuestMode} onSignUpClick={onSignUpClick} />}
       </div>
     </div>

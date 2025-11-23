@@ -25,6 +25,7 @@ interface AuthContextType {
   profilesLoading: boolean;
   userDataLoading: boolean;
   userRole: "student" | "parent" | "teacher" | "admin" | null;
+  isViewingStudent: boolean; // True when parent/teacher is monitoring a student (view-only mode)
   signUp: (email: string, password: string, metadata?: { username?: string; display_name?: string; role?: "student" | "parent" | "teacher"; referralCode?: string | null }) => Promise<{ error: AuthError | null; referralCode?: string | null }>;
   signIn: (email: string, password: string) => Promise<{ error: AuthError | null }>;
   signOut: () => Promise<void>;
@@ -40,11 +41,55 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [user, setUser] = useState<User | null>(null);
   const [session, setSession] = useState<Session | null>(null);
   const [loading, setLoading] = useState(true);
-  const [activeProfile, setActiveProfileState] = useState<StudentProfile | null>(null);
+  // Initialize activeProfile from localStorage immediately to prevent flash on page refresh
+  const [activeProfile, setActiveProfileState] = useState<StudentProfile | null>(() => {
+    if (typeof window !== "undefined") {
+      try {
+        const storedProfileId = localStorage.getItem("aitutor-active-profile-id");
+        if (storedProfileId) {
+          // Return a placeholder profile that will be replaced when profiles load
+          // This prevents the UI from flashing to the default view
+          return { id: storedProfileId, name: "Loading...", owner_id: "" } as StudentProfile;
+        }
+      } catch (e) {
+        // Ignore localStorage errors
+      }
+    }
+    return null;
+  });
   const [profiles, setProfiles] = useState<StudentProfile[]>([]);
   const [profilesLoading, setProfilesLoading] = useState(false);
   const [userDataLoading, setUserDataLoading] = useState(false);
-  const [userRole, setUserRole] = useState<"student" | "parent" | "teacher" | "admin" | null>(null);
+  // Initialize userRole from localStorage immediately to prevent flash on page refresh
+  const [userRole, setUserRoleState] = useState<"student" | "parent" | "teacher" | "admin" | null>(() => {
+    if (typeof window !== "undefined") {
+      try {
+        const storedRole = localStorage.getItem("aitutor-user-role");
+        if (storedRole && ["student", "parent", "teacher", "admin"].includes(storedRole)) {
+          return storedRole as "student" | "parent" | "teacher" | "admin";
+        }
+      } catch (e) {
+        // Ignore localStorage errors
+      }
+    }
+    return null;
+  });
+
+  // Wrapper to also save to localStorage when setting role
+  const setUserRole = (role: "student" | "parent" | "teacher" | "admin" | null) => {
+    setUserRoleState(role);
+    if (typeof window !== "undefined") {
+      try {
+        if (role) {
+          localStorage.setItem("aitutor-user-role", role);
+        } else {
+          localStorage.removeItem("aitutor-user-role");
+        }
+      } catch (e) {
+        // Ignore localStorage errors
+      }
+    }
+  };
   const profilesLoadedForUserRef = useRef<string | null>(null);
   const isLoadingProfilesRef = useRef(false);
   const userDataLoadedRef = useRef<string | null>(null);
@@ -142,10 +187,22 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
           });
           if (result.success) {
             const profilesList = result.profiles || [];
-            const activeProfileId = result.activeProfileId;
-            
-            logger.info("Profiles API response received", { 
-              count: profilesList.length, 
+            // First try API response, then fall back to localStorage
+            let activeProfileId = result.activeProfileId;
+            if (!activeProfileId && typeof window !== "undefined") {
+              try {
+                const storedProfileId = localStorage.getItem("aitutor-active-profile-id");
+                if (storedProfileId) {
+                  activeProfileId = storedProfileId;
+                  logger.debug("Restored activeProfileId from localStorage", { storedProfileId });
+                }
+              } catch (e) {
+                // Ignore localStorage errors
+              }
+            }
+
+            logger.info("Profiles API response received", {
+              count: profilesList.length,
               activeProfileId,
               userRole: result.userRole,
               profileIds: profilesList.map((p: StudentProfile) => p.id)
@@ -973,11 +1030,24 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       }
       
       // Optimistically update UI immediately (don't wait for database)
-      const newActiveProfile = validatedProfileId 
+      const newActiveProfile = validatedProfileId
         ? profiles.find(p => p.id === validatedProfileId) || null
         : null;
       setActiveProfileState(newActiveProfile);
-      
+
+      // Also save to localStorage as backup for page refresh persistence
+      if (typeof window !== "undefined") {
+        try {
+          if (validatedProfileId) {
+            localStorage.setItem("aitutor-active-profile-id", validatedProfileId);
+          } else {
+            localStorage.removeItem("aitutor-active-profile-id");
+          }
+        } catch (e) {
+          // Ignore localStorage errors
+        }
+      }
+
       // Update database in background (don't wait)
       setActiveProfile(validatedProfileId)
         .then(async () => {
@@ -1004,6 +1074,10 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     }
   }, [profiles, refreshProfiles, user, loadUserDataFromSupabase, userRole]);
 
+  // Compute isViewingStudent: true when parent/teacher has selected a student profile
+  // This puts the app in "monitoring mode" - view-only, no problem solving
+  const isViewingStudent = (userRole === "parent" || userRole === "teacher") && activeProfile !== null;
+
   return (
     <AuthContext.Provider
       value={{
@@ -1014,6 +1088,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         profiles,
         profilesLoading,
         userRole,
+        isViewingStudent,
         signUp,
         signIn,
         signOut,

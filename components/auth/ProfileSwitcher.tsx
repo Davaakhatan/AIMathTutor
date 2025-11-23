@@ -5,11 +5,51 @@ import { useAuth } from "@/contexts/AuthContext";
 import { logger } from "@/lib/logger";
 import { useToast } from "@/hooks/useToast";
 
+interface StudentAlert {
+  profileId: string;
+  hasAlert: boolean;
+  alertType?: "inactivity" | "streak_lost" | "low_accuracy" | "goal_achieved";
+  message?: string;
+  daysInactive?: number;
+  streak?: number;
+}
+
 export default function ProfileSwitcher() {
-  const { activeProfile, profiles, profilesLoading, setActiveProfile, userRole } = useAuth();
+  const { user, activeProfile, profiles, profilesLoading, setActiveProfile, userRole } = useAuth();
   const [isOpen, setIsOpen] = useState(false);
+  const [alerts, setAlerts] = useState<Map<string, StudentAlert>>(new Map());
   const dropdownRef = useRef<HTMLDivElement>(null);
   const { showToast } = useToast();
+
+  // Fetch student alerts when profiles load
+  useEffect(() => {
+    if (!user || profiles.length === 0) return;
+
+    const fetchAlerts = async () => {
+      try {
+        const profileIds = profiles.map(p => p.id).join(",");
+        const response = await fetch(
+          `/api/v2/student-alerts?userId=${user.id}&profileIds=${profileIds}`
+        );
+        const data = await response.json();
+
+        if (data.success && data.alerts) {
+          const alertMap = new Map<string, StudentAlert>();
+          data.alerts.forEach((alert: StudentAlert) => {
+            alertMap.set(alert.profileId, alert);
+          });
+          setAlerts(alertMap);
+        }
+      } catch (error) {
+        logger.error("Error fetching student alerts", { error });
+      }
+    };
+
+    fetchAlerts();
+  }, [user, profiles]);
+
+  // Count total alerts for badge
+  const totalAlerts = Array.from(alerts.values()).filter(a => a.hasAlert).length;
 
   // Close dropdown when clicking outside
   useEffect(() => {
@@ -60,8 +100,15 @@ export default function ProfileSwitcher() {
         aria-expanded={isOpen}
       >
         <div className="flex items-center gap-2 min-w-0">
-          <div className="w-6 h-6 rounded-full bg-gradient-to-br from-indigo-500 to-purple-600 flex items-center justify-center text-white text-xs font-bold flex-shrink-0 shadow-md">
-            {activeProfile ? activeProfile.name.charAt(0).toUpperCase() : "P"}
+          <div className="relative">
+            <div className="w-6 h-6 rounded-full bg-gradient-to-br from-indigo-500 to-purple-600 flex items-center justify-center text-white text-xs font-bold flex-shrink-0 shadow-md">
+              {activeProfile ? activeProfile.name.charAt(0).toUpperCase() : "P"}
+            </div>
+            {totalAlerts > 0 && (
+              <span className="absolute -top-1 -right-1 w-4 h-4 bg-red-500 text-white text-[10px] font-bold rounded-full flex items-center justify-center">
+                {totalAlerts}
+              </span>
+            )}
           </div>
           <span className="truncate">
             {activeProfile ? activeProfile.name : "Personal"}
@@ -108,39 +155,55 @@ export default function ProfileSwitcher() {
             )}
 
             {/* Student profiles */}
-            {profiles.map((profile) => (
-              <button
-                key={profile.id}
-                onClick={() => handleProfileSelect(profile.id)}
-                className={`w-full text-left px-3 py-2 rounded-md text-sm transition-colors ${
-                  activeProfile?.id === profile.id
-                    ? "bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100 shadow-sm"
-                    : "text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-800"
-                }`}
-              >
-                <div className="flex items-center gap-2.5">
-                  {profile.avatar_url ? (
-                    <img
-                      src={profile.avatar_url}
-                      alt={profile.name}
-                      className="w-5 h-5 rounded-full object-cover"
-                    />
-                  ) : (
-                    <div className="w-6 h-6 rounded-full bg-gradient-to-br from-purple-500 to-pink-600 flex items-center justify-center text-white text-xs font-bold shadow-md">
-                      {profile.name.charAt(0).toUpperCase()}
+            {profiles.map((profile) => {
+              const alert = alerts.get(profile.id);
+              return (
+                <button
+                  key={profile.id}
+                  onClick={() => handleProfileSelect(profile.id)}
+                  className={`w-full text-left px-3 py-2 rounded-md text-sm transition-colors ${
+                    activeProfile?.id === profile.id
+                      ? "bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100 shadow-sm"
+                      : "text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-800"
+                  }`}
+                >
+                  <div className="flex items-center gap-2.5">
+                    <div className="relative">
+                      {profile.avatar_url ? (
+                        <img
+                          src={profile.avatar_url}
+                          alt={profile.name}
+                          className="w-5 h-5 rounded-full object-cover"
+                        />
+                      ) : (
+                        <div className="w-6 h-6 rounded-full bg-gradient-to-br from-purple-500 to-pink-600 flex items-center justify-center text-white text-xs font-bold shadow-md">
+                          {profile.name.charAt(0).toUpperCase()}
+                        </div>
+                      )}
+                      {alert?.hasAlert && (
+                        <span className="absolute -top-0.5 -right-0.5 w-2.5 h-2.5 bg-red-500 rounded-full border border-white dark:border-gray-900" />
+                      )}
                     </div>
-                  )}
-                  <div className="flex-1 min-w-0">
-                    <div className="font-medium truncate">{profile.name}</div>
-                    {profile.grade_level && (
-                      <div className="text-xs text-gray-500 dark:text-gray-400 capitalize">
-                        {profile.grade_level}
-                      </div>
-                    )}
+                    <div className="flex-1 min-w-0">
+                      <div className="font-medium truncate">{profile.name}</div>
+                      {alert?.hasAlert ? (
+                        <div className={`text-xs truncate ${
+                          alert.alertType === "inactivity" ? "text-orange-500" :
+                          alert.alertType === "low_accuracy" ? "text-red-500" :
+                          "text-yellow-500"
+                        }`}>
+                          {alert.message}
+                        </div>
+                      ) : profile.grade_level ? (
+                        <div className="text-xs text-gray-500 dark:text-gray-400 capitalize">
+                          {profile.grade_level}
+                        </div>
+                      ) : null}
+                    </div>
                   </div>
-                </div>
-              </button>
-            ))}
+                </button>
+              );
+            })}
           </div>
         </div>
       )}

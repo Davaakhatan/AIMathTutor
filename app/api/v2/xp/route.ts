@@ -6,9 +6,28 @@
 
 import { NextRequest, NextResponse } from "next/server";
 import { getXP, updateXP, awardProblemXP, awardLoginBonus } from "@/backend/services/xpService";
+import { getSupabaseServer } from "@/lib/supabase-server";
 import { logger } from "@/lib/logger";
 
 export const dynamic = 'force-dynamic';
+
+// Helper to get the actual user_id for a student profile (owner_id)
+// This is needed when a teacher/parent views a student's data
+async function getEffectiveUserId(userId: string, profileId: string | null): Promise<string> {
+  if (!profileId) return userId;
+
+  const supabase = getSupabaseServer();
+  if (!supabase) return userId;
+
+  const { data: profile } = await supabase
+    .from("student_profiles")
+    .select("owner_id")
+    .eq("id", profileId)
+    .single();
+
+  // Return the profile owner's ID (the student's actual user_id)
+  return profile?.owner_id || userId;
+}
 
 export async function GET(request: NextRequest) {
   try {
@@ -21,7 +40,10 @@ export async function GET(request: NextRequest) {
     }
 
     const effectiveProfileId = profileId && profileId !== "null" ? profileId : null;
-    const xpData = await getXP(userId, effectiveProfileId);
+
+    // When viewing a student profile, use the student's owner_id for queries
+    const effectiveUserId = await getEffectiveUserId(userId, effectiveProfileId);
+    const xpData = await getXP(effectiveUserId, effectiveProfileId);
 
     logger.debug("API v2: getXP result", {
       userId,

@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from "react";
 import { useAuth } from "@/contexts/AuthContext";
-import { getParentRelationships, deleteRelationship, type ProfileRelationship } from "@/services/profileRelationshipService";
+import { deleteRelationship, type ProfileRelationship } from "@/services/profileRelationshipService";
 import { useToast } from "@/hooks/useToast";
 import { logger } from "@/lib/logger";
 
@@ -17,7 +17,7 @@ interface LinkedStudent {
 }
 
 export default function LinkedStudentsList({ onStudentSelect }: { onStudentSelect?: (studentProfileId: string) => void }) {
-  const { activeProfile, setActiveProfile, refreshProfiles } = useAuth();
+  const { user, activeProfile, setActiveProfile, refreshProfiles } = useAuth();
   const [linkedStudents, setLinkedStudents] = useState<LinkedStudent[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [isUnlinking, setIsUnlinking] = useState<string | null>(null);
@@ -26,59 +26,36 @@ export default function LinkedStudentsList({ onStudentSelect }: { onStudentSelec
   const { showToast } = useToast();
 
   useEffect(() => {
-    loadLinkedStudents();
-  }, []);
+    if (user) {
+      loadLinkedStudents();
+    } else {
+      setIsLoading(false);
+    }
+  }, [user]);
 
   const loadLinkedStudents = async () => {
+    if (!user) return;
+
     try {
       setIsLoading(true);
-      const relationships = await getParentRelationships();
-      
-      if (relationships.length === 0) {
+      const response = await fetch(`/api/v2/linked-students?userId=${user.id}`);
+      const data = await response.json();
+
+      if (data.success && data.students) {
+        // Map to the expected format
+        const mappedStudents: LinkedStudent[] = data.students.map((s: any) => ({
+          relationship: s.relationship,
+          student_profile: {
+            id: s.student_profile.id,
+            name: s.student_profile.name,
+            grade_level: s.student_profile.grade_level || null,
+            avatar_url: s.student_profile.avatar_url || null,
+          },
+        }));
+        setLinkedStudents(mappedStudents);
+      } else {
         setLinkedStudents([]);
-        setIsLoading(false);
-        return;
       }
-      
-      // Get student profile data for each relationship
-      const supabase = await import("@/lib/supabase").then(m => m.getSupabaseClient());
-      
-      const students = await Promise.all(
-        relationships.map(async (rel) => {
-          try {
-            const { data: studentProfile, error } = await supabase
-              .from("student_profiles")
-              .select("id, name, grade_level, avatar_url")
-              .eq("id", rel.student_profile_id)
-              .single();
-
-            if (error) {
-              logger.warn("Error fetching student profile", { 
-                error, 
-                studentProfileId: rel.student_profile_id 
-              });
-              return null;
-            }
-
-            return {
-              relationship: rel,
-              student_profile: studentProfile || {
-                id: rel.student_profile_id,
-                name: "Unknown",
-                grade_level: null,
-                avatar_url: null,
-              },
-            };
-          } catch (error) {
-            logger.error("Error processing relationship", { error, relationshipId: rel.id });
-            return null;
-          }
-        })
-      );
-
-      // Filter out null results
-      const validStudents = students.filter(s => s !== null) as LinkedStudent[];
-      setLinkedStudents(validStudents);
     } catch (error) {
       logger.error("Error loading linked students", { error });
       showToast("Failed to load linked students", "error");

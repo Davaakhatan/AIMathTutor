@@ -29,8 +29,11 @@ export async function getStreak(
   }
 
   // Filter by student_profile_id in memory
+  // For teachers viewing a student: also include null records (legacy data before profile system)
   const filtered = data?.filter((r: any) =>
-    profileId ? r.student_profile_id === profileId : r.student_profile_id === null
+    profileId
+      ? r.student_profile_id === profileId || r.student_profile_id == null
+      : r.student_profile_id == null
   ) || [];
 
   if (filtered.length === 0) {

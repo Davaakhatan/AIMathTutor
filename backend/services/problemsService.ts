@@ -66,9 +66,14 @@ export async function getProblems(
     }
 
     // Filter by student_profile_id in memory
+    // For students viewing their own data: match profile or null (personal data)
+    // For teachers viewing a student: also include null records (legacy data before profile system)
     let data = allData;
     if (effectiveProfileId) {
-      data = allData?.filter((r: any) => r.student_profile_id === effectiveProfileId) || [];
+      // Include both profile-specific records AND null records (legacy student data)
+      data = allData?.filter((r: any) =>
+        r.student_profile_id === effectiveProfileId || r.student_profile_id === null
+      ) || [];
     } else {
       data = allData?.filter((r: any) => r.student_profile_id === null) || [];
     }
@@ -356,26 +361,33 @@ export async function countSolvedProblems(
 
     const effectiveProfileId = profileId && profileId !== "null" ? profileId : null;
 
-    let query = supabase
+    // Fetch all solved problems for user, then filter in memory
+    // This allows us to include legacy data (null student_profile_id)
+    const { data, error } = await supabase
       .from("problems")
-      .select("id", { count: "exact", head: true })
+      .select("id, student_profile_id")
       .eq("user_id", userId)
       .not("solved_at", "is", null);
-
-    if (effectiveProfileId) {
-      query = query.eq("student_profile_id", effectiveProfileId);
-    } else {
-      query = query.is("student_profile_id", null);
-    }
-
-    const { count, error } = await query;
 
     if (error) {
       logger.error("Error counting solved problems", { error: error.message, userId });
       return { success: false, count: 0, error: error.message };
     }
 
-    return { success: true, count: count || 0 };
+    // Filter by student_profile_id in memory
+    // For teachers viewing a student: include null records (legacy data)
+    let filtered = data || [];
+    if (effectiveProfileId) {
+      filtered = data?.filter((r: any) =>
+        r.student_profile_id === effectiveProfileId || r.student_profile_id === null
+      ) || [];
+    } else {
+      filtered = data?.filter((r: any) => r.student_profile_id === null) || [];
+    }
+
+    const count = filtered.length;
+
+    return { success: true, count };
   } catch (error) {
     logger.error("Exception counting solved problems", { error, userId });
     return { success: false, count: 0, error: String(error) };

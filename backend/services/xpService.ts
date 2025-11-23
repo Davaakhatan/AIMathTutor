@@ -34,9 +34,11 @@ export async function getXP(
   }
 
   // Filter by student_profile_id in memory (Supabase .is() is unreliable)
-  // Use == null to match both null and undefined
+  // For teachers viewing a student: also include null records (legacy data before profile system)
   const filtered = data?.filter((r: any) =>
-    profileId ? r.student_profile_id === profileId : r.student_profile_id == null
+    profileId
+      ? r.student_profile_id === profileId || r.student_profile_id == null
+      : r.student_profile_id == null
   ) || [];
 
   logger.debug("Backend: XP filter result", {

@@ -4,9 +4,37 @@
 
 import { NextRequest, NextResponse } from "next/server";
 import { getProblems, saveProblem, updateProblem, markProblemSolved, countSolvedProblems } from "@/backend/services/problemsService";
+import { getSupabaseServer } from "@/lib/supabase-server";
 import { logger } from "@/lib/logger";
 
 export const dynamic = 'force-dynamic';
+
+// Helper to get the actual user_id for a student profile (owner_id)
+// This is needed when a parent/teacher views a student's data
+async function getEffectiveUserId(userId: string, profileId: string | null): Promise<string> {
+  if (!profileId) return userId;
+
+  const supabase = getSupabaseServer();
+  if (!supabase) {
+    logger.debug("getEffectiveUserId: No supabase server", { userId, profileId });
+    return userId;
+  }
+
+  const { data: profile, error } = await supabase
+    .from("student_profiles")
+    .select("owner_id")
+    .eq("id", profileId)
+    .single();
+
+  logger.debug("getEffectiveUserId lookup result", {
+    userId,
+    profileId,
+    foundOwnerId: profile?.owner_id,
+    error: error?.message
+  });
+
+  return profile?.owner_id || userId;
+}
 
 export async function GET(request: NextRequest) {
   try {
@@ -20,12 +48,16 @@ export async function GET(request: NextRequest) {
       return NextResponse.json({ success: false, error: "userId required" }, { status: 400 });
     }
 
+    // Get the actual user_id for the student profile (owner_id)
+    // This is needed when a parent/teacher views a student's data
+    const effectiveUserId = await getEffectiveUserId(userId, profileId);
+
     if (action === "countSolved") {
-      const result = await countSolvedProblems(userId, profileId);
+      const result = await countSolvedProblems(effectiveUserId, profileId);
       return NextResponse.json(result);
     }
 
-    const result = await getProblems(userId, profileId, limit);
+    const result = await getProblems(effectiveUserId, profileId, limit);
     return NextResponse.json(result);
   } catch (error) {
     logger.error("Error in GET /api/v2/problems", { error });
