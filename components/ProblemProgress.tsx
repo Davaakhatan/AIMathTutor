@@ -23,6 +23,8 @@ interface ProblemProgressProps {
 export default function ProblemProgress({ messages, problem, difficultyMode = "middle", userId, profileId }: ProblemProgressProps) {
   const router = useRouter();
   const [showDetails, setShowDetails] = useState(false);
+  const [isAwarding, setIsAwarding] = useState(false);
+  const [awardError, setAwardError] = useState<string | null>(null);
   
   const userMessages = messages.filter(m => m.role === "user");
   const tutorMessages = messages.filter(m => m.role === "tutor");
@@ -315,6 +317,9 @@ export default function ProblemProgress({ messages, problem, difficultyMode = "m
       // This bypasses the complex orchestrator and uses clean backend services
       console.log("[ProblemProgress] Calling v2 API to award XP", { userId, problemData });
 
+      setIsAwarding(true);
+      setAwardError(null);
+
       fetch("/api/v2/problem-completed", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -329,6 +334,7 @@ export default function ProblemProgress({ messages, problem, difficultyMode = "m
       })
         .then(response => response.json())
         .then(result => {
+          setIsAwarding(false);
           if (result.success) {
             console.log("✅ [ProblemProgress] XP awarded successfully!", {
               xpGained: result.data.xp.gained,
@@ -369,10 +375,13 @@ export default function ProblemProgress({ messages, problem, difficultyMode = "m
             }));
           } else {
             console.error("❌ [ProblemProgress] Failed to award XP:", result.error);
+            setAwardError("Failed to save progress. Your XP may not have been recorded.");
           }
         })
         .catch(error => {
+          setIsAwarding(false);
           console.error("❌ [ProblemProgress] Error calling v2 API:", error);
+          setAwardError("Network error. Your XP may not have been recorded.");
         });
     }
 
@@ -440,10 +449,20 @@ export default function ProblemProgress({ messages, problem, difficultyMode = "m
             </div>
           </div>
           <p className="text-xs text-gray-400 dark:text-gray-500 pt-2 transition-colors">
-            {isSolved 
-              ? "🎉 Congratulations! You solved this problem!" 
+            {isSolved
+              ? "🎉 Congratulations! You solved this problem!"
               : "Keep going! You&apos;re making progress through this problem."}
           </p>
+          {isAwarding && (
+            <p className="text-xs text-blue-500 dark:text-blue-400 pt-1 animate-pulse">
+              Saving your progress...
+            </p>
+          )}
+          {awardError && (
+            <p className="text-xs text-red-500 dark:text-red-400 pt-1">
+              ⚠️ {awardError}
+            </p>
+          )}
         </div>
       )}
       

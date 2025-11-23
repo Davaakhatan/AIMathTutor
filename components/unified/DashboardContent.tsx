@@ -10,6 +10,7 @@ import { ProblemType } from "@/types";
 import { getAllConcepts, getConceptsByCategory, getConceptsNeedingPractice, ConceptTrackingData } from "@/services/conceptTracker";
 import ProgressVisualization from "../ProgressVisualization";
 import DifficultyRecommendation from "../DifficultyRecommendation";
+import NudgeBanner from "../NudgeBanner";
 import { DifficultyLevel } from "@/services/difficultyTracker";
 
 interface ProblemStats {
@@ -275,7 +276,10 @@ export default function DashboardContent({ onDifficultyChange }: DashboardConten
           Your complete learning analytics
         </p>
       </div>
-      
+
+      {/* Re-engagement Nudges */}
+      <NudgeBanner />
+
       {/* Overview Stats */}
       <div className="grid grid-cols-2 gap-3">
         <div className="p-3 bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-700 rounded-lg transition-colors">

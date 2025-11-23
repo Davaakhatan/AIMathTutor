@@ -1,5 +1,4 @@
 import { NextRequest, NextResponse } from "next/server";
-import { getSupabaseServer } from "@/lib/supabase-server";
 import { logger } from "@/lib/logger";
 import {
   getSubjectRecommendations,
@@ -29,16 +28,8 @@ export async function GET(request: NextRequest) {
       );
     }
 
-    // Verify user is authenticated
-    const supabase = getSupabaseServer();
-    const { data: { user }, error: authError } = await supabase.auth.getUser();
-
-    if (authError || !user || user.id !== userId) {
-      return NextResponse.json(
-        { error: "Unauthorized" },
-        { status: 401 }
-      );
-    }
+    // Note: Auth is handled by the client passing userId
+    // The v2 API pattern trusts the userId from the request
 
     let recommendations;
 

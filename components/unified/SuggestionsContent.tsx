@@ -2,101 +2,86 @@
 
 import { useState, useEffect } from "react";
 import { ProblemType, ParsedProblem } from "@/types";
-import { useLocalStorage } from "@/hooks/useLocalStorage";
-import { useProblemHistory } from "@/hooks/useProblemHistory";
-import AdaptiveProblemSuggestions from "../AdaptiveProblemSuggestions";
-
-interface SavedProblem {
-  id: string;
-  text: string;
-  type: ProblemType;
-  savedAt: number;
-}
+import { useAdaptivePractice, AdaptiveProblem } from "@/hooks/useAdaptivePractice";
+import { useAuth } from "@/contexts/AuthContext";
 
 interface SuggestionsContentProps {
   onSelectProblem: (problem: ParsedProblem) => void;
 }
 
-const typeLabels: Record<string, string> = {
-  ARITHMETIC: "Arithmetic",
-  ALGEBRA: "Algebra",
-  GEOMETRY: "Geometry",
-  WORD_PROBLEM: "Word Problems",
-  MULTI_STEP: "Multi-Step",
-  UNKNOWN: "Other",
+const difficultyColors: Record<string, string> = {
+  elementary: "bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400",
+  middle: "bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-400",
+  high: "bg-purple-100 text-purple-700 dark:bg-purple-900/30 dark:text-purple-400",
+  advanced: "bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400",
+};
+
+const sessionTypeConfig = {
+  balanced: {
+    label: "Balanced",
+    description: "Mix of practice",
+    icon: "M3 6l3 1m0 0l-3 9a5.002 5.002 0 006.001 0M6 7l3 9M6 7l6-2m6 2l3-1m-3 1l-3 9a5.002 5.002 0 006.001 0M18 7l3 9m-3-9l-6-2m0-2v2m0 16V5m0 16H9m3 0h3",
+    color: "indigo"
+  },
+  weakness: {
+    label: "Focus",
+    description: "Weak areas",
+    icon: "M13 10V3L4 14h7v7l9-11h-7z",
+    color: "orange"
+  },
+  strength: {
+    label: "Mastery",
+    description: "Strong areas",
+    icon: "M5 3v4M3 5h4M6 17v4m-2-2h4m5-16l2.286 6.857L21 12l-5.714 2.143L13 21l-2.286-6.857L5 12l5.714-2.143L13 3z",
+    color: "green"
+  },
+  challenge: {
+    label: "Challenge",
+    description: "Push limits",
+    icon: "M17.657 18.657A8 8 0 016.343 7.343S7 9 9 10c0-2 .5-5 2.986-7C14 5 16.09 5.777 17.656 7.343A7.975 7.975 0 0120 13a7.975 7.975 0 01-2.343 5.657z",
+    color: "red"
+  },
 };
 
 /**
- * Suggestions Content - Problem suggestions based on learning history
+ * Suggestions Content - Adaptive practice based on performance analysis
  */
 export default function SuggestionsContent({ onSelectProblem }: SuggestionsContentProps) {
-  const { problems: savedProblems } = useProblemHistory();
-  const [suggestions, setSuggestions] = useState<ProblemType[]>([]);
-  const [isGenerating, setIsGenerating] = useState(false);
+  const { user, activeProfile, userRole } = useAuth();
+  const { session, analysis, isLoading, error, generateSession, getAnalysis } = useAdaptivePractice();
+  const [selectedType, setSelectedType] = useState<"balanced" | "weakness" | "strength" | "challenge">("balanced");
+  const [isGeneratingProblem, setIsGeneratingProblem] = useState(false);
 
-  // Helper function to normalize problem type (handle case inconsistencies)
-  const normalizeType = (type: string | undefined): ProblemType => {
-    if (!type) return ProblemType.UNKNOWN;
-    const normalized = type.toLowerCase().trim();
-    // Map common variations to enum values (after lowercasing, so we only check lowercase)
-    if (normalized === "arithmetic") return ProblemType.ARITHMETIC;
-    if (normalized === "algebra") return ProblemType.ALGEBRA;
-    if (normalized === "geometry") return ProblemType.GEOMETRY;
-    if (normalized === "word_problem" || normalized === "word problem") return ProblemType.WORD_PROBLEM;
-    if (normalized === "multi_step" || normalized === "multi-step") return ProblemType.MULTI_STEP;
-    return ProblemType.UNKNOWN;
+  // Load session on mount
+  useEffect(() => {
+    if (user) {
+      const profileId = userRole === "student" ? null : (activeProfile?.id || null);
+      generateSession(selectedType, 5, profileId);
+      getAnalysis(profileId);
+    }
+  }, [user, activeProfile?.id, userRole]);
+
+  const handleSessionTypeChange = (type: "balanced" | "weakness" | "strength" | "challenge") => {
+    setSelectedType(type);
+    if (user) {
+      const profileId = userRole === "student" ? null : (activeProfile?.id || null);
+      generateSession(type, 5, profileId);
+    }
   };
 
-  // Calculate suggestions based on learning history
-  useEffect(() => {
-    if (savedProblems.length === 0) {
-      // If no history, suggest common starting types
-      setSuggestions([ProblemType.ARITHMETIC, ProblemType.ALGEBRA]);
-      return;
-    }
+  const handleProblemSelect = async (problem: AdaptiveProblem) => {
+    setIsGeneratingProblem(true);
 
-    // Count problems by type (normalized)
-    const problemsByType: Record<string, number> = {};
-    savedProblems.forEach((p) => {
-      const normalizedType = normalizeType(p.type);
-      const typeKey = normalizedType; // Use enum value as key
-      problemsByType[typeKey] = (problemsByType[typeKey] || 0) + 1;
-    });
-
-    // Find types with least practice
-    const allTypes: ProblemType[] = [
-      ProblemType.ARITHMETIC,
-      ProblemType.ALGEBRA,
-      ProblemType.GEOMETRY,
-      ProblemType.WORD_PROBLEM,
-      ProblemType.MULTI_STEP,
-    ];
-
-    // Sort by practice count (least practiced first)
-    const sorted = allTypes.sort((a, b) => {
-      const countA = problemsByType[a] || 0;
-      const countB = problemsByType[b] || 0;
-      return countA - countB;
-    });
-
-    // Suggest top 2-3 least practiced types
-    setSuggestions(sorted.slice(0, 3));
-  }, [savedProblems]);
-
-  const generateProblem = async (type: ProblemType) => {
-    setIsGenerating(true);
-    
     try {
-      // Randomly select difficulty level
-      const difficulties = ["elementary", "middle school", "high school", "advanced"];
-      const randomDifficulty = difficulties[Math.floor(Math.random() * difficulties.length)];
-      
       const response = await fetch("/api/generate-problem", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          type,
-          difficulty: randomDifficulty,
+          type: problem.subject,
+          difficulty: problem.difficulty === "elementary" ? "elementary"
+            : problem.difficulty === "middle" ? "middle school"
+            : problem.difficulty === "high" ? "high school"
+            : "advanced",
         }),
       });
 
@@ -106,78 +91,17 @@ export default function SuggestionsContent({ onSelectProblem }: SuggestionsConte
           onSelectProblem(result.problem);
         }
       } else {
-        // Fallback to templates
-        const templates: Record<ProblemType, string[]> = {
-          [ProblemType.ARITHMETIC]: [
-            "15 + 23 = ?",
-            "48 - 19 = ?",
-            "7 × 8 = ?",
-          ],
-          [ProblemType.ALGEBRA]: [
-            "2x + 5 = 13",
-            "3x - 7 = 14",
-            "x + 8 = 20",
-          ],
-          [ProblemType.GEOMETRY]: [
-            "Find the area of a rectangle with length 8 and width 5",
-            "What is the perimeter of a square with side length 6?",
-            "Find the area of a circle with radius 4",
-          ],
-          [ProblemType.WORD_PROBLEM]: [
-            "Sarah has 15 apples. She gives away 7. How many does she have left?",
-            "A store has a 20% off sale. If an item costs $50, what's the sale price?",
-            "If 3 pizzas cost $27, how much does 1 pizza cost?",
-          ],
-          [ProblemType.MULTI_STEP]: [
-            "2(x + 3) - 5 = 11",
-            "3x + 2 = 2x + 8",
-            "5(x - 2) + 3 = 18",
-          ],
-          [ProblemType.UNKNOWN]: [
-            "Solve for x: 2x + 5 = 13",
-          ],
-        };
-
-        const typeTemplates = templates[type] || templates[ProblemType.ALGEBRA];
-        const randomProblem = typeTemplates[Math.floor(Math.random() * typeTemplates.length)];
         onSelectProblem({
-          text: randomProblem,
-          type,
+          text: `Practice ${problem.subject} problem at ${problem.difficulty} level`,
+          type: problem.subject.toUpperCase().replace(" ", "_") as ProblemType,
           confidence: 1.0,
         });
       }
-    } catch (error) {
-      console.error("Error generating problem:", error);
+    } catch (err) {
+      console.error("Error generating problem:", err);
     } finally {
-      setIsGenerating(false);
+      setIsGeneratingProblem(false);
     }
-  };
-
-  const handleAdaptiveProblemSelect = (problemText: string, conceptId: string) => {
-    // Try to infer problem type from concept
-    const conceptToType: Record<string, ProblemType> = {
-      linear_equations: ProblemType.ALGEBRA,
-      quadratic_equations: ProblemType.ALGEBRA,
-      factoring: ProblemType.ALGEBRA,
-      pythagorean_theorem: ProblemType.GEOMETRY,
-      area_circle: ProblemType.GEOMETRY,
-      area_triangle: ProblemType.GEOMETRY,
-      area_rectangle: ProblemType.GEOMETRY,
-      perimeter: ProblemType.GEOMETRY,
-      angles: ProblemType.GEOMETRY,
-      fractions: ProblemType.ARITHMETIC,
-      decimals: ProblemType.ARITHMETIC,
-      percentages: ProblemType.ARITHMETIC,
-      ratios: ProblemType.ARITHMETIC,
-    };
-    
-    const problem: ParsedProblem = {
-      text: problemText,
-      type: conceptToType[conceptId] || ProblemType.UNKNOWN,
-      confidence: 0.9,
-    };
-    
-    onSelectProblem(problem);
   };
 
   return (
@@ -185,74 +109,125 @@ export default function SuggestionsContent({ onSelectProblem }: SuggestionsConte
       {/* Header */}
       <div className="text-center mb-6">
         <h2 className="text-2xl font-bold bg-gradient-to-r from-green-600 to-emerald-600 dark:from-green-400 dark:to-emerald-400 bg-clip-text text-transparent">
-          Smart Suggestions
+          Smart Practice
         </h2>
         <p className="text-sm text-gray-600 dark:text-gray-400 mt-1">
-          Personalized recommendations based on your progress
+          Personalized problems based on your performance
         </p>
       </div>
-      {/* Adaptive Problem Suggestions based on concept mastery */}
-      <AdaptiveProblemSuggestions
-        onSelectProblem={handleAdaptiveProblemSelect}
-        compact={false}
-      />
-      
-      {/* Problem Type Suggestions */}
-      <div className="mt-4 pt-4 border-t border-gray-200 dark:border-gray-700">
-        <div className="text-xs text-gray-600 dark:text-gray-400 mb-3 transition-colors">
-          <p className="font-medium text-gray-900 dark:text-gray-100 mb-1 transition-colors">
-            Or try different problem types:
-          </p>
-          <p>Explore different categories to build a well-rounded foundation.</p>
+
+      {!user ? (
+        <div className="text-center py-8 text-gray-400 dark:text-gray-500">
+          <p className="text-sm mb-2">Sign in for personalized practice!</p>
+          <p className="text-xs">We&apos;ll analyze your performance and suggest problems tailored to you.</p>
         </div>
-        
-        {savedProblems.length === 0 ? (
-          <div className="text-center py-4 text-gray-400 dark:text-gray-500 transition-colors">
-            <p className="text-xs">Start practicing to see personalized type suggestions!</p>
-          </div>
-        ) : (
-          <div className="space-y-3">
-            {suggestions.map((type) => (
+      ) : (
+        <>
+          {/* Session Type Selector */}
+          <div className="grid grid-cols-4 gap-2 mb-4">
+            {(Object.keys(sessionTypeConfig) as Array<keyof typeof sessionTypeConfig>).map((type) => (
               <button
                 key={type}
-                onClick={() => generateProblem(type)}
-                disabled={isGenerating}
-                className="w-full p-3 bg-indigo-50 dark:bg-indigo-900/20 border border-indigo-200 dark:border-indigo-800 rounded-lg hover:bg-indigo-100 dark:hover:bg-indigo-900/30 transition-colors text-left disabled:opacity-50 disabled:cursor-not-allowed"
+                onClick={() => handleSessionTypeChange(type)}
+                className={`p-2 rounded-lg border text-center transition-all ${
+                  selectedType === type
+                    ? "border-indigo-500 bg-indigo-50 dark:bg-indigo-900/20"
+                    : "border-gray-200 dark:border-gray-700 hover:border-gray-300 dark:hover:border-gray-600"
+                }`}
               >
-                <div className="flex items-center justify-between">
-                  <div>
-                    <p className="text-sm font-medium text-gray-900 dark:text-gray-100 transition-colors">
-                      {typeLabels[type] || type}
-                    </p>
-                    <p className="text-xs text-gray-600 dark:text-gray-400 mt-0.5 transition-colors">
-                      {(() => {
-                        const normalizedType = normalizeType(type);
-                        const count = savedProblems.filter((p) => normalizeType(p.type) === normalizedType).length;
-                        return count === 0
-                          ? "Not practiced yet"
-                          : `${count} problem${count === 1 ? "" : "s"} solved`;
-                      })()}
-                    </p>
-                  </div>
-                  {isGenerating ? (
-                    <div className="w-4 h-4 border-2 border-indigo-600 border-t-transparent rounded-full animate-spin" />
-                  ) : (
-                    <svg className="w-5 h-5 text-indigo-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path
-                        strokeLinecap="round"
-                        strokeLinejoin="round"
-                        strokeWidth={2}
-                        d="M13 7l5 5m0 0l-5 5m5-5H6"
-                      />
-                    </svg>
-                  )}
-                </div>
+                <svg
+                  className={`w-4 h-4 mx-auto mb-1 ${selectedType === type ? "text-indigo-600" : "text-gray-400"}`}
+                  fill="none"
+                  stroke="currentColor"
+                  viewBox="0 0 24 24"
+                >
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d={sessionTypeConfig[type].icon} />
+                </svg>
+                <span className={`text-xs font-medium block ${selectedType === type ? "text-indigo-600 dark:text-indigo-400" : "text-gray-600 dark:text-gray-400"}`}>
+                  {sessionTypeConfig[type].label}
+                </span>
               </button>
             ))}
           </div>
-        )}
-      </div>
+
+          {/* Performance Analysis */}
+          {analysis && (
+            <div className="bg-gray-50 dark:bg-gray-800/50 rounded-lg p-3 mb-4 text-xs">
+              <p className="font-medium text-gray-900 dark:text-gray-100 mb-1">Your Focus</p>
+              <p className="text-gray-600 dark:text-gray-400">{analysis.suggestedFocus}</p>
+              {analysis.weakAreas.length > 0 && (
+                <div className="mt-2">
+                  <span className="text-gray-500">Needs work: </span>
+                  <span className="text-orange-600 dark:text-orange-400">
+                    {analysis.weakAreas.map(a => a.subject).join(", ")}
+                  </span>
+                </div>
+              )}
+            </div>
+          )}
+
+          {/* Loading State */}
+          {isLoading && (
+            <div className="flex items-center justify-center py-8">
+              <div className="w-6 h-6 border-2 border-indigo-600 border-t-transparent rounded-full animate-spin" />
+            </div>
+          )}
+
+          {/* Error State */}
+          {error && (
+            <div className="text-center py-4 text-red-500 text-sm">
+              {error}
+            </div>
+          )}
+
+          {/* Generated Problems */}
+          {session && !isLoading && (
+            <div className="space-y-2">
+              <div className="flex items-center justify-between text-xs text-gray-500 dark:text-gray-400 mb-2">
+                <span>{session.problems.length} problems</span>
+                <span>~{session.estimatedDuration} min | {session.totalEstimatedXP} XP</span>
+              </div>
+
+              {session.problems.map((problem, index) => (
+                <button
+                  key={index}
+                  onClick={() => handleProblemSelect(problem)}
+                  disabled={isGeneratingProblem}
+                  className="w-full p-3 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg hover:border-indigo-300 dark:hover:border-indigo-700 transition-all text-left disabled:opacity-50 disabled:cursor-not-allowed"
+                >
+                  <div className="flex items-start justify-between gap-2">
+                    <div className="flex-1 min-w-0">
+                      <div className="flex items-center gap-2 mb-1">
+                        <span className="text-sm font-medium text-gray-900 dark:text-gray-100 capitalize">
+                          {problem.subject}
+                        </span>
+                        <span className={`text-xs px-1.5 py-0.5 rounded ${difficultyColors[problem.difficulty]}`}>
+                          {problem.difficulty}
+                        </span>
+                      </div>
+                      <p className="text-xs text-gray-600 dark:text-gray-400 truncate">
+                        {problem.reason}
+                      </p>
+                    </div>
+                    <div className="flex items-center gap-2 flex-shrink-0">
+                      <span className="text-xs font-medium text-green-600 dark:text-green-400">
+                        +{problem.estimatedXP} XP
+                      </span>
+                      {isGeneratingProblem ? (
+                        <div className="w-4 h-4 border-2 border-indigo-600 border-t-transparent rounded-full animate-spin" />
+                      ) : (
+                        <svg className="w-4 h-4 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+                        </svg>
+                      )}
+                    </div>
+                  </div>
+                </button>
+              ))}
+            </div>
+          )}
+        </>
+      )}
     </div>
   );
 }
-

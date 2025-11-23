@@ -26,6 +26,27 @@ interface LearningGoalsProps {
   onSignUpClick?: () => void;
 }
 
+interface GoalTemplate {
+  id: string;
+  name: string;
+  goal_type: string;
+  target_subject: string;
+  description: string;
+  estimatedDays: number;
+  targetProblems: number;
+}
+
+interface GoalAnalytics {
+  totalGoals: number;
+  activeGoals: number;
+  completedGoals: number;
+  overallProgress: number;
+  goalsCompletedThisMonth: number;
+  averageCompletionTime: number;
+  streakDays: number;
+  goalsByType: Record<string, number>;
+}
+
 /**
  * Learning Goals Component
  * Allows users to create, view, and track learning goals
@@ -50,12 +71,21 @@ export default function LearningGoals({ isGuestMode = false, onSignUpClick }: Le
   const [showRecommendations, setShowRecommendations] = useState(false);
   const prevGoalsRef = useRef<LearningGoal[]>([]);
 
+  // Analytics and templates state
+  const [analytics, setAnalytics] = useState<GoalAnalytics | null>(null);
+  const [templates, setTemplates] = useState<GoalTemplate[]>([]);
+  const [showTemplates, setShowTemplates] = useState(false);
+
   // Form state
   const [goalType, setGoalType] = useState<LearningGoal["goal_type"]>("subject_mastery");
   const [targetSubject, setTargetSubject] = useState("");
   const [targetDate, setTargetDate] = useState("");
 
-  // Load goals
+  // Proactive recommendations state
+  const [suggestedPaths, setSuggestedPaths] = useState<SubjectRecommendation[]>([]);
+  const [loadingSuggestions, setLoadingSuggestions] = useState(false);
+
+  // Load goals and analytics
   useEffect(() => {
     if (!user || isGuestMode) {
       setLoading(false);
@@ -63,7 +93,92 @@ export default function LearningGoals({ isGuestMode = false, onSignUpClick }: Le
     }
 
     loadGoals();
+    loadAnalytics();
+    loadTemplates();
+    loadSuggestedPaths();
   }, [user, activeProfile?.id, userRole, isGuestMode]);
+
+  const loadSuggestedPaths = async () => {
+    if (!user) return;
+    try {
+      setLoadingSuggestions(true);
+      const profileIdToUse = userRole === "student" ? null : (activeProfile?.id || null);
+      const params = new URLSearchParams({
+        userId: user.id,
+        ...(profileIdToUse && { profileId: profileIdToUse }),
+      });
+      const response = await fetch(`/api/companion/recommendations?${params}`);
+      const data = await response.json();
+      if (data.success && data.recommendations) {
+        setSuggestedPaths(data.recommendations);
+      }
+    } catch (err) {
+      logger.error("Error loading suggested paths", { error: err });
+    } finally {
+      setLoadingSuggestions(false);
+    }
+  };
+
+  const loadAnalytics = async () => {
+    if (!user) return;
+    try {
+      const profileIdToUse = userRole === "student" ? null : (activeProfile?.id || null);
+      const params = new URLSearchParams({
+        userId: user.id,
+        action: "analytics",
+        ...(profileIdToUse && { profileId: profileIdToUse }),
+      });
+      const response = await fetch(`/api/v2/goals?${params}`);
+      const data = await response.json();
+      if (data.success && data.analytics) {
+        setAnalytics(data.analytics);
+      }
+    } catch (err) {
+      logger.error("Error loading analytics", { error: err });
+    }
+  };
+
+  const loadTemplates = async () => {
+    try {
+      const response = await fetch("/api/v2/goals?action=templates");
+      const data = await response.json();
+      if (data.success && data.templates) {
+        setTemplates(data.templates);
+      }
+    } catch (err) {
+      logger.error("Error loading templates", { error: err });
+    }
+  };
+
+  const handleCreateFromTemplate = async (templateId: string) => {
+    if (!user) return;
+    try {
+      setIsCreating(true);
+      const profileIdToUse = userRole === "student" ? null : (activeProfile?.id || null);
+      const response = await fetch("/api/v2/goals", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          userId: user.id,
+          profileId: profileIdToUse,
+          templateId,
+        }),
+      });
+      const data = await response.json();
+      if (!response.ok) {
+        throw new Error(data.error || "Failed to create goal");
+      }
+      await loadGoals();
+      await loadAnalytics();
+      setShowTemplates(false);
+      showToast("Goal created from template!", "success");
+    } catch (err) {
+      logger.error("Error creating goal from template", { error: err });
+      setError(err instanceof Error ? err.message : "Failed to create goal");
+    } finally {
+      setIsCreating(false);
+    }
+  };
 
   const loadGoals = async () => {
     if (!user) return;
@@ -176,8 +291,10 @@ export default function LearningGoals({ isGuestMode = false, onSignUpClick }: Le
         throw new Error(data.error || "Failed to create goal");
       }
 
-      // Reload goals
+      // Reload goals and refresh suggestions
       await loadGoals();
+      await loadAnalytics();
+      await loadSuggestedPaths();
 
       // Close recommendations
       setShowRecommendations(false);
@@ -352,6 +469,129 @@ export default function LearningGoals({ isGuestMode = false, onSignUpClick }: Le
           Set goals and track your progress automatically
         </p>
       </div>
+
+      {/* Analytics Dashboard */}
+      {analytics && (
+        <div className="grid grid-cols-2 gap-3">
+          <div className="bg-gradient-to-br from-blue-50 to-blue-100 dark:from-blue-900/30 dark:to-blue-800/20 rounded-xl p-4 border border-blue-200/50 dark:border-blue-700/30">
+            <div className="flex items-center gap-2 mb-2">
+              <div className="w-8 h-8 rounded-lg bg-blue-500/20 flex items-center justify-center">
+                <svg className="w-4 h-4 text-blue-600 dark:text-blue-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 10V3L4 14h7v7l9-11h-7z" />
+                </svg>
+              </div>
+              <p className="text-xs font-medium text-blue-700 dark:text-blue-300">Active</p>
+            </div>
+            <p className="text-3xl font-bold text-blue-600 dark:text-blue-400">{analytics.activeGoals}</p>
+          </div>
+          <div className="bg-gradient-to-br from-green-50 to-green-100 dark:from-green-900/30 dark:to-green-800/20 rounded-xl p-4 border border-green-200/50 dark:border-green-700/30">
+            <div className="flex items-center gap-2 mb-2">
+              <div className="w-8 h-8 rounded-lg bg-green-500/20 flex items-center justify-center">
+                <svg className="w-4 h-4 text-green-600 dark:text-green-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+                </svg>
+              </div>
+              <p className="text-xs font-medium text-green-700 dark:text-green-300">Completed</p>
+            </div>
+            <p className="text-3xl font-bold text-green-600 dark:text-green-400">{analytics.completedGoals}</p>
+          </div>
+          <div className="bg-gradient-to-br from-purple-50 to-purple-100 dark:from-purple-900/30 dark:to-purple-800/20 rounded-xl p-4 border border-purple-200/50 dark:border-purple-700/30">
+            <div className="flex items-center gap-2 mb-2">
+              <div className="w-8 h-8 rounded-lg bg-purple-500/20 flex items-center justify-center">
+                <svg className="w-4 h-4 text-purple-600 dark:text-purple-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" />
+                </svg>
+              </div>
+              <p className="text-xs font-medium text-purple-700 dark:text-purple-300">Progress</p>
+            </div>
+            <p className="text-3xl font-bold text-purple-600 dark:text-purple-400">{analytics.overallProgress}%</p>
+          </div>
+          <div className="bg-gradient-to-br from-orange-50 to-orange-100 dark:from-orange-900/30 dark:to-orange-800/20 rounded-xl p-4 border border-orange-200/50 dark:border-orange-700/30">
+            <div className="flex items-center gap-2 mb-2">
+              <div className="w-8 h-8 rounded-lg bg-orange-500/20 flex items-center justify-center">
+                <svg className="w-4 h-4 text-orange-600 dark:text-orange-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17.657 18.657A8 8 0 016.343 7.343S7 9 9 10c0-2 .5-5 2.986-7C14 5 16.09 5.777 17.656 7.343A7.975 7.975 0 0120 13a7.975 7.975 0 01-2.343 5.657z" />
+                </svg>
+              </div>
+              <p className="text-xs font-medium text-orange-700 dark:text-orange-300">Streak</p>
+            </div>
+            <p className="text-3xl font-bold text-orange-600 dark:text-orange-400">{analytics.streakDays}<span className="text-sm font-normal ml-1">days</span></p>
+          </div>
+        </div>
+      )}
+
+      {/* Suggested Learning Paths */}
+      {suggestedPaths.length > 0 && !loading && (
+        <div className="bg-gradient-to-br from-indigo-50 to-purple-50 dark:from-indigo-900/20 dark:to-purple-900/20 rounded-xl p-4 border border-indigo-200/50 dark:border-indigo-700/30">
+          <div className="flex items-center gap-2 mb-3">
+            <div className="w-8 h-8 rounded-lg bg-indigo-500/20 flex items-center justify-center">
+              <svg className="w-4 h-4 text-indigo-600 dark:text-indigo-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 20l-5.447-2.724A1 1 0 013 16.382V5.618a1 1 0 011.447-.894L9 7m0 13l6-3m-6 3V7m6 10l4.553 2.276A1 1 0 0021 18.382V7.618a1 1 0 00-.553-.894L15 4m0 13V4m0 0L9 7" />
+              </svg>
+            </div>
+            <h4 className="text-sm font-semibold text-indigo-800 dark:text-indigo-200">Suggested Paths</h4>
+          </div>
+          <div className="space-y-2">
+            {suggestedPaths.slice(0, 3).map((path, index) => (
+              <button
+                key={index}
+                onClick={() => handleCreateGoalFromRecommendation(path.subject)}
+                disabled={isCreating}
+                className="w-full text-left p-3 bg-white/60 dark:bg-gray-800/60 rounded-lg hover:bg-white/80 dark:hover:bg-gray-800/80 transition-colors group"
+              >
+                <div className="flex items-center justify-between">
+                  <div className="flex-1">
+                    <p className="text-sm font-medium text-gray-900 dark:text-gray-100">{path.subject}</p>
+                    <p className="text-xs text-gray-600 dark:text-gray-400 mt-0.5">{path.reason}</p>
+                  </div>
+                  {path.priority === "high" && (
+                    <span className="ml-2 px-2 py-0.5 bg-indigo-100 dark:bg-indigo-900/40 text-indigo-700 dark:text-indigo-300 rounded text-xs font-medium">
+                      Top Pick
+                    </span>
+                  )}
+                  <svg className="w-4 h-4 ml-2 text-gray-400 group-hover:text-indigo-600 dark:group-hover:text-indigo-400 transition-colors" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
+                  </svg>
+                </div>
+              </button>
+            ))}
+          </div>
+        </div>
+      )}
+
+      {/* Templates Modal */}
+      {showTemplates && templates.length > 0 && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
+          <div className="bg-white dark:bg-gray-900 rounded-lg shadow-xl max-w-md w-full p-6 space-y-4 max-h-[80vh] overflow-y-auto">
+            <div className="flex items-center justify-between">
+              <h3 className="text-lg font-semibold text-gray-900 dark:text-gray-100">Quick Start Templates</h3>
+              <button onClick={() => setShowTemplates(false)} className="text-gray-400 hover:text-gray-600">
+                <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                </svg>
+              </button>
+            </div>
+            <div className="space-y-2">
+              {templates.map((template) => (
+                <button
+                  key={template.id}
+                  onClick={() => handleCreateFromTemplate(template.id)}
+                  disabled={isCreating}
+                  className="w-full text-left p-3 bg-gray-50 dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors"
+                >
+                  <p className="text-sm font-medium text-gray-900 dark:text-gray-100">{template.name}</p>
+                  <p className="text-xs text-gray-600 dark:text-gray-400 mt-1">{template.description}</p>
+                  <div className="flex gap-2 mt-2">
+                    <span className="text-xs px-2 py-0.5 bg-blue-100 dark:bg-blue-900/30 text-blue-700 dark:text-blue-300 rounded">{template.estimatedDays} days</span>
+                    <span className="text-xs px-2 py-0.5 bg-green-100 dark:bg-green-900/30 text-green-700 dark:text-green-300 rounded">{template.targetProblems} problems</span>
+                  </div>
+                </button>
+              ))}
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* Recommendations Modal */}
       {showRecommendations && recommendations.length > 0 && (
         <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
@@ -438,15 +678,26 @@ export default function LearningGoals({ isGuestMode = false, onSignUpClick }: Le
           </p>
         </div>
         {!showCreateForm && (
-          <button
-            onClick={() => setShowCreateForm(true)}
-            className="flex items-center gap-1.5 px-3 py-1.5 text-sm font-medium text-gray-700 dark:text-gray-300 bg-gray-50 dark:bg-gray-800 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700 hover:text-gray-900 dark:hover:text-gray-100 transition-colors"
-          >
-            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
-            </svg>
-            <span>New Goal</span>
-          </button>
+          <div className="flex gap-2">
+            <button
+              onClick={() => setShowTemplates(true)}
+              className="flex items-center gap-1.5 px-3 py-1.5 text-sm font-medium text-blue-600 dark:text-blue-400 bg-blue-50 dark:bg-blue-900/20 rounded-lg hover:bg-blue-100 dark:hover:bg-blue-900/30 transition-colors"
+            >
+              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 5a1 1 0 011-1h14a1 1 0 011 1v2a1 1 0 01-1 1H5a1 1 0 01-1-1V5zM4 13a1 1 0 011-1h6a1 1 0 011 1v6a1 1 0 01-1 1H5a1 1 0 01-1-1v-6zM16 13a1 1 0 011-1h2a1 1 0 011 1v6a1 1 0 01-1 1h-2a1 1 0 01-1-1v-6z" />
+              </svg>
+              <span>Templates</span>
+            </button>
+            <button
+              onClick={() => setShowCreateForm(true)}
+              className="flex items-center gap-1.5 px-3 py-1.5 text-sm font-medium text-gray-700 dark:text-gray-300 bg-gray-50 dark:bg-gray-800 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700 hover:text-gray-900 dark:hover:text-gray-100 transition-colors"
+            >
+              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
+              </svg>
+              <span>Custom</span>
+            </button>
+          </div>
         )}
       </div>
 

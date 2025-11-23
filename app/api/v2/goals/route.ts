@@ -9,6 +9,9 @@ import {
   updateGoal,
   deleteGoal,
   completeGoal,
+  getGoalAnalytics,
+  createGoalFromTemplate,
+  goalTemplates,
 } from "@/backend/services/goalsService";
 import { logger } from "@/lib/logger";
 
@@ -20,11 +23,24 @@ export async function GET(request: NextRequest) {
     const userId = searchParams.get("userId");
     const profileId = searchParams.get("profileId");
     const status = searchParams.get("status") as "active" | "completed" | "paused" | "cancelled" | null;
+    const action = searchParams.get("action");
+
+    // Return templates (no auth required)
+    if (action === "templates") {
+      return NextResponse.json({ success: true, templates: goalTemplates });
+    }
 
     if (!userId) {
       return NextResponse.json({ success: false, error: "userId required" }, { status: 400 });
     }
 
+    // Return analytics
+    if (action === "analytics") {
+      const result = await getGoalAnalytics(userId, profileId);
+      return NextResponse.json(result);
+    }
+
+    // Default: return goals
     const result = await getGoals(userId, profileId, status || undefined);
     return NextResponse.json(result);
   } catch (error) {
@@ -36,11 +52,25 @@ export async function GET(request: NextRequest) {
 export async function POST(request: NextRequest) {
   try {
     const body = await request.json();
-    const { userId, profileId, goal_type, target_subject, target_date, metadata } = body;
+    const { userId, profileId, goal_type, target_subject, target_date, metadata, templateId } = body;
 
-    if (!userId || !goal_type || !target_subject) {
+    if (!userId) {
       return NextResponse.json(
-        { success: false, error: "userId, goal_type, and target_subject required" },
+        { success: false, error: "userId required" },
+        { status: 400 }
+      );
+    }
+
+    // Create from template
+    if (templateId) {
+      const result = await createGoalFromTemplate(userId, profileId, templateId);
+      return NextResponse.json(result);
+    }
+
+    // Create custom goal
+    if (!goal_type || !target_subject) {
+      return NextResponse.json(
+        { success: false, error: "goal_type and target_subject required for custom goals" },
         { status: 400 }
       );
     }
