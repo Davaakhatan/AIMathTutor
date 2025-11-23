@@ -123,7 +123,7 @@ export async function getShareByCode(shareCode: string): Promise<ShareData | nul
     // Call API route instead of direct Supabase call
     let response: Response | null = null;
     try {
-      const url = `/api/share/${encodeURIComponent(shareCode)}`;
+      const url = `/api/v2/share?shareCode=${encodeURIComponent(shareCode)}`;
       console.log("[getShareByCode] Fetching:", url);
       response = await fetch(url);
       console.log("[getShareByCode] Response received:", response.status, response.ok);

@@ -306,17 +306,17 @@ export default function DeepLinkPage() {
       setCompleted(true);
       
       // Track micro-task completion (conversion)
-      fetch("/api/share/track-conversion", {
+      fetch("/api/v2/share", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ shareCode, newUserId: null }),
+        body: JSON.stringify({ action: "trackConversion", shareCode, newUserId: null }),
       }).catch((err) => {
         console.error("[DeepLinkPage] Error tracking conversion:", err);
       });
-      
+
       // Save challenge to database (if user is logged in)
       // This will be handled by the API route that checks auth
-      fetch("/api/challenges/save", {
+      fetch("/api/v2/challenges", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
@@ -327,7 +327,7 @@ export default function DeepLinkPage() {
           is_completed: true,
           solved_at: new Date().toISOString(),
           attempts: allMessages.filter(m => m.role === "user").length,
-          hints_used: allMessages.filter(m => 
+          hints_used: allMessages.filter(m =>
             m.role === "tutor" && m.content.includes("💡 Hint:")
           ).length,
         }),
