@@ -304,9 +304,12 @@ export default function Whiteboard({
           highlightW = shape.radius * 2 + 10;
           highlightH = shape.radius * 2 + 10;
         } else if (shape.type === "text") {
-          highlightW = (shape.text?.length || 0) * (shape.lineWidth * 5) + 10;
-          highlightH = shape.lineWidth * 8 + 10;
-          highlightY = shape.y - shape.lineWidth * 8 - 5;
+          // Use actual font size for text highlight
+          const fs = shape.lineWidth;
+          const cw = fs * 0.6;
+          highlightW = (shape.text?.length || 0) * cw + 10;
+          highlightH = fs * 1.2 + 10;
+          highlightY = shape.y - fs * 1.2 - 5;
         }
         
         ctx.strokeRect(highlightX, highlightY, highlightW, highlightH);
@@ -450,10 +453,14 @@ export default function Whiteboard({
           hit = x >= minX && x <= maxX && y >= minY && y <= maxY;
           break;
         case "text":
-          // Text bounding box (rough estimate)
-          const textWidth = (shape.text?.length || 0) * (shape.lineWidth * 5);
+          // Text bounding box - use actual font size for calculation
+          // lineWidth stores the font size (e.g., 16-24px)
+          const fontSize = shape.lineWidth;
+          const charWidth = fontSize * 0.6; // Average character width
+          const textWidth = (shape.text?.length || 0) * charWidth;
+          const textHeight = fontSize * 1.2; // Line height
           hit = x >= shape.x && x <= shape.x + textWidth &&
-                y >= shape.y - shape.lineWidth * 8 && y <= shape.y;
+                y >= shape.y - textHeight && y <= shape.y;
           break;
       }
       
