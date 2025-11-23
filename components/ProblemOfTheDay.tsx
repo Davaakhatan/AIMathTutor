@@ -327,7 +327,54 @@ export default function ProblemOfTheDay({
       // Only check once
       if (hasChecked) return;
       hasChecked = true;
-      
+
+      // First check sessionStorage for recent completion (from navigation back)
+      try {
+        const completedData = sessionStorage.getItem("aitutor-problem-completed");
+        if (completedData) {
+          const completed = JSON.parse(completedData);
+          const fiveMinutesAgo = Date.now() - 5 * 60 * 1000;
+
+          // If completed recently and matches daily problem text
+          if (completed.timestamp > fiveMinutesAgo &&
+              completed.problemText === dailyProblem.problem.text) {
+            console.log("[ProblemOfTheDay] Found recent completion in sessionStorage, saving to database...");
+
+            // Clear sessionStorage
+            sessionStorage.removeItem("aitutor-problem-completed");
+
+            // Save to database
+            const saveResponse = await fetch("/api/v2/daily-problem", {
+              method: "POST",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify({
+                action: "markSolved",
+                date: today,
+                userId: user.id,
+                profileId: activeProfile?.id || null,
+                problemText: dailyProblem.problem.text,
+              }),
+            });
+
+            if (saveResponse.ok) {
+              const saveData = await saveResponse.json();
+              if (saveData.success) {
+                console.log("[ProblemOfTheDay] ✅ Completion saved from sessionStorage!");
+                setIsSolved(true);
+                setDailyProblem((prev) => prev ? {
+                  ...prev,
+                  solved: true,
+                  solvedAt: new Date().toISOString(),
+                } : prev);
+                return; // Done, no need to check API
+              }
+            }
+          }
+        }
+      } catch (e) {
+        console.error("[ProblemOfTheDay] Error checking sessionStorage:", e);
+      }
+
       // Check completion status via API (more reliable than direct query)
       console.log("[ProblemOfTheDay] Checking completion status via API...", { userId: user.id, today, profileId: activeProfile?.id });
       try {
@@ -359,7 +406,10 @@ export default function ProblemOfTheDay({
         
         // CRITICAL: Only mark as solved if the problem text matches!
         // This prevents showing "completed" for a different problem on the same date
-        const problemMatches = savedProblemText && currentProblemText && savedProblemText === currentProblemText;
+        // Normalize whitespace for comparison
+        const normalizedSaved = savedProblemText?.trim().replace(/\s+/g, ' ') || '';
+        const normalizedCurrent = currentProblemText?.trim().replace(/\s+/g, ' ') || '';
+        const problemMatches = normalizedSaved && normalizedCurrent && normalizedSaved === normalizedCurrent;
         
         if (solved && problemMatches) {
           console.log("[ProblemOfTheDay] ✅ Completion verified - problem text matches!");

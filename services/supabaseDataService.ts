@@ -646,7 +646,7 @@ export async function getProblems(userId: string, limit = 100, profileId?: strin
     try {
       const effectiveProfileId = profileId !== undefined ? profileId : null;
       const profileIdParam = effectiveProfileId ? `&profileId=${effectiveProfileId}` : "";
-      const apiUrl = `/api/problems?userId=${userId}&limit=${limit}${profileIdParam}`;
+      const apiUrl = `/api/v2/problems?userId=${userId}&limit=${limit}${profileIdParam}`;
       
       logger.debug("Fetching problems via API route", { userId, effectiveProfileId, limit });
       

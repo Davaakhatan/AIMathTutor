@@ -34,9 +34,18 @@ export async function getXP(
   }
 
   // Filter by student_profile_id in memory (Supabase .is() is unreliable)
+  // Use == null to match both null and undefined
   const filtered = data?.filter((r: any) =>
-    profileId ? r.student_profile_id === profileId : r.student_profile_id === null
+    profileId ? r.student_profile_id === profileId : r.student_profile_id == null
   ) || [];
+
+  logger.debug("Backend: XP filter result", {
+    userId,
+    profileId,
+    totalRecords: data?.length || 0,
+    filteredRecords: filtered.length,
+    records: data?.map((r: any) => ({ id: r.id, profileId: r.student_profile_id, xp: r.total_xp }))
+  });
 
   if (filtered.length === 0) {
     return null;

@@ -39,7 +39,7 @@ export async function getGlobalLeaderboard(
     
     // Use API route instead of direct client query to avoid RLS issues
     try {
-      const response = await fetch(`/api/leaderboard?limit=${limit}`);
+      const response = await fetch(`/api/v2/leaderboard?limit=${limit}`);
       if (response.ok) {
         const data = await response.json();
         if (data.success && data.topPlayers) {
@@ -256,7 +256,7 @@ export async function getLeaderboardData(
   try {
     // Try API route first (more reliable)
     try {
-      const response = await fetch(`/api/leaderboard?userId=${userId}&limit=${topN}`);
+      const response = await fetch(`/api/v2/leaderboard?userId=${userId}&limit=${topN}`);
       if (response.ok) {
         const data = await response.json();
         if (data.success) {

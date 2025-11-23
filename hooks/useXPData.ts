@@ -28,15 +28,20 @@ async function fetchXPFromAPI(userId: string, profileId: string | null): Promise
     }
 
     const result = await response.json();
-    if (result.success && result.xpData) {
+    if (result.success && result.data) {
+      logger.info("XP fetched from API successfully", {
+        total_xp: result.data.total_xp,
+        level: result.data.level
+      });
       return {
-        total_xp: result.xpData.totalXP || 0,
-        level: result.xpData.level || 1,
-        xp_to_next_level: result.xpData.xpToNextLevel || 100,
-        xp_history: result.xpData.xpHistory || [],
-        recent_gains: result.xpData.recentGains || [],
+        total_xp: result.data.total_xp || 0,
+        level: result.data.level || 1,
+        xp_to_next_level: result.data.xp_to_next_level || 100,
+        xp_history: result.data.xp_history || [],
+        recent_gains: result.data.recent_gains || [],
       };
     }
+    logger.warn("XP API returned no data", { result });
     return null;
   } catch (error) {
     logger.error("Error fetching XP from API", { error });

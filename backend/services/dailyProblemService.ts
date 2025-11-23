@@ -118,31 +118,41 @@ export async function checkDailyProblemCompletion(
       return { success: false, isSolved: false, error: "Database not configured" };
     }
 
+    const effectiveProfileId = profileId && profileId !== "null" ? profileId : null;
+
+    // Fetch all completions for user/date, then filter by profile in memory
+    // (Supabase .is("column", null) is unreliable)
     const { data, error } = await supabase
       .from("daily_problems_completion")
-      .select("id, problem_text, user_id")
+      .select("id, problem_text, user_id, student_profile_id")
       .eq("date", date)
-      .eq("user_id", userId)
-      .limit(1)
-      .maybeSingle();
+      .eq("user_id", userId);
 
     if (error) {
       logger.error("Error checking completion", { error: error.message, date, userId });
       return { success: true, isSolved: false };
     }
 
-    const isSolved = !!data;
-    const dataUserId = (data as any)?.user_id;
+    // Filter by profile in memory
+    const filtered = (data || []).filter((r: any) =>
+      effectiveProfileId ? r.student_profile_id === effectiveProfileId : r.student_profile_id == null
+    );
 
-    if (data && dataUserId !== userId) {
-      logger.error("Completion data user mismatch", { requestedUserId: userId, dataUserId });
-      return { success: true, isSolved: false };
-    }
+    logger.debug("Daily problem completion check", {
+      userId,
+      date,
+      profileId: effectiveProfileId,
+      totalRecords: data?.length || 0,
+      filteredRecords: filtered.length
+    });
+
+    const match = filtered[0];
+    const isSolved = !!match;
 
     return {
       success: true,
       isSolved,
-      problemText: (data as any)?.problem_text || undefined
+      problemText: match?.problem_text || undefined
     };
   } catch (error) {
     logger.error("Exception checking completion", { error, date, userId });
@@ -188,20 +198,19 @@ export async function markDailyProblemSolved(
       return { success: false, error: "Daily problem not found for this date" };
     }
 
-    // Check if already completed
-    let checkQuery = supabase
+    // Check if already completed - use in-memory filtering for NULL values
+    const { data: existingData } = await supabase
       .from("daily_problems_completion")
-      .select("id")
+      .select("id, student_profile_id")
       .eq("user_id", userId)
       .eq("date", date);
 
-    if (effectiveProfileId) {
-      checkQuery = checkQuery.eq("student_profile_id", effectiveProfileId);
-    } else {
-      checkQuery = checkQuery.is("student_profile_id", null);
-    }
+    // Filter by profile in memory (Supabase .is("column", null) is unreliable)
+    const existingFiltered = (existingData || []).filter((r: any) =>
+      effectiveProfileId ? r.student_profile_id === effectiveProfileId : r.student_profile_id == null
+    );
 
-    const { data: existing } = await checkQuery.maybeSingle();
+    const existing = existingFiltered[0];
 
     if (existing && (existing as any).id) {
       // Update existing

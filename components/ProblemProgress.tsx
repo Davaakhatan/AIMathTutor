@@ -344,6 +344,28 @@ export default function ProblemProgress({ messages, problem, difficultyMode = "m
                 newLevel: result.data.xp.level
               }
             }));
+
+            // Save to sessionStorage for ProblemOfTheDay to check on mount
+            const problemText = problem?.text || "";
+            if (problemText) {
+              sessionStorage.setItem("aitutor-problem-completed", JSON.stringify({
+                problemText,
+                problemType: problem?.type || "unknown",
+                userId,
+                profileId,
+                timestamp: Date.now()
+              }));
+            }
+
+            // Dispatch problem_completed event for ProblemOfTheDay to save completion
+            window.dispatchEvent(new CustomEvent("problem_completed", {
+              detail: {
+                problemText,
+                problemType: problem?.type || "unknown",
+                userId,
+                profileId
+              }
+            }));
           } else {
             console.error("❌ [ProblemProgress] Failed to award XP:", result.error);
           }

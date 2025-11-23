@@ -23,6 +23,14 @@ export async function GET(request: NextRequest) {
     const effectiveProfileId = profileId && profileId !== "null" ? profileId : null;
     const xpData = await getXP(userId, effectiveProfileId);
 
+    logger.debug("API v2: getXP result", {
+      userId,
+      profileId: effectiveProfileId,
+      hasXpData: !!xpData,
+      totalXP: xpData?.total_xp,
+      level: xpData?.level
+    });
+
     if (!xpData) {
       // Return default data
       return NextResponse.json({
