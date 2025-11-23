@@ -97,8 +97,14 @@ export async function POST(request: NextRequest) {
       }
 
       case "update": {
-        const { xpData } = payload;
-        if (!xpData) {
+        // Support both xpData object and individual fields
+        const xpData = payload.xpData || {
+          total_xp: payload.totalXP,
+          level: payload.level,
+          xp_to_next_level: payload.xpToNextLevel,
+          xp_history: payload.xpHistory || [],
+        };
+        if (!xpData.total_xp && xpData.total_xp !== 0) {
           return NextResponse.json({ success: false, error: "xpData required" }, { status: 400 });
         }
         const success = await updateXP(userId, xpData, effectiveProfileId);

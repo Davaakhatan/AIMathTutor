@@ -366,7 +366,7 @@ export async function getStreakData(userId: string, profileId?: string | null): 
         ? window.location.origin 
         : process.env.NEXT_PUBLIC_SITE_URL || "http://localhost:3002";
       
-      const apiUrl = new URL("/api/streak", baseUrl);
+      const apiUrl = new URL("/api/v2/streak", baseUrl);
       apiUrl.searchParams.set("userId", userId);
       if (effectiveProfileId) {
         apiUrl.searchParams.set("profileId", effectiveProfileId);
@@ -386,13 +386,15 @@ export async function getStreakData(userId: string, profileId?: string | null): 
       
       if (response.ok) {
         const result = await response.json();
-        if (result.success && result.streakData) {
-          logger.info("Streak data loaded via API route", { 
-            userId, 
-            currentStreak: result.streakData.current_streak,
-            longestStreak: result.streakData.longest_streak
+        // v2 API returns result.data, not result.streakData
+        const streakData = result.data || result.streakData;
+        if (result.success && streakData) {
+          logger.info("Streak data loaded via API route", {
+            userId,
+            currentStreak: streakData.current_streak,
+            longestStreak: streakData.longest_streak
           });
-          return result.streakData;
+          return streakData;
         }
       }
       

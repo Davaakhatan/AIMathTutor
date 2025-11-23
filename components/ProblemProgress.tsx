@@ -324,6 +324,7 @@ export default function ProblemProgress({ messages, problem, difficultyMode = "m
           problemType: problemData.problemType,
           difficulty: problemData.difficulty,
           hintsUsed: problemData.hintsUsed,
+          problemText: problem.text || "",
         }),
       })
         .then(response => response.json())

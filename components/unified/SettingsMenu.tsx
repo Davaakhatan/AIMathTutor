@@ -1,7 +1,6 @@
 "use client";
 
 import { useState, useEffect, useRef } from "react";
-import { useLocalStorage } from "@/hooks/useLocalStorage";
 import { useAuth } from "@/contexts/AuthContext";
 import { usePanel } from "@/contexts/PanelContext";
 import SettingsContent from "./SettingsContent";
@@ -24,17 +23,46 @@ export default function SettingsMenu({ isGuestMode, onSignUpClick }: SettingsMen
   const [activeTab, setActiveTab] = useState<"settings" | "notifications" | "reminders" | "profiles">("settings");
   const panelRef = useRef<HTMLDivElement>(null);
   const [isMounted, setIsMounted] = useState(false);
-  const [xpData] = useLocalStorage<any>("aitutor-xp", { totalXP: 0, level: 1, problemsSolved: 0 });
-  const [notifications] = useLocalStorage<any[]>("aitutor-notifications", []);
-  
+  const [notificationUpdateKey, setNotificationUpdateKey] = useState(0);
+
   // Calculate vertical position - stack below UserMenu (logged in) or AuthButton (guest mode)
-  const buttonIndex = 3; // Fourth button
   const topOffset = `calc(max(1rem, env(safe-area-inset-top, 1rem)) + 4rem + 10.5rem)`;
   const rightOffset = 'max(1rem, env(safe-area-inset-right, 1rem))';
-  
-  // Only calculate after mount to avoid hydration mismatch
-  const unreadCount = isMounted ? notifications.filter((n: any) => !n.read).length : 0;
-  const showBadge = isMounted && (unreadCount > 0 || (xpData && xpData.level > 1));
+
+  // Read notifications directly from localStorage to get fresh data
+  const getUnreadCount = () => {
+    if (!isMounted) return 0;
+    try {
+      const data = localStorage.getItem("aitutor-notifications");
+      if (data) {
+        const notifications = JSON.parse(data);
+        return notifications.filter((n: any) => !n.read).length;
+      }
+    } catch {
+      return 0;
+    }
+    return 0;
+  };
+
+  const unreadCount = getUnreadCount();
+  // Only show badge for unread notifications
+  const showBadge = isMounted && unreadCount > 0;
+
+  // Listen for storage changes (when NotificationsContent updates localStorage)
+  useEffect(() => {
+    const handleStorageChange = () => {
+      setNotificationUpdateKey(prev => prev + 1);
+    };
+
+    window.addEventListener("storage", handleStorageChange);
+    // Also listen for custom event when notifications are marked as read
+    window.addEventListener("notificationsUpdated", handleStorageChange);
+
+    return () => {
+      window.removeEventListener("storage", handleStorageChange);
+      window.removeEventListener("notificationsUpdated", handleStorageChange);
+    };
+  }, []);
 
   // Set mounted state after hydration
   useEffect(() => {

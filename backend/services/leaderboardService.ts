@@ -72,8 +72,21 @@ export async function getLeaderboard(
     }
 
     // Filter for records without student_profile_id in memory
-    const xpData = (rawXpData || [])
-      .filter((r: any) => r.student_profile_id == null)
+    // Also deduplicate by user_id, keeping the highest XP record
+    const filteredData = (rawXpData || []).filter((r: any) => r.student_profile_id == null);
+
+    // Group by user_id and keep highest XP
+    const userXpMap = new Map<string, any>();
+    filteredData.forEach((r: any) => {
+      const existing = userXpMap.get(r.user_id);
+      if (!existing || (r.total_xp || 0) > (existing.total_xp || 0)) {
+        userXpMap.set(r.user_id, r);
+      }
+    });
+
+    // Convert back to array and sort by XP
+    const xpData = Array.from(userXpMap.values())
+      .sort((a, b) => (b.total_xp || 0) - (a.total_xp || 0))
       .slice(0, limit);
 
     // Log for debugging

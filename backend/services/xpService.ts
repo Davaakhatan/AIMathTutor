@@ -99,7 +99,7 @@ export async function updateXP(
     .eq("user_id", userId);
 
   const match = existing?.find((r: any) =>
-    profileId ? r.student_profile_id === profileId : r.student_profile_id === null
+    profileId ? r.student_profile_id === profileId : r.student_profile_id == null
   );
 
   if (match) {

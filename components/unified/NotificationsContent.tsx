@@ -18,47 +18,48 @@ interface Notification {
 export default function NotificationsContent() {
   const { user } = useAuth();
   const [notifications, setNotifications] = useState<Notification[]>([]);
-  const [isLoading, setIsLoading] = useState(false);
 
-  // Load notifications from API
+  // Load notifications - always start with localStorage, then optionally sync with API
   const loadNotifications = useCallback(async () => {
-    if (!user) {
-      // Guest mode - use localStorage
-      try {
-        const localData = localStorage.getItem("aitutor-notifications");
-        if (localData) {
-          setNotifications(JSON.parse(localData));
+    // Always load from localStorage first (this is where NotificationCenter saves)
+    try {
+      const localData = localStorage.getItem("aitutor-notifications");
+      if (localData) {
+        const parsed = JSON.parse(localData);
+        if (Array.isArray(parsed) && parsed.length > 0) {
+          setNotifications(parsed);
         }
-      } catch (e) {
-        console.error("Error loading notifications from localStorage", e);
       }
-      return;
+    } catch (e) {
+      console.error("Error loading notifications from localStorage", e);
     }
 
-    setIsLoading(true);
-    try {
-      const response = await fetch(`/api/v2/notifications?userId=${user.id}&limit=50`);
-      if (response.ok) {
-        const result = await response.json();
-        if (result.success && result.notifications) {
-          setNotifications(result.notifications);
-          // Also cache to localStorage
-          localStorage.setItem("aitutor-notifications", JSON.stringify(result.notifications));
-        }
-      }
-    } catch (error) {
-      console.error("Error loading notifications from API", error);
-      // Fallback to localStorage
+    // If logged in, also try to fetch from API and merge
+    if (user) {
       try {
-        const localData = localStorage.getItem("aitutor-notifications");
-        if (localData) {
-          setNotifications(JSON.parse(localData));
+        const response = await fetch(`/api/v2/notifications?userId=${user.id}&limit=50`);
+        if (response.ok) {
+          const result = await response.json();
+          if (result.success && result.notifications && result.notifications.length > 0) {
+            // Merge API notifications with localStorage (API takes precedence)
+            setNotifications(prev => {
+              const apiNotifs = result.notifications;
+              // If API has data, use it but keep any newer localStorage items
+              const apiIds = new Set(apiNotifs.map((n: any) => n.id));
+              const newLocalNotifs = prev.filter(n => !apiIds.has(n.id));
+              const merged = [...newLocalNotifs, ...apiNotifs]
+                .sort((a, b) => b.timestamp - a.timestamp)
+                .slice(0, 50);
+              // Update localStorage with merged data
+              localStorage.setItem("aitutor-notifications", JSON.stringify(merged));
+              return merged;
+            });
+          }
         }
-      } catch (e) {
-        console.error("Error loading notifications from localStorage", e);
+      } catch (error) {
+        console.error("Error loading notifications from API", error);
+        // Keep localStorage data already loaded
       }
-    } finally {
-      setIsLoading(false);
     }
   }, [user]);
 
@@ -123,6 +124,8 @@ export default function NotificationsContent() {
     try {
       const updated = notifications.map((n) => (n.id === id ? { ...n, read: true } : n));
       localStorage.setItem("aitutor-notifications", JSON.stringify(updated));
+      // Notify SettingsMenu to update badge
+      window.dispatchEvent(new Event("notificationsUpdated"));
     } catch (e) {
       console.error("Error updating localStorage", e);
     }
@@ -152,6 +155,8 @@ export default function NotificationsContent() {
     try {
       const updated = notifications.map((n) => ({ ...n, read: true }));
       localStorage.setItem("aitutor-notifications", JSON.stringify(updated));
+      // Notify SettingsMenu to update badge
+      window.dispatchEvent(new Event("notificationsUpdated"));
     } catch (e) {
       console.error("Error updating localStorage", e);
     }
@@ -180,6 +185,8 @@ export default function NotificationsContent() {
       // Clear localStorage
       try {
         localStorage.setItem("aitutor-notifications", JSON.stringify([]));
+        // Notify SettingsMenu to update badge
+        window.dispatchEvent(new Event("notificationsUpdated"));
       } catch (e) {
         console.error("Error clearing localStorage", e);
       }
