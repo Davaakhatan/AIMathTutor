@@ -51,13 +51,13 @@ export async function getLeaderboard(
       };
     }
 
-    // Query XP data
-    const { data: xpData, error: xpError } = await supabase
+    // Query XP data - fetch all and filter in memory
+    // Supabase .is() is unreliable for null checks
+    const { data: rawXpData, error: xpError } = await supabase
       .from("xp_data")
-      .select("user_id, total_xp, level, updated_at")
-      .is("student_profile_id", null)
+      .select("user_id, total_xp, level, updated_at, student_profile_id")
       .order("total_xp", { ascending: false })
-      .limit(limit);
+      .limit(limit * 2); // Fetch more to account for filtering
 
     if (xpError) {
       logger.error("Error fetching XP data for leaderboard", { error: xpError.message });
@@ -70,6 +70,23 @@ export async function getLeaderboard(
         error: xpError.message
       };
     }
+
+    // Filter for records without student_profile_id in memory
+    const xpData = (rawXpData || [])
+      .filter((r: any) => r.student_profile_id == null)
+      .slice(0, limit);
+
+    // Log for debugging
+    logger.debug("Leaderboard XP query", {
+      rawCount: rawXpData?.length || 0,
+      filteredCount: xpData.length,
+      // Show first few raw records with their profile IDs for debugging
+      sample: rawXpData?.slice(0, 5).map((r: any) => ({
+        userId: r.user_id?.substring(0, 8),
+        xp: r.total_xp,
+        profileId: r.student_profile_id
+      }))
+    });
 
     if (!xpData || xpData.length === 0) {
       return {

@@ -48,17 +48,34 @@ export function detectProblemCompletion(
   // 1. Check if AI is asking questions (NEGATIVE signal)
   // ============================================
   const tutorContent = lastTutorMessage.content.toLowerCase();
-  const hasQuestions = (
-    tutorContent.includes("?") ||
-    tutorContent.includes("what") ||
+
+  // Check for actual question patterns - be more specific to avoid false positives
+  // "what" in context like "calculated what Emma has" is NOT a question
+  const hasActualQuestion = tutorContent.includes("?");
+  const hasQuestioningPatterns = (
     tutorContent.includes("can you") ||
     tutorContent.includes("do you") ||
-    tutorContent.includes("how") ||
-    tutorContent.includes("which") ||
     tutorContent.includes("tell me") ||
-    tutorContent.includes("let's") ||
-    /what\s+do\s+you|what\s+is|what\s+are|what\s+would/.test(tutorContent)
+    tutorContent.includes("let's try") ||
+    tutorContent.includes("let's see") ||
+    tutorContent.includes("let's think") ||
+    /what\s+do\s+you|what\s+is\s+your|what\s+would\s+you|how\s+do\s+you|how\s+would\s+you|how\s+can\s+you/.test(tutorContent)
   );
+
+  // Only block if there's an actual question mark OR explicit questioning patterns
+  // AND no strong completion indicators
+  const hasStrongCompletionIndicators = (
+    tutorContent.includes("well done") ||
+    tutorContent.includes("great job") ||
+    tutorContent.includes("congratulations") ||
+    tutorContent.includes("correctly") ||
+    tutorContent.includes("you've calculated") ||
+    tutorContent.includes("you calculated") ||
+    tutorContent.includes("you've found") ||
+    tutorContent.includes("you found")
+  );
+
+  const hasQuestions = (hasActualQuestion || hasQuestioningPatterns) && !hasStrongCompletionIndicators;
 
   if (hasQuestions) {
     reasons.push("AI is still asking questions - problem not solved");
@@ -246,11 +263,13 @@ function checkAIConfirmation(
 
     // Medium confirmations (20 points)
     // "That's right!" or "That's correct!" are strong enough on their own
+    // Also check for "you've calculated" which indicates completion
     if (
       (content.includes("that's right") || content.includes("that is right")) ||
       (content.includes("that's correct") || content.includes("that is correct")) ||
       ((content.includes("correct") || content.includes("right")) &&
-       (content.includes("answer") || content.includes("solution") || content.includes("found")))
+       (content.includes("answer") || content.includes("solution") || content.includes("found"))) ||
+      (content.includes("you've calculated") || content.includes("you calculated"))
     ) {
       points += 20;
       reasons.push("AI confirmed answer/solution is correct");
