@@ -7,6 +7,7 @@ import { logger } from "@/lib/logger";
 import { getSupabaseAdmin } from "@/lib/supabase-admin";
 import { eventBus } from "@/lib/eventBus";
 import { initializeOrchestrator } from "@/services/orchestrator";
+import { getDailyProblem, markDailyProblemSolved } from "@/backend/services/dailyProblemService";
 
 // Ensure orchestrator is initialized (in case module load didn't trigger it)
 // TEMPORARILY DISABLED - causing 500 errors
@@ -697,65 +698,47 @@ async function handleStreamingResponse(
               const checkAndSaveDailyProblem = async () => {
                 try {
                   if (!session.problem) return; // Guard against undefined problem
-                  
+
                   const today = new Date().toISOString().split("T")[0]; // YYYY-MM-DD
                   const problemText = session.problem.text;
-                  
+
                   console.log("📅 Checking if solved problem matches Problem of the Day...", {
                     today,
                     problemTextPreview: problemText.substring(0, 50),
                     userId,
                   });
-                  
-                  // Use environment variables for API URL (server-side fetch)
-                  const baseUrl = process.env.NEXT_PUBLIC_SITE_URL || process.env.VERCEL_URL 
-                    ? `https://${process.env.VERCEL_URL}` 
-                    : "http://localhost:3002";
-                  
-                  // Check if today's daily problem matches the solved problem
-                  const checkResponse = await fetch(`${baseUrl}/api/daily-problem?action=getProblem&date=${today}`, {
-                    method: "GET",
-                    headers: { "Content-Type": "application/json" },
+
+                  // Use direct service call instead of fetch (avoids localhost issues)
+                  const dailyResult = await getDailyProblem(today);
+                  const dailyProblemText = dailyResult.problem?.problem?.text || "";
+
+                  console.log("📅 Daily problem fetched", {
+                    hasDailyProblem: !!dailyProblemText,
+                    dailyTextPreview: dailyProblemText.substring(0, 50),
+                    solvedTextPreview: problemText.substring(0, 50),
+                    match: dailyProblemText === problemText,
                   });
-                  
-                  if (checkResponse.ok) {
-                    const dailyData = await checkResponse.json();
-                    const dailyProblemText = dailyData?.problem?.problem?.text || "";
-                    
-                    console.log("📅 Daily problem fetched", {
-                      hasDailyProblem: !!dailyProblemText,
-                      dailyTextPreview: dailyProblemText.substring(0, 50),
-                      solvedTextPreview: problemText.substring(0, 50),
-                      match: dailyProblemText === problemText,
-                    });
-                    
-                    if (dailyProblemText && dailyProblemText === problemText) {
-                      console.log("✅ MATCH! Saving Problem of the Day completion...");
-                      
-                      // Save the completion
-                      const saveResponse = await fetch(`${baseUrl}/api/daily-problem`, {
-                        method: "POST",
-                        headers: { "Content-Type": "application/json" },
-                        body: JSON.stringify({
-                          action: "markSolved",
-                          date: today,
-                          userId,
-                          profileId: profileId || null,
-                          problemText: problemText,
-                        }),
-                      });
-                      
-                      if (saveResponse.ok) {
-                        console.log("✅ Problem of the Day completion saved successfully!");
-                        logger.info("Problem of the Day auto-saved on completion", { userId, date: today });
-                      } else {
-                        const errorData = await saveResponse.json();
-                        console.error("❌ Failed to save Problem of the Day completion:", errorData);
-                        logger.error("Failed to auto-save Problem of the Day", { error: errorData, userId, date: today });
-                      }
+
+                  if (dailyProblemText && dailyProblemText === problemText) {
+                    console.log("✅ MATCH! Saving Problem of the Day completion...");
+
+                    // Save the completion using direct service call
+                    const saveResult = await markDailyProblemSolved(
+                      userId!,
+                      today,
+                      problemText,
+                      profileId || null
+                    );
+
+                    if (saveResult.success) {
+                      console.log("✅ Problem of the Day completion saved successfully!");
+                      logger.info("Problem of the Day auto-saved on completion", { userId, date: today });
                     } else {
-                      console.log("ℹ️ Solved problem doesn't match today's Problem of the Day");
+                      console.error("❌ Failed to save Problem of the Day completion:", saveResult.error);
+                      logger.error("Failed to auto-save Problem of the Day", { error: saveResult.error, userId, date: today });
                     }
+                  } else {
+                    console.log("ℹ️ Solved problem doesn't match today's Problem of the Day");
                   }
                 } catch (error) {
                   console.error("❌ Error checking/saving Problem of the Day:", error);

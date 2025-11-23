@@ -27,6 +27,50 @@ export function useProblemHistory() {
   const [isLoading, setIsLoading] = useState(true);
   const [isSyncing, setIsSyncing] = useState(false);
 
+  // Migrate old localStorage problems with timestamp IDs to database
+  const migrateLocalStorageToDatabase = useCallback(async () => {
+    if (!user) return;
+
+    try {
+      const localData = JSON.parse(localStorage.getItem("aitutor-problem-history") || "[]");
+      const isUUID = (id: string) => /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(id);
+
+      // Find problems with timestamp IDs (not UUIDs) that need migration
+      const needsMigration = localData.filter((p: any) => p.id && !isUUID(p.id));
+
+      if (needsMigration.length === 0) return;
+
+      logger.info("Migrating old localStorage problems to database", { count: needsMigration.length });
+
+      for (const problem of needsMigration) {
+        try {
+          const problemData: ProblemData = {
+            text: problem.text,
+            type: problem.type || "unknown",
+            difficulty: problem.difficulty,
+            image_url: problem.imageUrl,
+            parsed_data: problem,
+            is_bookmarked: problem.isBookmarked || false,
+            is_generated: false,
+            source: "migration",
+          };
+
+          const profileIdForSave = userRole === "student" ? null : (activeProfile?.id || null);
+          await saveProblem(user.id, problemData, profileIdForSave);
+        } catch (error) {
+          logger.debug("Error migrating problem, may already exist", { text: problem.text?.substring(0, 50) });
+        }
+      }
+
+      logger.info("Migration complete, old problems synced to database");
+
+      // Clear old localStorage after successful migration - database is now source of truth
+      localStorage.setItem("aitutor-migration-complete", "true");
+    } catch (error) {
+      logger.error("Error migrating localStorage to database", { error });
+    }
+  }, [user?.id, userRole, activeProfile?.id]);
+
   // Load from database on mount or when user/profile changes
   // ✅ CORRECT PATTERN: Database-first with localStorage fallback
   // 1. Load database (source of truth)
@@ -135,8 +179,13 @@ export function useProblemHistory() {
         
         // STEP 3: Cache to localStorage (for offline support)
         localStorage.setItem("aitutor-problem-history", JSON.stringify(savedProblems));
-        
+
         setIsLoading(false);
+
+        // STEP 4: Migrate old localStorage problems in background (only once)
+        if (!localStorage.getItem("aitutor-migration-complete")) {
+          migrateLocalStorageToDatabase();
+        }
       } catch (error) {
         logger.error("Error loading problem history from database", { error });
         
@@ -220,7 +269,10 @@ export function useProblemHistory() {
     });
 
     // Update database if authenticated (in background)
-    if (user) {
+    // Only update if problemId looks like a UUID (not a timestamp)
+    const isUUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(problemId);
+
+    if (user && isUUID) {
       try {
         setIsSyncing(true);
         await updateProblem(user.id, problemId, { is_bookmarked: isBookmarked });
@@ -235,6 +287,8 @@ export function useProblemHistory() {
       } finally {
         setIsSyncing(false);
       }
+    } else if (user && !isUUID) {
+      logger.debug("Problem ID is not a UUID, bookmark saved to localStorage only", { problemId });
     }
   }, [user?.id]);
 

@@ -39,6 +39,30 @@ export default function ProblemOfTheDay({
     return today.toISOString().split("T")[0];
   };
 
+  // Helper to save fallback problem to database so completion tracking works
+  const saveFallbackToDatabase = async (fallbackProblem: DailyProblem) => {
+    try {
+      console.log("[ProblemOfTheDay] Saving fallback problem to database...");
+      const response = await fetch("/api/v2/daily-problem", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          date: fallbackProblem.date,
+          problem: fallbackProblem.problem,
+          difficulty: fallbackProblem.difficulty,
+          topic: fallbackProblem.topic,
+        }),
+      });
+      if (response.ok) {
+        console.log("[ProblemOfTheDay] ✅ Fallback problem saved to database");
+      } else {
+        console.error("[ProblemOfTheDay] Failed to save fallback:", await response.text());
+      }
+    } catch (error) {
+      console.error("[ProblemOfTheDay] Error saving fallback to database:", error);
+    }
+  };
+
   // Load from cache IMMEDIATELY (synchronously) on initial render
   const today = getTodayDate();
   const cacheKey = `daily-problem-${today}`;
@@ -208,6 +232,7 @@ export default function ProblemOfTheDay({
           solved: false,
         };
         setDailyProblem(fallbackProblem);
+        saveFallbackToDatabase(fallbackProblem);
       } catch (error) {
         console.error("[ProblemOfTheDay] Error loading daily problem from database:", error);
         setIsLoading(false); // Clear loading on error
@@ -239,6 +264,7 @@ export default function ProblemOfTheDay({
                   solved: false,
                 };
                 setDailyProblem(fallbackProblem);
+                saveFallbackToDatabase(fallbackProblem);
               }
             }
           } else {
@@ -260,6 +286,7 @@ export default function ProblemOfTheDay({
                 solved: false,
               };
               setDailyProblem(fallbackProblem);
+              saveFallbackToDatabase(fallbackProblem);
             }
           }
         } catch (e) {
@@ -278,6 +305,7 @@ export default function ProblemOfTheDay({
             solved: false,
           };
           setDailyProblem(fallbackProblem);
+          saveFallbackToDatabase(fallbackProblem);
         }
       }
     };
@@ -432,13 +460,40 @@ export default function ProblemOfTheDay({
           } catch (e) {
             // Ignore cache errors
           }
-        } else if (solved && !problemMatches) {
-          console.log("[ProblemOfTheDay] ⚠️ Completion found but problem text doesn't match - ignoring", {
+        } else if (solved && savedProblemText) {
+          // User solved a different problem than what's currently displayed (e.g., fallback vs generated)
+          // Update the displayed problem to match what was actually solved
+          console.log("[ProblemOfTheDay] ✅ Completion found with different problem text - updating display", {
             saved: savedProblemText?.substring(0, 50),
             current: currentProblemText?.substring(0, 50),
           });
-          // Explicitly set as NOT solved
-          setIsSolved(false);
+          setIsSolved(true);
+          setDailyProblem((prev) => prev ? {
+            ...prev,
+            problem: {
+              ...prev.problem,
+              text: savedProblemText,
+            },
+            solved: true,
+            solvedAt: new Date().toISOString(),
+          } : prev);
+
+          // Update cache with the correct problem text
+          try {
+            const cacheKey = `daily-problem-${today}`;
+            const updated = {
+              ...dailyProblem,
+              problem: {
+                ...dailyProblem.problem,
+                text: savedProblemText,
+              },
+              solved: true,
+              solvedAt: new Date().toISOString(),
+            };
+            localStorage.setItem(cacheKey, JSON.stringify(updated));
+          } catch (e) {
+            // Ignore cache errors
+          }
         } else {
           // No completion found
           console.log("[ProblemOfTheDay] ❌ No completion found");

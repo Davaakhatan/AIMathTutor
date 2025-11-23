@@ -30,7 +30,7 @@ type ViewMode = "all" | "solved" | "bookmarked";
  * History Content - Problem history and bookmarks
  */
 export default function HistoryContent({ onSelectProblem }: HistoryContentProps) {
-  const { problems: savedProblems, toggleBookmark } = useProblemHistory();
+  const { problems: savedProblems, toggleBookmark, removeProblem } = useProblemHistory();
   const { user, activeProfile, userRole } = useAuth();
   
   // Get bookmarks from problems (filtered by isBookmarked flag)
@@ -179,15 +179,7 @@ export default function HistoryContent({ onSelectProblem }: HistoryContentProps)
     });
 
   const handleDelete = (id: string) => {
-    // Note: Deleting from history - this would need to be implemented in the hook
-    // For now, just update localStorage (hook will handle DB sync when implemented)
-    try {
-      const history = JSON.parse(localStorage.getItem("aitutor-problem-history") || "[]");
-      const updated = history.filter((p: any) => p.id !== id);
-      localStorage.setItem("aitutor-problem-history", JSON.stringify(updated));
-    } catch (error) {
-      console.error("Error deleting problem from history", error);
-    }
+    removeProblem(id);
   };
 
   const handleToggleBookmark = (problem: SavedProblem | BookmarkedProblem, e: React.MouseEvent) => {
@@ -374,11 +366,11 @@ export default function HistoryContent({ onSelectProblem }: HistoryContentProps)
                           savedProblems.filter(p => p.isBookmarked).forEach(p => {
                             if (p.id) toggleBookmark(p.id, false);
                           });
-                          localStorage.setItem("aitutor-bookmarks", JSON.stringify([]));
                         } else {
-                          // Clear all history
-                          localStorage.setItem("aitutor-problem-history", JSON.stringify([]));
-                          localStorage.setItem("aitutor-bookmarks", JSON.stringify([]));
+                          // Clear all history by removing each problem
+                          savedProblems.forEach(p => {
+                            if (p.id) removeProblem(p.id);
+                          });
                         }
                       } catch (error) {
                         console.error("Error clearing history/bookmarks", error);

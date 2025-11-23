@@ -83,13 +83,16 @@ export default function BookmarkButton({ problem }: BookmarkButtonProps) {
         try {
           // Find problem ID in history
           const problemInHistory = problemHistory.find((p: any) => p.text === problem.text);
-          if (problemInHistory?.id) {
+          // Only update database if we have a valid UUID (not a timestamp ID)
+          const isUUID = problemInHistory?.id && /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(problemInHistory.id);
+
+          if (isUUID) {
             await updateProblem(user.id, problemInHistory.id, {
               is_bookmarked: newBookmarkState,
             });
           } else {
-            // Problem not in database yet, but that's okay - it will be saved when problem is solved
-            logger.debug("Problem not found in database for bookmark update", { problemText: problem.text });
+            // Problem not in database yet or has timestamp ID - localStorage only
+            logger.debug("Problem not found in database or has non-UUID ID", { problemText: problem.text, id: problemInHistory?.id });
           }
         } catch (error) {
           logger.error("Error updating bookmark in database", { error });

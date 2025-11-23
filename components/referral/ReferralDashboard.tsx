@@ -44,7 +44,7 @@ export default function ReferralDashboard() {
       setLoading(true);
 
       // Get stats via API route - this is the critical path, show immediately
-      const statsResponse = await fetch(`/api/referral/stats?userId=${user.id}`);
+      const statsResponse = await fetch(`/api/v2/referral?userId=${user.id}`);
       
       if (statsResponse.ok) {
         const statsData = await statsResponse.json();

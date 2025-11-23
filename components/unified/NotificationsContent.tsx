@@ -1,7 +1,7 @@
 "use client";
 
-import { useState, useEffect } from "react";
-import { useLocalStorage } from "@/hooks/useLocalStorage";
+import { useState, useEffect, useCallback } from "react";
+import { useAuth } from "@/contexts/AuthContext";
 
 interface Notification {
   id: string;
@@ -16,14 +16,60 @@ interface Notification {
  * Notifications Content - Just the notifications list (no panel wrapper)
  */
 export default function NotificationsContent() {
-  const [notifications, setNotifications] = useLocalStorage<Notification[]>(
-    "aitutor-notifications",
-    []
-  );
+  const { user } = useAuth();
+  const [notifications, setNotifications] = useState<Notification[]>([]);
+  const [isLoading, setIsLoading] = useState(false);
+
+  // Load notifications from API
+  const loadNotifications = useCallback(async () => {
+    if (!user) {
+      // Guest mode - use localStorage
+      try {
+        const localData = localStorage.getItem("aitutor-notifications");
+        if (localData) {
+          setNotifications(JSON.parse(localData));
+        }
+      } catch (e) {
+        console.error("Error loading notifications from localStorage", e);
+      }
+      return;
+    }
+
+    setIsLoading(true);
+    try {
+      const response = await fetch(`/api/v2/notifications?userId=${user.id}&limit=50`);
+      if (response.ok) {
+        const result = await response.json();
+        if (result.success && result.notifications) {
+          setNotifications(result.notifications);
+          // Also cache to localStorage
+          localStorage.setItem("aitutor-notifications", JSON.stringify(result.notifications));
+        }
+      }
+    } catch (error) {
+      console.error("Error loading notifications from API", error);
+      // Fallback to localStorage
+      try {
+        const localData = localStorage.getItem("aitutor-notifications");
+        if (localData) {
+          setNotifications(JSON.parse(localData));
+        }
+      } catch (e) {
+        console.error("Error loading notifications from localStorage", e);
+      }
+    } finally {
+      setIsLoading(false);
+    }
+  }, [user]);
+
+  // Load on mount and when user changes
+  useEffect(() => {
+    loadNotifications();
+  }, [loadNotifications]);
 
   // Listen for achievement events
   useEffect(() => {
-    const handleAchievement = (e: Event) => {
+    const handleAchievement = async (e: Event) => {
       const customEvent = e as CustomEvent;
       const newNotification: Notification = {
         id: Date.now().toString(),
@@ -33,26 +79,126 @@ export default function NotificationsContent() {
         timestamp: Date.now(),
         read: false,
       };
+
+      // Update local state immediately
       setNotifications((prev) => [newNotification, ...prev].slice(0, 50));
+
+      // Save to localStorage for immediate persistence
+      try {
+        const updated = [newNotification, ...notifications].slice(0, 50);
+        localStorage.setItem("aitutor-notifications", JSON.stringify(updated));
+      } catch (e) {
+        console.error("Error saving notification to localStorage", e);
+      }
+
+      // Save to database if logged in
+      if (user) {
+        try {
+          await fetch("/api/v2/notifications", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+              userId: user.id,
+              type: newNotification.type,
+              title: newNotification.title,
+              message: newNotification.message,
+            }),
+          });
+        } catch (error) {
+          console.error("Error saving notification to database", error);
+        }
+      }
     };
 
     window.addEventListener("achievementUnlocked", handleAchievement);
     return () => window.removeEventListener("achievementUnlocked", handleAchievement);
-  }, [setNotifications]);
+  }, [user, notifications]);
 
-  const markAsRead = (id: string) => {
+  const markAsRead = async (id: string) => {
     setNotifications((prev) =>
       prev.map((n) => (n.id === id ? { ...n, read: true } : n))
     );
+
+    // Update localStorage
+    try {
+      const updated = notifications.map((n) => (n.id === id ? { ...n, read: true } : n));
+      localStorage.setItem("aitutor-notifications", JSON.stringify(updated));
+    } catch (e) {
+      console.error("Error updating localStorage", e);
+    }
+
+    // Update database if logged in
+    if (user) {
+      try {
+        await fetch("/api/v2/notifications", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            userId: user.id,
+            action: "markRead",
+            notificationId: id,
+          }),
+        });
+      } catch (error) {
+        console.error("Error marking notification as read in database", error);
+      }
+    }
   };
 
-  const markAllAsRead = () => {
+  const markAllAsRead = async () => {
     setNotifications((prev) => prev.map((n) => ({ ...n, read: true })));
+
+    // Update localStorage
+    try {
+      const updated = notifications.map((n) => ({ ...n, read: true }));
+      localStorage.setItem("aitutor-notifications", JSON.stringify(updated));
+    } catch (e) {
+      console.error("Error updating localStorage", e);
+    }
+
+    // Update database if logged in
+    if (user) {
+      try {
+        await fetch("/api/v2/notifications", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            userId: user.id,
+            action: "markAllRead",
+          }),
+        });
+      } catch (error) {
+        console.error("Error marking all notifications as read in database", error);
+      }
+    }
   };
 
-  const clearAll = () => {
+  const clearAll = async () => {
     if (confirm("Clear all notifications?")) {
       setNotifications([]);
+
+      // Clear localStorage
+      try {
+        localStorage.setItem("aitutor-notifications", JSON.stringify([]));
+      } catch (e) {
+        console.error("Error clearing localStorage", e);
+      }
+
+      // Clear database if logged in
+      if (user) {
+        try {
+          await fetch("/api/v2/notifications", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+              userId: user.id,
+              action: "clearAll",
+            }),
+          });
+        } catch (error) {
+          console.error("Error clearing notifications in database", error);
+        }
+      }
     }
   };
 

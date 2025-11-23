@@ -819,7 +819,7 @@ export async function updateProblem(userId: string, problemId: string, updates: 
       const controller = new AbortController();
       const timeoutId = setTimeout(() => controller.abort(), 10000); // 10 second timeout
       
-      const response = await fetch("/api/problems/update", {
+      const response = await fetch("/api/v2/problems/update", {
         method: "PATCH",
         headers: {
           "Content-Type": "application/json",
